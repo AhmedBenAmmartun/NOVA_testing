@@ -78,23 +78,16 @@ in `.env` (redirect `http://127.0.0.1:8888/callback`; playback needs Premium):
 - [ ] Verify `play_spotify_song` end-to-end
 - [ ] Play playlist / album; queue song
 
-## Phase 5 — Custom NOVA website ✅ v1 DONE 2026-07-09
+## Phase 5 — Custom NOVA website (parked)
 
-Next.js app in `website/` (pnpm). Passcode gate → token route
-(`/api/token` reads the agent `.env` and dispatches worker `my-agent`) →
-live room with status orb, live transcript, mic/camera/speaker controls,
-and a tool-activity panel. Verified end-to-end in the browser: NOVA joined
-and its spoken greeting appeared as a transcript bubble.
+A working v1 was built and verified 2026-07-09 (passcode gate, token route
+dispatching `my-agent`, orb + live transcript + controls + tool panel),
+then removed the same day — Ahmed didn't want it yet. The complete code is
+preserved in git commit `fea9a3f`; restore anytime with:
+`git checkout fea9a3f -- website` (then `pnpm -C website install`).
 
-Run: `pnpm -C website dev` → http://localhost:3000 (agent must be running:
-`venv\Scripts\python.exe agent.py dev`). Access code = `NOVA_SITE_PASSCODE`
-in `.env`. Demo view with sample data: http://localhost:3000/?demo=1
-
-Remaining:
-- [ ] Agent-side tool events — publish tool calls to the `nova.tools` data
-      topic from tools.py so the website's tool panel fills in live
-- [ ] Settings panel + voice selector
-- [ ] Deploy to Vercel so the phone works away from home Wi-Fi
+When revisited, remaining work was: agent-side `nova.tools` events for the
+tool panel, settings panel, Vercel deploy for phone access.
 
 ## Phase 6 — Standby / always-on
 
