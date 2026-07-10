@@ -1,0 +1,13 @@
+# secrets — never commit
+.env
+.env.local
+.spotify_cache
+
+# environment / caches
+venv/
+__pycache__/
+
+# personal data & logs
+notes.txt
+nova_tools.log
+*.log
