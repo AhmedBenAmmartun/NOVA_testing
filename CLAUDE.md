@@ -31,6 +31,9 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv)
 .env                secrets: LIVEKIT_URL/API_KEY/API_SECRET, GOOGLE_API_KEY;
                     SPOTIFY_CLIENT_ID/SECRET go here when created
 .claude/skills/run-ai-agent/   run skill + driver.py test harness
+website/            Next.js web console (pnpm): passcode gate, token route
+                    (/api/token, reads ../.env), LiveKit client UI —
+                    orb, transcript, controls, tool panel; /?demo=1 = sample data
 ```
 
 ## Run & test (all verified)
@@ -43,6 +46,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 & ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
 & ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
 & ".\venv\Scripts\python.exe" agent.py console                                        # human path: live voice chat
+pnpm -C website dev   # web console at http://localhost:3000; run agent.py dev alongside for live sessions
 ```
 
 After ANY change to `prompts.py`, `tools.py`, or `agent.py`, run `tools` +
