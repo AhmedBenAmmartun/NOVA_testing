@@ -367,12 +367,13 @@ async def play_spotify_song(context: RunContext, song_name: str) -> str:
     if client is None:
         return _SPOTIFY_NOT_CONFIGURED
     try:
-        results = client.search(q=song_name, type="track", limit=1)
+        # spotipy calls are typed Optional - "or {}" guards the None case
+        results = client.search(q=song_name, type="track", limit=1) or {}
         items = results.get("tracks", {}).get("items", [])
         if not items:
             return f"I couldn't find '{song_name}' on Spotify."
         track = items[0]
-        devices = client.devices().get("devices", [])
+        devices = (client.devices() or {}).get("devices", [])
         if not devices:
             return "No Spotify device is active. Open Spotify first, then ask me again."
         client.start_playback(device_id=devices[0]["id"], uris=[track["uri"]])
