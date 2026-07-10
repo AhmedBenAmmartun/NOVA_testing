@@ -64,19 +64,19 @@ Keep one tool = one small function with error handling. Update the driver's
 - [ ] Focus / minimize / maximize windows
 - [ ] All destructive actions ask Ahmed first
 
-## Phase 4 — Spotify / media
+## Phase 4 — Spotify / media ✅ core DONE 2026-07-09
 
-Already done (no setup needed): pause/resume/next/previous (`control_music`),
-volume (`change_volume`), current track (`get_current_song`), open/check
-Spotify (`open_app`/`is_app_running`), and `play_spotify_song` is coded.
+Verified end-to-end: Spotify API credentials in `.env`, OAuth login cached
+(`.spotify_cache`), `play_spotify_song` opened Spotify, started a real
+track on this laptop, `get_current_song` read it back, media keys paused.
+Media-key controls + volume + current-song work with no API at all.
+Fixed `is_app_running` to exact process-name matching (the SpotifyLauncher
+background stub was being counted as the real app).
 
-Remaining — needs Ahmed to create a (free) Spotify Developer app at
-developer.spotify.com and put `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET`
-in `.env` (redirect `http://127.0.0.1:8888/callback`; playback needs Premium):
-
-- [ ] First-run OAuth login (browser opens once, token cached)
-- [ ] Verify `play_spotify_song` end-to-end
+Remaining (later):
 - [ ] Play playlist / album; queue song
+- [ ] Search accuracy: test query for one song returned a different track —
+      consider `market="from_token"` or smarter query building
 
 ## Phase 5 — Custom NOVA website (parked)
 

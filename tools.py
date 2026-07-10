@@ -268,13 +268,28 @@ async def open_app(context: RunContext, app_name: str) -> str:
         return f"Error opening app: {e}"
 
 
+# Friendly names -> actual process names (without .exe)
+_PROCESS_ALIASES = {
+    "google": "chrome",
+    "vs code": "code",
+    "vscode": "code",
+    "edge": "msedge",
+    "calculator": "calculatorapp",
+    "file explorer": "explorer",
+}
+
+
 @function_tool()
 async def is_app_running(context: RunContext, app_name: str) -> str:
     """Check whether an app (by name, e.g. 'spotify') is currently running."""
     try:
-        needle = app_name.lower().strip().replace(" ", "")
+        needle = app_name.lower().strip()
+        # Exact process-name match: substring matching wrongly counted helper
+        # stubs like SpotifyLauncher as the real app.
+        target = _PROCESS_ALIASES.get(needle, needle).replace(" ", "")
         running = any(
-            needle in (p.info["name"] or "").lower() for p in psutil.process_iter(["name"])
+            (p.info["name"] or "").lower().removesuffix(".exe") == target
+            for p in psutil.process_iter(["name"])
         )
         return f"Yes, {app_name} is running." if running else f"No, {app_name} is not running."
     except Exception as e:

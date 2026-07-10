@@ -37,6 +37,10 @@ import os
 
 os.chdir(PROJECT_ROOT)  # agent.py loads .env relative to CWD
 
+from dotenv import load_dotenv
+
+load_dotenv(PROJECT_ROOT / ".env")  # tools read keys (e.g. Spotify) from env
+
 
 def check_tools() -> int:
     """Directly invoke local tools plus the security guards (no LLM needed)."""
