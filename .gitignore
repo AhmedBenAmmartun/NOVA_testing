@@ -1,13 +1,45 @@
-# secrets — never commit
+# Secrets
 .env
-.env.local
+.env.*
+!.env.example
 .spotify_cache
+.spotify_cach*
+credentials.json
+token.json
+*.pem
+*.key
 
-# environment / caches
+# Python
 venv/
+.venv/
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# personal data & logs
-notes.txt
+# Runtime files
 nova_tools.log
 *.log
+screenshots/
+notes.txt
+
+# Accidental personal folders
+Desktop/
+OneDrive/
+Documents/
+Downloads/
+Pictures/
+Music/
+Videos/
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build files
+build/
+dist/
+*.egg-info/
