@@ -1,3 +1,6 @@
+from .vision import capture_screen
+from .models import ask_groq
+
 from .desktop import (
     close_app,
     is_app_running,
@@ -29,7 +32,6 @@ from .media import (
     play_youtube_song,
 )
 
-from .vision import capture_screen
 
 
 __all__ = [
@@ -53,4 +55,6 @@ __all__ = [
     "capture_screen",
     "close_app",
     "restart_app",
+    "ask_groq",
 ]
+
