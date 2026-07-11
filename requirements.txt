@@ -10,3 +10,5 @@ spotipy
 psutil
 requests
 python-dotenv
+
+livekit-plugins-groq
