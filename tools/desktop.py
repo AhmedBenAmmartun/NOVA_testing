@@ -1,5 +1,8 @@
+import ctypes
 import subprocess
+import time
 import webbrowser
+from ctypes import wintypes
 
 import psutil
 from livekit.agents import RunContext, function_tool
@@ -21,6 +24,18 @@ APP_WHITELIST = {
     "powershell": "powershell",
     "explorer": "explorer",
     "file explorer": "explorer",
+    "task manager": "taskmgr",
+    "settings": "ms-settings:",
+    "windows settings": "ms-settings:",
+    "word": "winword",
+    "excel": "excel",
+    "powerpoint": "powerpnt",
+    "outlook": "outlook",
+    "teams": "ms-teams:",
+    "obsidian": "obsidian",
+    "paint": "mspaint",
+    "snipping tool": "snippingtool",
+    "terminal": "wt",
 }
 
 
@@ -32,7 +47,107 @@ PROCESS_ALIASES = {
     "edge": "msedge",
     "calculator": "calculatorapp",
     "file explorer": "explorer",
+    "task manager": "taskmgr",
+    "word": "winword",
+    "powerpoint": "powerpnt",
+    "terminal": "windows terminal",
 }
+
+
+SW_HIDE = 0
+SW_SHOWNORMAL = 1
+SW_SHOWMINIMIZED = 2
+SW_SHOWMAXIMIZED = 3
+SW_MINIMIZE = 6
+SW_RESTORE = 9
+
+VK_CONTROL = 0x11
+VK_LWIN = 0x5B
+VK_MENU = 0x12
+VK_TAB = 0x09
+VK_A = 0x41
+VK_D = 0x44
+VK_N = 0x4E
+VK_LEFT = 0x25
+VK_RIGHT = 0x27
+VK_UP = 0x26
+VK_DOWN = 0x28
+KEYEVENTF_KEYUP = 0x0002
+
+user32 = ctypes.windll.user32
+
+
+def _press_key(vk_code: int, *, key_up: bool = False) -> None:
+    flags = KEYEVENTF_KEYUP if key_up else 0
+    user32.keybd_event(vk_code, 0, flags, 0)
+
+
+def _press_combo(*keys: int) -> None:
+    for key in keys:
+        _press_key(key)
+        time.sleep(0.02)
+
+    for key in reversed(keys):
+        _press_key(key, key_up=True)
+        time.sleep(0.02)
+
+
+def _window_text(hwnd: int) -> str:
+    length = user32.GetWindowTextLengthW(hwnd)
+    if length <= 0:
+        return ""
+
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buffer, length + 1)
+    return buffer.value
+
+
+def _window_process_name(hwnd: int) -> str:
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+
+    try:
+        return psutil.Process(pid.value).name().lower()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return ""
+
+
+def _foreground_window() -> int | None:
+    hwnd = user32.GetForegroundWindow()
+    return hwnd or None
+
+
+def _find_window(query: str) -> int | None:
+    cleaned_query = query.lower().strip()
+    if cleaned_query in {"", "active", "current", "current window", "focused"}:
+        return _foreground_window()
+
+    alias = PROCESS_ALIASES.get(cleaned_query, cleaned_query).replace(" ", "")
+    matches: list[int] = []
+
+    enum_proc_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def _callback(hwnd: int, _lparam: int) -> bool:
+        if not user32.IsWindowVisible(hwnd):
+            return True
+
+        title = _window_text(hwnd).lower()
+        process_name = _window_process_name(hwnd).removesuffix(".exe").replace(" ", "")
+
+        if cleaned_query in title or alias == process_name or alias in process_name:
+            matches.append(hwnd)
+            return False
+
+        return True
+
+    user32.EnumWindows(enum_proc_type(_callback), 0)
+    return matches[0] if matches else None
+
+
+def _focus_window(hwnd: int) -> None:
+    user32.ShowWindow(hwnd, SW_RESTORE)
+    user32.SetForegroundWindow(hwnd)
+    time.sleep(0.12)
 
 
 @function_tool()
@@ -209,3 +324,125 @@ async def restart_app(
         return close_result
 
     return await open_app(context, app_name)
+
+
+@function_tool()
+async def control_window(
+    context: RunContext,
+    window_name: str,
+    action: str,
+) -> str:
+    """Focus, minimize, maximize, restore, or snap a visible window."""
+    cleaned_action = action.lower().strip().replace(" ", "_")
+    valid_actions = {
+        "focus",
+        "minimize",
+        "maximize",
+        "restore",
+        "snap_left",
+        "snap_right",
+        "snap_up",
+        "snap_down",
+    }
+
+    if cleaned_action not in valid_actions:
+        return (
+            "Unknown window action. Use focus, minimize, maximize, restore, "
+            "snap_left, snap_right, snap_up, or snap_down."
+        )
+
+    try:
+        hwnd = _find_window(window_name)
+        if hwnd is None:
+            return f"I could not find a visible window matching {window_name}."
+
+        if cleaned_action == "focus":
+            _focus_window(hwnd)
+        elif cleaned_action == "minimize":
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+        elif cleaned_action == "maximize":
+            user32.ShowWindow(hwnd, SW_SHOWMAXIMIZED)
+        elif cleaned_action == "restore":
+            user32.ShowWindow(hwnd, SW_RESTORE)
+        else:
+            _focus_window(hwnd)
+            key = {
+                "snap_left": VK_LEFT,
+                "snap_right": VK_RIGHT,
+                "snap_up": VK_UP,
+                "snap_down": VK_DOWN,
+            }[cleaned_action]
+            _press_combo(VK_LWIN, key)
+
+        logger.info(
+            "control_window: %s action=%s",
+            window_name,
+            cleaned_action,
+        )
+        return f"Window action completed: {cleaned_action}."
+
+    except Exception:
+        logger.exception("control_window failed")
+        return "I could not control that window."
+
+
+@function_tool()
+async def open_notifications(context: RunContext) -> str:
+    """Open the Windows notifications panel."""
+    try:
+        _press_combo(VK_LWIN, VK_N)
+        logger.info("open_notifications")
+        return "Opened notifications."
+
+    except Exception:
+        logger.exception("open_notifications failed")
+        return "I could not open notifications."
+
+
+@function_tool()
+async def open_quick_settings(context: RunContext) -> str:
+    """Open Windows quick settings."""
+    try:
+        _press_combo(VK_LWIN, VK_A)
+        logger.info("open_quick_settings")
+        return "Opened quick settings."
+
+    except Exception:
+        logger.exception("open_quick_settings failed")
+        return "I could not open quick settings."
+
+
+@function_tool()
+async def manage_virtual_desktop(
+    context: RunContext,
+    action: str,
+) -> str:
+    """Create, switch, or view Windows virtual desktops."""
+    cleaned_action = action.lower().strip().replace(" ", "_")
+    combos = {
+        "new": (VK_LWIN, VK_CONTROL, VK_D),
+        "create": (VK_LWIN, VK_CONTROL, VK_D),
+        "next": (VK_LWIN, VK_CONTROL, VK_RIGHT),
+        "right": (VK_LWIN, VK_CONTROL, VK_RIGHT),
+        "previous": (VK_LWIN, VK_CONTROL, VK_LEFT),
+        "prev": (VK_LWIN, VK_CONTROL, VK_LEFT),
+        "left": (VK_LWIN, VK_CONTROL, VK_LEFT),
+        "task_view": (VK_LWIN, VK_TAB),
+        "show_desktop": (VK_LWIN, VK_D),
+    }
+
+    combo = combos.get(cleaned_action)
+    if combo is None:
+        return (
+            "Unknown virtual desktop action. Use new, next, previous, "
+            "task_view, or show_desktop."
+        )
+
+    try:
+        _press_combo(*combo)
+        logger.info("manage_virtual_desktop: %s", cleaned_action)
+        return f"Virtual desktop action completed: {cleaned_action}."
+
+    except Exception:
+        logger.exception("manage_virtual_desktop failed")
+        return "I could not manage the virtual desktop."

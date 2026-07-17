@@ -6,9 +6,11 @@ livekit-plugins-noise-cancellation
 livekit-plugins-ai-coustics
 
 duckduckgo-search
+openai
 spotipy
 psutil
 requests
 python-dotenv
-
-livekit-plugins-groq
+pypdf
+Pillow
+pystray

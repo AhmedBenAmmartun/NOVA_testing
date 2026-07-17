@@ -1,4 +1,4 @@
-# CLAUDE.md — NOVA (LiveKit)
+# AGENTS.md — NOVA (LiveKit)
 
 _Last updated: 2026-07-17_
 
@@ -45,12 +45,20 @@ Dashboard/          Native desktop skin (`desktop_widget.py`,
                     `start_desktop_widget.ps1`) plus React/Vite command
                     center prototype. The desktop surface must remain
                     browser-free unless Ahmed explicitly asks otherwise.
+CODEX_PROMPTS.md    the task board + ready-to-run prompts. When Ahmed says
+                    "do prompt N", read that file, execute exactly that
+                    prompt, check it off on the task board, then follow
+                    "After EVERY completed task" below.
+references/         gitignored clones for studying working patterns:
+                    python-agents-examples (LiveKit agent patterns),
+                    openai-python (Responses API examples). Read, never
+                    copy blindly, never import from here.
 requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     powers course-material PDF extraction)
 .env                secrets: LIVEKIT_URL/API_KEY/API_SECRET, GOOGLE_API_KEY,
                     OPENAI_API_KEY, SPOTIFY_CLIENT_ID/SECRET, GROQ_API_KEY,
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
-.claude/skills/run-ai-agent/   run skill + driver.py test harness
+.agents/skills/run-ai-agent/  run skill + driver.py test harness
 ```
 
 ## Run & test (all verified)
@@ -58,10 +66,10 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
 ```powershell
 # from the project root
 $env:PYTHONIOENCODING = 'utf-8'
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" tools           # local tools, no keys
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" chat "..."      # full agent turn, text
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" tools           # local tools, no keys
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "..."      # full agent turn, text
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
 & ".\venv\Scripts\python.exe" agent.py console                                        # human path: live voice chat
 & ".\venv\Scripts\python.exe" -m unittest Dashboard.test_desktop_skin                  # desktop skin state/command tests
 & ".\venv\Scripts\python.exe" ".\Dashboard\desktop_widget.py" --self-test             # desktop widget status read
@@ -70,7 +78,7 @@ Set-Location ".\Dashboard"; pnpm run typecheck; pnpm run build                  
 
 After ANY change to `prompts.py`, `tools/`, or `agent.py`, run `tools` +
 one `chat` before calling it done. Never claim something works untested.
-See `.claude/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
+See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
 
 ## After EVERY completed task (mandatory — do not skip)
 

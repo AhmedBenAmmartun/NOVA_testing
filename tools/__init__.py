@@ -1,17 +1,28 @@
-from .vision import capture_screen
-from .models import ask_groq
+from .vision import analyze_screen_with_gpt56, capture_screen
+from .models import ask_gpt56, ask_groq, ask_ollama
+from .obsidian import read_memory_note, save_memory_note, search_memory
+from .conversations import read_conversation_history, search_conversation_history
 
 from .desktop import (
     close_app,
+    control_window,
     is_app_running,
+    manage_virtual_desktop,
     open_app,
+    open_notifications,
+    open_quick_settings,
     open_website,
     restart_app,
 )
 
 from .files import (
+    create_desktop_file,
+    create_desktop_folder,
     create_file,
+    find_user_file,
     list_files,
+    open_file_or_folder,
+    read_course_material,
     read_file,
     read_notes,
     save_note,
@@ -40,6 +51,10 @@ __all__ = [
     "open_website",
     "open_app",
     "is_app_running",
+    "control_window",
+    "open_notifications",
+    "open_quick_settings",
+    "manage_virtual_desktop",
     "play_youtube_song",
     "control_music",
     "change_volume",
@@ -50,11 +65,24 @@ __all__ = [
     "save_note",
     "read_notes",
     "list_files",
+    "find_user_file",
+    "open_file_or_folder",
+    "create_desktop_file",
+    "create_desktop_folder",
+    "read_course_material",
     "read_file",
     "create_file",
     "capture_screen",
+    "analyze_screen_with_gpt56",
     "close_app",
     "restart_app",
     "ask_groq",
+    "ask_ollama",
+    "ask_gpt56",
+    "search_memory",
+    "read_memory_note",
+    "save_memory_note",
+    "search_conversation_history",
+    "read_conversation_history",
 ]
 

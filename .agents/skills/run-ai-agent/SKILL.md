@@ -9,7 +9,7 @@ LiveKit Agents app (`agent.py`): the NOVA persona on Google's Gemini Live
 realtime model with local function tools plus opt-in GPT-5.6 reasoning and
 confirmed screen analysis.
 It is driven programmatically via
-`.claude/skills/run-ai-agent/driver.py`, which runs the agent's brain
+`.agents/skills/run-ai-agent/driver.py`, which runs the agent's brain
 (same Assistant, same tools) on the **text** Gemini model without needing a
 mic, speakers, or a LiveKit room. All paths below are relative to the
 project root (`AI Agent/`).
@@ -33,18 +33,18 @@ Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
 $env:PYTHONIOENCODING = 'utf-8'
 
 # 1. Local tools directly, no API keys or network (get_time, system info, notes, files)
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" tools
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" tools
 
 # 2. One full agent turn: real Assistant + its tools on text Gemini.
 #    Prints [tool call] / [tool output] lines and the final "NOVA:" reply.
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" chat "What time is it right now?"
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "What time is it right now?"
 
 # 3. Launch the REAL app in console mode, wait for the Gemini Live greeting, kill it.
 #    NOVA speaks ALOUD through the laptop speakers for a few seconds - expected.
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" console-check
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" console-check
 
 # 4. Launch dev mode, wait for "registered worker" (validates LiveKit Cloud creds), kill it.
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" dev-check
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" dev-check
 ```
 
 All four exit 0 on success. Use `chat` to verify any change to

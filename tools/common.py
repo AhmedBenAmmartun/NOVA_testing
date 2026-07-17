@@ -10,6 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 NOTES_PATH = PROJECT_ROOT / "notes.txt"
 LOG_PATH = PROJECT_ROOT / "nova_tools.log"
+COURSE_MATERIALS_PATH = PROJECT_ROOT / "course_materials"
+CONVERSATION_LOGS_PATH = PROJECT_ROOT / "conversation_logs"
 
 
 # ---------------------------------------------------------
@@ -33,6 +35,11 @@ if not logger.handlers:
 # ---------------------------------------------------------
 
 _HOME = Path.home()
+DEFAULT_DESKTOP_PATH = (
+    _HOME / "OneDrive" / "Desktop"
+    if (_HOME / "OneDrive" / "Desktop").exists()
+    else _HOME / "Desktop"
+)
 
 SAFE_DIRS = [PROJECT_ROOT] + [
     base / sub
@@ -52,6 +59,16 @@ SANDBOX_DENIED = (
     "Access denied: that path is outside NOVA's approved folders "
     "(Desktop, Documents, Downloads, Pictures, Music, Videos, "
     "and the NOVA project)."
+)
+
+COURSE_MATERIALS_DENIED = (
+    "Access denied: course materials must be inside NOVA's "
+    "course_materials folder."
+)
+
+CONVERSATION_LOGS_DENIED = (
+    "Access denied: conversation logs must be inside NOVA's "
+    "conversation_logs folder."
 )
 
 
@@ -75,6 +92,64 @@ def resolve_safe_path(raw_path: str) -> Path | None:
                 return path
         except (OSError, ValueError):
             continue
+
+    return None
+
+
+def resolve_course_material_path(raw_path: str) -> Path | None:
+    """Resolve a course material path inside the project course folder."""
+    try:
+        raw = Path(raw_path).expanduser()
+        course_root = COURSE_MATERIALS_PATH.resolve()
+
+        if raw.is_absolute():
+            path = raw.resolve()
+        elif raw.parts and raw.parts[0] == COURSE_MATERIALS_PATH.name:
+            path = (PROJECT_ROOT / raw).resolve()
+        else:
+            path = (course_root / raw).resolve()
+    except (OSError, ValueError):
+        return None
+
+    # Secrets are always blocked, even if someone places one in the folder.
+    if any(part.startswith(".env") for part in path.parts):
+        return None
+
+    if path.name == ".spotify_cache":
+        return None
+
+    try:
+        if path.is_relative_to(course_root):
+            return path
+    except (OSError, ValueError):
+        return None
+
+    return None
+
+
+def resolve_conversation_log_path(raw_path: str) -> Path | None:
+    """Resolve a conversation log path inside the project log folder."""
+    try:
+        raw = Path(raw_path).expanduser()
+        log_root = CONVERSATION_LOGS_PATH.resolve()
+
+        if raw.is_absolute():
+            path = raw.resolve()
+        elif raw.parts and raw.parts[0] == CONVERSATION_LOGS_PATH.name:
+            path = (PROJECT_ROOT / raw).resolve()
+        else:
+            path = (log_root / raw).resolve()
+    except (OSError, ValueError):
+        return None
+
+    if any(part.startswith(".env") for part in path.parts):
+        return None
+
+    try:
+        if path.is_relative_to(log_root):
+            return path
+    except (OSError, ValueError):
+        return None
 
     return None
 

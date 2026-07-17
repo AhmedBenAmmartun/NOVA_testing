@@ -9,6 +9,15 @@ token.json
 *.pem
 *.key
 
+# NOVA private memory and conversation imports
+NOVA Vault/
+NOVA-Vault/
+.obsidian/
+private_data/
+claude_exports/
+nova_memory.db
+nova_memory.db-*
+
 # Python
 venv/
 .venv/
@@ -23,6 +32,9 @@ nova_tools.log
 *.log
 screenshots/
 notes.txt
+conversation_logs/
+course_materials/*
+!course_materials/.gitkeep
 
 # Accidental personal folders
 Desktop/
@@ -39,7 +51,15 @@ Videos/
 .DS_Store
 Thumbs.db
 
+# Reference repos for Codex to study (cloned, not ours)
+references/
+
 # Build files
 build/
 dist/
+node_modules/
+.pnpm-store/
 *.egg-info/
+
+# Generated design/editor metadata
+Dashboard/.figma/
