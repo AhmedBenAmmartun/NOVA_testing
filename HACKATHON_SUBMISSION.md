@@ -77,10 +77,6 @@ Draft list:
 - pypdf
 - psutil
 - python-dotenv
-- React
-- Vite
-- Tailwind CSS
-- Tkinter
 
 Before submitting, remove anything not actually used in the final demo or code.
 
@@ -100,12 +96,8 @@ Mode runtime pass for barge-in/queued-reply reliability. It also saves local
 timestamped conversation transcripts so later sessions can search/read what
 Ahmed talked about before, mirrors live transcripts into the Obsidian vault,
 and now includes local file pull-up plus richer Windows window/desktop
-controls. It also now includes a native Windows desktop skin that launches
-with `pythonw.exe`, attaches independent Rainmeter-style modules to the
-desktop wallpaper host when Windows allows it, supports
-minimal/focus/study/system profiles, persists monitor-relative layout, and
-offers a safe local command bar. A React/Vite command-center prototype remains
-available for the future larger dashboard. Gemini Realtime remains the fast
+controls. The desktop dashboard design is still being iterated locally and is
+not included in the current GitHub snapshot. Gemini Realtime remains the fast
 voice layer, while GPT-5.6 is
 available for substantial reasoning, planning, screen help, and
 material-based quiz generation when Ahmed asks for it. The screen analyzer
@@ -134,7 +126,7 @@ TODO after implementation:
   the Study/Quiz prompt choreography, and the first Conversation Mode runtime
   turn-handling pass, local saved-conversation memory, Obsidian memory writes
   and transcript mirroring, the expanded file/window/virtual-desktop control
-  tools, the native desktop skin, and the modular dashboard frontend.
+  tools, documentation, and verification setup.
 - Add the commit range for Build Week work.
 - Add a short testing path for judges.
 
@@ -150,8 +142,7 @@ Fill this before submission:
   `tools/vision.py`, `tools/obsidian.py`, `tools/common.py`,
   `tools/files.py`, `tools/desktop.py`, `tools/conversations.py`,
   `tools/__init__.py`, `agent.py`, `prompts.py`, `.env.example`,
-  `requirements.txt`, driver scripts, `Dashboard/`, README/submission docs,
-  and roadmap.
+  `requirements.txt`, driver scripts, README/submission docs, and roadmap.
 - What Codex accelerated: API integration, tool safety design, agent routing,
   course-material PDF extraction, Study/Quiz prompt choreography,
   Conversation Mode turn-handling, saved-conversation memory, Obsidian memory
@@ -169,10 +160,9 @@ Fill this before submission:
   quota for that exact flow. The local file/window/memory-write tools passed
   direct driver checks, and a neutral full-chat check succeeded on
   2026-07-17. Live manual screen movement and live voice transcript mirroring
-  still need a console session. The native desktop skin compiles, passes its
-  7-test unit suite, self-tests against the desktop WorkerW layer, and
-  launches with `pythonw.exe`; the React dashboard passes typecheck/build.
-  Both still need the live NOVA HTTP/WebSocket bridge.
+  still need a console session. The dashboard/desktop skin draft is parked
+  locally until the final design is chosen and is intentionally not part of
+  the current GitHub snapshot.
 
 ## Judge Testing Instructions
 
@@ -203,18 +193,7 @@ NOVA is a Windows desktop voice agent. To test locally:
 10. Optional memory write test:
    .\venv\Scripts\python.exe .agents\skills\run-ai-agent\driver.py chat "Remember this: NOVA should keep project memories in small safe notes."
    Then search the configured Obsidian vault for "small safe notes".
-11. Optional desktop skin test:
-   powershell -ExecutionPolicy Bypass -File .\Dashboard\start_desktop_widget.ps1 -Mode mini
-   The skin should appear as frameless desktop modules. Use Ctrl+Alt+N or
-   double-click the NOVA orb for the safe command bar.
-12. Optional dashboard prototype test:
-   cd Dashboard
-   pnpm install
-   pnpm run typecheck
-   pnpm run build
-   pnpm run dev
-   Open the printed Vite URL. The dashboard currently uses mock NOVA events.
-13. Optional voice mode:
+11. Optional voice mode:
    .\venv\Scripts\python.exe agent.py console
 
 The voice console uses the real microphone and speakers. The local tool smoke

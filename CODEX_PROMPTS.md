@@ -55,10 +55,8 @@ $env:PYTHONIOENCODING = 'utf-8'
 - [ ] 2b. Whiteboard/photo → notes
 - [ ] 4b. Spoken reminders
 - [ ] 5. Phone access
-- [ ] 5b. Desktop HUD widget <- first React/Vite Dashboard slice added
-      2026-07-16; native desktop shell added 2026-07-16; native
-      Rainmeter-style skin polish verified 2026-07-17; live NOVA bridge
-      still pending
+- [ ] 5b. Desktop HUD widget <- dashboard experiments are parked locally and
+      `Dashboard/` is gitignored until Ahmed chooses the right design
 - [ ] 6. Standby + wake word
 - [ ] 7. Voice recognition
 - [ ] 7b. Offline voice mode (make Ollama talk)
@@ -242,28 +240,21 @@ Done when: NOVA answers by voice in the phone's browser over LiveKit Cloud.
 
 ## 5b. Desktop HUD widget (NOVA's face on screen)
 
-Status: first frontend slice added 2026-07-16 in `Dashboard/`. Native desktop
-shell added the same day in `Dashboard/desktop_widget.py`; the July 17 pass
-expanded it into a Rainmeter-style native skin with independent Tkinter
-modules, monitor-relative persisted layout, `minimal`/`focus`/`study`/`system`
-profiles, safe command bar, WorkerW desktop attachment, and dedicated unit
-tests. It is not done yet because the real NOVA event bridge is still pending.
-Current context: build forward from `Dashboard/desktop_widget.py` for the
-desktop surface. The React code in `Dashboard/src/` is the larger command
-center prototype. The older parked-website note below is historical reference
-for possible LiveKit transcript/tool-panel patterns, not the current primary
-implementation path.
+Status: dashboard/HUD experiments are parked locally and `Dashboard/` is
+gitignored until Ahmed chooses the right design. Do not assume a tracked
+dashboard implementation exists in a fresh clone. The older parked-website
+note below is historical reference for possible LiveKit transcript/tool-panel
+patterns.
 
 Goal: A small always-on-top desktop widget showing NOVA's orb state
 (idle/listening/thinking/speaking), live transcript, and tool calls.
-Context: Phase 15 in @ROADMAP.md. DO NOT build a frontend from scratch —
-a working one exists in git commit `fea9a3f`
-(`git checkout fea9a3f -- website`): orb + live transcript + controls +
-tool panel. It connects over LiveKit.
-Constraints: Wrap the site in a frameless always-on-top window (pywebview,
-or `msedge --app=http://localhost:3000`). Agent side: publish tool-call
-events into the LiveKit room so the tool panel updates live — do not change
-tool behavior, only add event publishing. Keep the passcode gate.
+Context: Phase 15 in @ROADMAP.md. Review Ahmed's chosen design file first.
+The parked website in git commit `fea9a3f` can still be used as a reference
+for orb + live transcript + controls + tool panel patterns.
+Constraints: Do not push a dashboard until the design direction is approved.
+Agent side: publish tool-call events into the LiveKit room or a local bridge
+so the panel updates live. Do not change tool behavior, only add event
+publishing.
 Done when: The widget sits on the desktop, the orb reacts to talking, and
 tool calls appear in it as NOVA uses them.
 

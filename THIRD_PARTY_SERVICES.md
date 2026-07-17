@@ -43,24 +43,9 @@ Current dependencies from [requirements.txt](requirements.txt):
 - `python-dotenv`
 - `pypdf`
 
-Frontend dependencies from [Dashboard/package.json](Dashboard/package.json):
-
-- `react`
-- `react-dom`
-- `vite`
-- `typescript`
-- `tailwindcss`
-- `@tailwindcss/vite`
-- `@vitejs/plugin-react`
-- `oxfmt`
-
-Native desktop widget:
-
-- `tkinter` from the Python standard library; no browser runtime is required
-  for `Dashboard/desktop_widget.py`.
-- Optional tray support attempts to import `pystray` and `Pillow` if they are
-  already installed. They are not required for the skin to run and are not
-  listed in `requirements.txt`.
+Dashboard/frontend dependencies are not listed here because the dashboard
+draft is parked locally and intentionally excluded from the current GitHub
+snapshot.
 
 Before submitting:
 

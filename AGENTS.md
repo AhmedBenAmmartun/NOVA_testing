@@ -39,12 +39,6 @@ tools/              38 function tools split into modules: common.py
                     analysis), obsidian.py (search_memory +
                     read_memory_note + save_memory_note over Ahmed's Obsidian vault,
                     vault-sandboxed); logging to nova_tools.log
-Dashboard/          Native desktop skin (`desktop_widget.py`,
-                    `desktop_host.py`, `skin_state.py`, `skin_registry.py`,
-                    `status_service.py`, `command_service.py`,
-                    `start_desktop_widget.ps1`) plus React/Vite command
-                    center prototype. The desktop surface must remain
-                    browser-free unless Ahmed explicitly asks otherwise.
 CODEX_PROMPTS.md    the task board + ready-to-run prompts. When Ahmed says
                     "do prompt N", read that file, execute exactly that
                     prompt, check it off on the task board, then follow
@@ -71,9 +65,6 @@ $env:PYTHONIOENCODING = 'utf-8'
 & ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
 & ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
 & ".\venv\Scripts\python.exe" agent.py console                                        # human path: live voice chat
-& ".\venv\Scripts\python.exe" -m unittest Dashboard.test_desktop_skin                  # desktop skin state/command tests
-& ".\venv\Scripts\python.exe" ".\Dashboard\desktop_widget.py" --self-test             # desktop widget status read
-Set-Location ".\Dashboard"; pnpm run typecheck; pnpm run build                         # dashboard prototype verification
 ```
 
 After ANY change to `prompts.py`, `tools/`, or `agent.py`, run `tools` +
@@ -175,15 +166,9 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   now also mirror to `<vault>/NOVA/Conversations/YYYY/MM/` when configured.
   Driver `tools` passed 31/31; one full chat smoke check succeeded, while the
   final rerun hit Gemini-side 503/504 errors after retries.
-- Desktop Skin (2026-07-17): `Dashboard/desktop_widget.py` is the real
-  desktop surface. It launches with `pythonw.exe`, uses independent
-  Rainmeter-style Tkinter skin windows, monitor-relative persisted layout,
-  WorkerW wallpaper attachment when available, profiles
-  (minimal/focus/study/system), an optional safe command bar, and local
-  non-secret status polling. `Dashboard.test_desktop_skin`, widget
-  self-test, React typecheck/build, driver `tools` 31/31, and a full
-  `chat "What time is it? Answer briefly."` smoke test passed 2026-07-17.
-  The real NOVA HTTP/WebSocket bridge is still pending.
+- Desktop dashboard/skin work is parked locally and intentionally ignored
+  from GitHub until Ahmed chooses the right design. Do not assume a tracked
+  `Dashboard/` folder exists in a fresh clone.
 - `livekit-plugins-groq` was unused and removed from requirements.txt
   (2026-07-16); `ask_groq` calls Groq through the OpenAI client directly.
   It is still installed in the venv (harmless; gone on a fresh install).

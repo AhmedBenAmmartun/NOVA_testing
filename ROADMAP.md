@@ -116,36 +116,9 @@ Done and working:
       briefly."` verification succeeded: NOVA called `get_time` and answered;
       Gemini logged retryable 504 warnings during the run but the driver
       exited successfully.
-- [x] NOVA Desktop Companion dashboard first slice (2026-07-16,
-      `Dashboard` typecheck/build passed + local Vite HTTP 200): added a
-      React/Vite/Tailwind frontend with Orb, Mini, Compact, and Full modes,
-      a typed widget registry, widget gallery, persisted layout/theme
-      settings, mock NOVA service boundary, Obsidian memory widget, school
-      assignments widget, model/system status widgets, and observable
-      activity only. It is not yet a Tauri/always-on-top shell and is not
-      connected to live NOVA events. Repo-level driver `tools` passed 31/31
-      after sandbox approval; the required `chat "What time is it? Answer
-      briefly."` smoke test hit repeated Gemini 504 deadline errors after
-      retries.
-- [x] Native desktop widget shell (2026-07-16, compile + self-test passed,
-      launched with `pythonw.exe`): `Dashboard/desktop_widget.py` is now the
-      actual desktop surface, not a browser app. It is a frameless,
-      draggable, topmost Windows widget with Orb/Mini/Full modes, persisted
-      position/mode under `%APPDATA%\NOVA`, local system/vault/tool-log/
-      conversation status, and an honest "Live bridge pending" state. Driver
-      `tools` passed 31/31; the final required chat smoke test hit Gemini
-      503 high-demand and 504 deadline errors after retries.
-- [x] NOVA Desktop Skin polish (2026-07-17, compile + unit tests +
-      self-test + React checks + driver verified): `Dashboard/` now has a
-      Rainmeter-style native skin layer with independent Tkinter module
-      windows, WorkerW wallpaper attachment when available, monitor-relative
-      persisted layout, profiles (`minimal`, `focus`, `study`, `system`),
-      local non-secret status polling, a safe command bar, hotkey support,
-      and optional tray hooks. Verification passed: `py_compile`,
-      `python -m unittest Dashboard.test_desktop_skin` (7 tests),
-      `desktop_widget.py --self-test`, `pnpm run typecheck`,
-      `pnpm run build`, driver `tools` 31/31, and full
-      `chat "What time is it? Answer briefly."` with a `get_time` tool call.
+- [x] Dashboard draft parked locally (2026-07-17): earlier React/native
+      dashboard experiments were removed from the tracked GitHub snapshot and
+      `Dashboard/` is now gitignored until Ahmed chooses the right design.
 
 In progress / blocked:
 
@@ -170,10 +143,8 @@ In progress / blocked:
       session and test focus/snap/minimize/new desktop on visible windows.
       The driver covers registration and safety guards but intentionally does
       not move Ahmed's live windows during automated verification.
-- [ ] Desktop Companion live bridge: stream safe NOVA status/tool/task/memory
-      events into the native desktop skin and/or the React command center.
-      The local desktop skin exists and is verified; the live agent bridge is
-      still pending.
+- [ ] Desktop dashboard design: choose the final UI direction, then add the
+      selected implementation back to Git with a live NOVA event bridge.
 
 ## NOVA Core 1.0 priority order (added 2026-07-16)
 
@@ -388,31 +359,14 @@ A small always-on-top window on the desktop, linked live to the agent:
 orb with states (idle / listening / thinking / speaking), live transcript,
 and a feed of tool calls as they happen.
 
-- [x] First frontend slice exists in `Dashboard/` (2026-07-16): React/Vite
-      dashboard with Orb, Mini, Compact, and Full Command Center modes,
-      typed widget registry, widget gallery, persisted widget settings,
-      mock `NovaClient`, memory/school/status widgets, command palette, and
-      reduced-motion support.
-- [x] Native desktop shell exists in `Dashboard/desktop_widget.py`
-      (2026-07-16): no browser or dev server required. It launches through
-      `Dashboard/start_desktop_widget.ps1`, runs with `pythonw.exe`, stays
-      frameless/topmost, can be dragged around the desktop, and has
-      Orb/Mini/Full modes.
-- [x] Native Rainmeter-style skin layer exists (2026-07-17): independent
-      Tkinter skin module windows attach to the desktop wallpaper host when
-      Windows exposes WorkerW, persist monitor-relative layout under
-      `%APPDATA%\NOVA`, support `minimal`/`focus`/`study`/`system` profiles,
-      and expose only safe local commands from the desktop command bar.
-- [ ] Agent side: publish safe status/tool/task/memory events through a real
-      HTTP/WebSocket bridge so the native skin and
-      `Dashboard/src/novaClient.ts` can replace their local/mock status.
-- [ ] Desktop polish: finish tray/startup behavior on clean installs,
-      minimize-to-tray, multi-monitor placement testing, and live state
-      animations once the bridge exists.
+- [ ] Choose the final dashboard/HUD design. Earlier `Dashboard/` experiments
+      are parked locally and intentionally ignored from GitHub.
+- [ ] Add a live NOVA event bridge once the chosen design is tracked again.
+- [ ] Desktop polish: tray/startup behavior, minimize-to-tray, multi-monitor
+      placement, and live state animations.
 
 - Historical reference: the parked website (Phase 5, commit `fea9a3f`) still
-  has useful LiveKit transcript/tool-panel patterns, but the current primary
-  desktop path is `Dashboard/desktop_widget.py` plus the native skin modules.
+  has useful LiveKit transcript/tool-panel patterns.
 - Why it matters: it gives the demo a face — judges can *see* the agentic
   work that is otherwise invisible voice.
 

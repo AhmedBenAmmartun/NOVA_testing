@@ -532,6 +532,29 @@ Add one entry per meaningful change. Prefer one feature per entry.
 - Demo notes: show the native skin on the desktop first, then use the React
   command center only as the larger future dashboard prototype.
 
+### 2026-07-17 - Dashboard draft parked outside GitHub
+
+- Feature: remove the current dashboard draft from the tracked GitHub
+  snapshot.
+- User goal: Ahmed decided not to publish the current dashboard because the
+  final design is not chosen yet.
+- What existed before: `Dashboard/` was tracked in the previous commit.
+- What Codex implemented: removed `Dashboard/` from Git tracking while
+  keeping the local folder on disk, added `Dashboard/` to `.gitignore`, and
+  updated current-facing docs so a fresh GitHub clone no longer advertises or
+  depends on the dashboard draft.
+- How GPT-5.6 is central: not part of this cleanup.
+- Other AI/tools used: Codex performed the Git cleanup.
+- Files changed: `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `README.md`,
+  `ROADMAP.md`, `CODEX_PROMPTS.md`, `HACKATHON_LOG.md`,
+  `HACKATHON_SUBMISSION.md`, and `THIRD_PARTY_SERVICES.md`.
+- Tests or verification: documentation/Git cleanup; final Git status and
+  push results should be reported in the task summary.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: wait for the approved dashboard design before adding a tracked
+  dashboard implementation again.
+
 ## Third-Party Services And Licenses
 
 Update this section before submission. Note the service purpose and where the

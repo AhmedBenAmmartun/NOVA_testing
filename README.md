@@ -23,9 +23,9 @@ Obsidian memory reading and writing, sandboxed course-material PDF/text
 extraction, prompt-driven Study Mode / Quiz Mode, saved conversation logs, and
 expanded file/window control on top of the existing Gemini/LiveKit voice
 agent. It also includes a first Conversation Mode runtime pass for barge-in
-and queued-reply reliability, plus a React/Vite command-center prototype and
-native Windows desktop skin under `Dashboard/`. GPT-5.6 is opt-in: NOVA only
-calls it when Ahmed
+and queued-reply reliability. The desktop dashboard design is still being
+iterated locally and is not included in this GitHub snapshot. GPT-5.6 is
+opt-in: NOVA only calls it when Ahmed
 asks for GPT-5.6/OpenAI reasoning, confirms that a screenshot may be shared
 for screen analysis, or starts Quiz Mode over extracted course material.
 
@@ -40,14 +40,6 @@ for screen analysis, or starts Quiz Mode over extracted course material.
 - File finder/open workflow for approved folders
 - Desktop creation tools that create new files/folders on Ahmed's OneDrive
   Desktop without overwriting
-- Native Desktop Skin in `Dashboard/desktop_widget.py`: frameless
-  Rainmeter-style desktop modules, launched with `pythonw.exe`, attached to
-  the wallpaper host when available, profile-based, and not a browser app
-- Safe desktop command bar for local read/search/open/memory commands; risky
-  actions stay with voice NOVA so confirmation can happen
-- React command-center prototype in `Dashboard/src/` with
-  Orb/Mini/Compact/Full modes, a typed widget registry, widget gallery,
-  persisted settings, mock NOVA events, and memory/school/model/status widgets
 - Course-material reader for PDFs, Markdown, and text files in
   `course_materials/`
 - Study Mode and Quiz Mode prompt flow over course materials, with GPT-5.6
@@ -77,7 +69,6 @@ prompts.py        NOVA persona and system behavior
 tools/            Function tools for desktop, files, information, media,
                   models, Obsidian, memory/search, and vision
 core/             Task routing/orchestration work in progress
-Dashboard/        Native desktop skin plus React/Vite command-center prototype
 offline_agent.py  Local Ollama-only text mode
 requirements.txt  Python dependencies
 ROADMAP.md        NOVA feature roadmap
@@ -200,28 +191,7 @@ Local Ollama-only text mode:
 & ".\venv\Scripts\python.exe" offline_agent.py
 ```
 
-Native Desktop Skin:
-
-```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
-powershell -ExecutionPolicy Bypass -File ".\Dashboard\start_desktop_widget.ps1" -Mode mini
-```
-
-Modes map to profiles: `orb`/`minimal`, `mini`/`compact`/`focus`, `study`,
-and `system`. The skin sits on the desktop as frameless modules, stores its
-layout under `%APPDATA%\NOVA`, and exposes the safe command bar through
-Ctrl+Alt+N or by double-clicking the NOVA orb.
-
-React command-center prototype:
-
-```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent\Dashboard"
-pnpm install
-pnpm run dev
-```
-
-The native widget and React prototype currently use local/mock NOVA events.
-The live HTTP/WebSocket bridge is the next step.
+Desktop dashboard work is parked locally until the final design is chosen.
 
 ## Verification
 
@@ -241,19 +211,6 @@ For launch checks:
 
 `console-check` may briefly play audio through the speakers. Do not run this
 near another voice assistant listener.
-
-For the desktop widget and dashboard prototype:
-
-```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
-& ".\venv\Scripts\python.exe" -m py_compile ".\Dashboard\desktop_widget.py"
-& ".\venv\Scripts\python.exe" -m unittest Dashboard.test_desktop_skin
-& ".\venv\Scripts\python.exe" ".\Dashboard\desktop_widget.py" --self-test
-
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent\Dashboard"
-pnpm run typecheck
-pnpm run build
-```
 
 ## Safety Notes
 

@@ -61,5 +61,5 @@ node_modules/
 .pnpm-store/
 *.egg-info/
 
-# Generated design/editor metadata
-Dashboard/.figma/
+# Local dashboard/design drafts not ready for GitHub
+Dashboard/
