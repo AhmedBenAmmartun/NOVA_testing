@@ -7,7 +7,8 @@ from .common import logger
 from livekit.agents import RunContext, function_tool
 
 
-MAX_NOTE_SIZE = 100_000
+MAX_NOTE_READ_CHARS = 20_000
+MAX_SEARCH_SCAN_BYTES = 2_000_000
 MAX_MEMORY_WRITE_CHARS = 20_000
 NOVA_MEMORY_FOLDER = "NOVA"
 SECRET_MARKERS = (
@@ -71,8 +72,60 @@ def resolve_obsidian_note(note_path: str) -> Path:
     return resolved_path
 
 
-def read_obsidian_note(note_path: str) -> str:
-    """Read a reasonably sized Markdown note from the vault."""
+def _read_note_text(path: Path, max_bytes: int | None = None) -> str:
+    """Read Markdown text safely, optionally bounded by bytes."""
+    if max_bytes is None:
+        return path.read_text(encoding="utf-8", errors="ignore")
+
+    with path.open("rb") as handle:
+        data = handle.read(max_bytes)
+    return data.decode("utf-8", errors="ignore")
+
+
+def _note_excerpt(content: str, query: str, max_excerpts: int = 4) -> str | None:
+    query_clean = _clean_text(query).casefold()
+    if not query_clean:
+        return None
+
+    lowered = content.casefold()
+    start = 0
+    excerpts: list[str] = []
+    while len(excerpts) < max_excerpts:
+        index = lowered.find(query_clean, start)
+        if index == -1:
+            break
+        left = max(0, index - 450)
+        right = min(len(content), index + len(query_clean) + 450)
+        prefix = "..." if left > 0 else ""
+        suffix = "..." if right < len(content) else ""
+        excerpts.append(prefix + content[left:right].strip() + suffix)
+        start = index + len(query_clean)
+    return "\n\n---\n\n".join(excerpts) if excerpts else None
+
+
+def _trim_note_output(content: str, note_path: str, query: str = "") -> str:
+    if query:
+        excerpt = _note_excerpt(content, query)
+        if excerpt:
+            return (
+                f"Excerpts from {note_path} matching {query!r}:\n\n"
+                f"{excerpt}"
+            )
+
+    if len(content) <= MAX_NOTE_READ_CHARS:
+        return content
+
+    trimmed = content[:MAX_NOTE_READ_CHARS].rstrip()
+    return (
+        f"{trimmed}\n\n"
+        f"[Note shortened: showing {MAX_NOTE_READ_CHARS:,} of "
+        f"{len(content):,} characters from {note_path}. "
+        "Ask to read it again with a search query for a specific section.]"
+    )
+
+
+def read_obsidian_note(note_path: str, query: str = "") -> str:
+    """Read a Markdown note from the vault, with caps for large notes."""
     path = resolve_obsidian_note(note_path)
 
     if not path.is_file():
@@ -80,16 +133,11 @@ def read_obsidian_note(note_path: str) -> str:
             f"Obsidian note not found: {note_path}"
         )
 
-    if path.stat().st_size > MAX_NOTE_SIZE:
-        raise ValueError(
-            "That Obsidian note is too large to read safely."
-        )
-
-    content = path.read_text(encoding="utf-8")
+    content = _read_note_text(path)
 
     logger.info("read_obsidian_note: %s", path)
 
-    return content
+    return _trim_note_output(content, note_path, query)
 
 
 def _clean_text(text: str) -> str:
@@ -207,11 +255,9 @@ def search_obsidian_notes(
             continue
 
         try:
-            if path.stat().st_size > MAX_NOTE_SIZE:
-                continue
-
-            content = path.read_text(
-                encoding="utf-8"
+            content = _read_note_text(
+                path,
+                max_bytes=MAX_SEARCH_SCAN_BYTES,
             ).casefold()
 
         except (OSError, UnicodeDecodeError):
@@ -321,10 +367,11 @@ async def save_memory_note(
 async def read_memory_note(
     context: RunContext,
     note_path: str,
+    query: str = "",
 ) -> str:
-    """Read one memory note that search_memory found (vault-relative path)."""
+    """Read one memory note that search_memory found; use query for large notes."""
     try:
-        return read_obsidian_note(note_path)
+        return read_obsidian_note(note_path, query)
 
     except (
         ObsidianConfigurationError,

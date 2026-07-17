@@ -143,6 +143,14 @@ def check_tools() -> int:
             (vault / "Classes" / "physics.md").write_text(
                 "Newton's laws of motion", encoding="utf-8"
             )
+            large_chat = vault / "Conversations" / "ChatGPT" / "chats" / "large-chat.md"
+            large_chat.parent.mkdir(parents=True)
+            large_chat.write_text(
+                "# Large Chat Export\n\n"
+                + ("ordinary exported conversation text\n" * 4500)
+                + "Hidden large chat marker: NOVA can find this late in a long note.\n",
+                encoding="utf-8",
+            )
             course_root = Path(tmp) / "course_materials"
             course_root.mkdir()
             (course_root / "biology.txt").write_text(
@@ -215,6 +223,8 @@ def check_tools() -> int:
                 # obsidian memory (isolated temp vault set up above)
                 ("search_memory finds note", search_memory(no_ctx, "newton"), lambda r: "physics.md" in r),
                 ("read_memory_note reads note", read_memory_note(no_ctx, "Classes/physics"), lambda r: "Newton" in r),
+                ("search_memory finds large note", search_memory(no_ctx, "Hidden large chat marker"), lambda r: "large-chat.md" in r),
+                ("read_memory_note large query excerpt", read_memory_note(no_ctx, "Conversations/ChatGPT/chats/large-chat.md", "Hidden large chat marker"), lambda r: "NOVA can find this late" in r),
                 ("read_memory_note blocks escape", read_memory_note(no_ctx, "../outside"), lambda r: "outside the Obsidian vault" in r),
             ]
             if not os.getenv("SPOTIFY_CLIENT_ID"):

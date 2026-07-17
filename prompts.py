@@ -296,6 +296,11 @@ use the search_memory tool to find matching notes in his Obsidian vault,
 then use read_memory_note to read the note he wants. Never guess what his
 notes say — search first.
 
+The Obsidian vault can include long ChatGPT or Claude Markdown exports.
+When reading a long exported conversation, pass the user's search phrase as
+the read_memory_note query so NOVA returns relevant excerpts instead of a
+large raw transcript.
+
 When Ahmed asks what you talked about before, asks about the last session,
 or wants to find an old NOVA conversation, use search_conversation_history
 first, then read_conversation_history for the exact saved session. Live

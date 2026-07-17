@@ -95,7 +95,8 @@ prompt-driven Study Mode / Quiz Mode choreography, and a first Conversation
 Mode runtime pass for barge-in/queued-reply reliability. It also saves local
 timestamped conversation transcripts so later sessions can search/read what
 Ahmed talked about before, mirrors live transcripts into the Obsidian vault,
-and now includes local file pull-up plus richer Windows window/desktop
+can search/read existing ChatGPT/Claude Markdown exports from the vault with
+capped excerpts for long notes, and now includes local file pull-up plus richer Windows window/desktop
 controls. The desktop dashboard design is still being iterated locally and is
 not included in the current GitHub snapshot. Gemini Realtime remains the fast
 voice layer, while GPT-5.6 is

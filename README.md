@@ -49,6 +49,9 @@ for screen analysis, or starts Quiz Mode over extracted course material.
 - Obsidian memory write path: `save_memory_note` creates new Markdown notes
   under the vault's `NOVA/` folder without overwriting and refuses obvious
   secrets
+- Obsidian vault search/read covers existing Markdown notes across the vault,
+  including long ChatGPT/Claude exports; long reads return capped excerpts
+  when a query is provided
 - Session conversation memory: timestamped Markdown transcripts in
   `conversation_logs/`, with search/read tools for later sessions; live voice
   sessions are also mirrored to `NOVA/Conversations/` in the Obsidian vault
@@ -162,6 +165,7 @@ Memory write examples:
 ```powershell
 & ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "Remember this: for NOVA, prefer small safe tools with driver checks."
 & ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "Search my memory for driver checks."
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "Search my memory for NOVA project improvements."
 ```
 
 File and desktop-control examples:

@@ -555,6 +555,40 @@ Add one entry per meaningful change. Prefer one feature per entry.
 - Demo notes: wait for the approved dashboard design before adding a tracked
   dashboard implementation again.
 
+### 2026-07-17 - Full-vault Obsidian Markdown access
+
+- Feature: expand NOVA memory access across Ahmed's existing Obsidian
+  Markdown vault.
+- User goal: make sure NOVA can access everything already inside
+  `C:\Users\ahmed\NOVA Vault`, including exported ChatGPT and Claude chats.
+- What existed before: NOVA could search/read normal Markdown notes, but
+  large exported conversations over the old 100 KB limit were skipped during
+  search and refused during read.
+- What Codex implemented: removed the hard 100 KB read refusal, added bounded
+  scanning for large Markdown files, added query-focused excerpts for long
+  reads, kept `.obsidian/` blocked, and kept writes restricted to
+  `<vault>/NOVA/`.
+- How GPT-5.6 is central: this improves the memory layer NOVA can use before
+  routing harder reasoning or study tasks to GPT-5.6.
+- Other AI/tools used: Codex inspected the vault, found the large exported
+  chat files, and updated the NOVA Obsidian tools.
+- Files changed: `tools/obsidian.py`, `prompts.py`,
+  `.agents/skills/run-ai-agent/driver.py`,
+  `.claude/skills/run-ai-agent/driver.py`, `README.md`, `ROADMAP.md`,
+  `HACKATHON_SUBMISSION.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: Python `py_compile` passed for `tools/obsidian.py`,
+  both driver scripts, and `prompts.py`; driver `tools` passed 33/33,
+  including large exported-chat search/read checks; full driver
+  `chat "What time is it? Answer briefly."` succeeded with a `get_time` tool
+  call; a real-vault validation found 48 Markdown notes over 100 KB and
+  confirmed search plus query-excerpt read on a large existing export without
+  printing note contents.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: ask NOVA to search memory for a phrase from an exported
+  ChatGPT/Claude conversation, then read the matching note with that phrase
+  as the query.
+
 ## Third-Party Services And Licenses
 
 Update this section before submission. Note the service purpose and where the

@@ -95,6 +95,12 @@ Done and working:
       configured. Full `chat "What time is it? Answer briefly."` succeeded
       once after the change, but the final rerun after safety hardening hit
       Gemini-side 503/504 errors after retries.
+- [x] Full-vault Obsidian Markdown access pass (2026-07-17): memory search
+      now scans existing Markdown notes across the vault, including large
+      ChatGPT/Claude exports that previously exceeded the old 100 KB note
+      limit. `read_memory_note` can return capped excerpts for long notes
+      when given a query, while `.obsidian/` remains blocked and writes still
+      stay inside `<vault>/NOVA/`.
 - [x] Debug pass (2026-07-16): compile check passed, driver `tools` passed
       19/19, `agent.py console` startup check passed, and `AGENTS.md` /
       `CLAUDE.md` were corrected to say NOVA now registers 29 tools.
@@ -291,6 +297,9 @@ Port Outlook (Graph device flow) from the old repo, or add Gmail:
       when configured.
 - [x] Memory write path — `save_memory_note` creates new Markdown notes under
       `<vault>/NOVA/`, never overwrites, and refuses obvious secrets.
+- [x] Large exported conversations — existing ChatGPT/Claude Markdown exports
+      in the vault are searchable, and long reads return query-focused
+      excerpts instead of refusing the file.
 - [ ] **Next recommended step:** add memory cleanup/indexing: duplicate note
       detection, stale-memory review, and dashboard-friendly memory metadata.
 - [ ] Longer term: preferences, project details, coding style, workflows,
