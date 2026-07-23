@@ -14,13 +14,13 @@ Verified with the Devpost Hackathons plugin on 2026-07-14 UTC.
 ## What Needs To Be Ready
 
 - [x] Working NOVA project with a meaningful Build Week extension
-- [x] GPT-5.6 and Codex are central to the new feature
+- [x] GPT-5.6 and development assistant are central to the new feature
 - [x] Clear old-vs-new documentation in [HACKATHON_LOG.md](HACKATHON_LOG.md)
 - [ ] Dated commits showing Build Week work
 - [ ] Repo URL
 - [ ] Public YouTube demo video under 3 minutes
-- [ ] Audio in the demo explaining how Codex and GPT-5.6 were used
-- [ ] `/feedback` Codex session ID from the main build thread
+- [ ] Audio in the demo explaining how development assistant and GPT-5.6 were used
+- [ ] `/feedback` development assistant session ID from the main build thread
 - [x] README setup and run instructions
 - [x] Third-party services and license notes
 - [ ] Final category selected
@@ -37,7 +37,7 @@ Use this section while filling out the submission form.
 | Category | Yes | Apps for Your Life |
 | Code repo URL | Yes | TODO |
 | Project/testing link and instructions | No | See "Judge Testing Instructions" below |
-| `/feedback` Codex Session ID | Yes | TODO |
+| `/feedback` development assistant Session ID | Yes | TODO |
 | Plugin/dev-tool install instructions | No | Not a plugin. Use README run instructions. |
 
 ## Project Metadata Draft
@@ -64,7 +64,7 @@ debug, test, or automate code workflows.
 
 Draft list:
 
-- Codex
+- development assistant
 - GPT-5.6
 - Python
 - LiveKit Agents
@@ -95,11 +95,29 @@ prompt-driven Study Mode / Quiz Mode choreography, and a first Conversation
 Mode runtime pass for barge-in/queued-reply reliability. It also saves local
 timestamped conversation transcripts so later sessions can search/read what
 Ahmed talked about before, mirrors live transcripts into the Obsidian vault,
-can search/read existing ChatGPT/Claude Markdown exports from the vault with
+can search/read existing ChatGPT/development assistant Markdown exports from the vault with
 capped excerpts for long notes, and now includes local file pull-up plus richer Windows window/desktop
-controls. The desktop dashboard design is still being iterated locally and is
-not included in the current GitHub snapshot. Gemini Realtime remains the fast
-voice layer, while GPT-5.6 is
+controls. It also includes the NOVA Dashboard (rebuilt 2026-07-20 from the
+final design handoff): a full-screen desktop control center with five
+swipeable pages — widget dashboard, NOVA + Second Brain, Apps & Files,
+Calendar, and the Agent activity/approvals page — plus a dock, Ctrl+K command
+palette, notifications, and a lock screen. It is wired to real data through a
+local WebSocket bridge (`Dashboard/server.py`, aiohttp on 127.0.0.1): live
+CPU/RAM from psutil, real Spotify now-playing with working media controls,
+live weather, the real Obsidian vault (note count, recent notes, a memory
+browser, and tasks that write back to `<vault>/NOVA/Tasks.md`), the agent's
+actual phase and tool-call feed tailed from `nova_tools.log`, the approval
+queue from the permission engine's audit trail, conversation bubbles from
+saved transcripts, per-model usage counts, and the real Windows app catalog
+with real app launches. Without the server it degrades to a simulated demo
+mode, so the design always presents. The final integration adds an entirely
+local command bridge: Ctrl+K inserts a bounded user text turn into the active
+LiveKit session, and dashboard Approve/Deny decisions run through the same
+in-memory permission engine that owns the pending action. Command envelopes
+are validated, atomically claimed, short-lived, and contain no credentials or
+arbitrary executable code.
+Gemini Realtime remains
+the fast voice layer, while GPT-5.6 is
 available for substantial reasoning, planning, screen help, and
 material-based quiz generation when Ahmed asks for it. The screen analyzer
 requires explicit confirmation before a screenshot is sent to OpenAI.
@@ -122,20 +140,20 @@ TODO after implementation:
   reasoning requests, analyzes confirmed screenshots through the Responses API,
   and generates quiz questions from extracted course material when quota is
   available.
-- Explain what Codex built or accelerated. DONE: Codex added tool wiring,
+- Explain what development assistant built or accelerated. DONE: development assistant added tool wiring,
   safety gates, docs, smoke-test updates, the course-material extraction path,
   the Study/Quiz prompt choreography, and the first Conversation Mode runtime
   turn-handling pass, local saved-conversation memory, Obsidian memory writes
   and transcript mirroring, the expanded file/window/virtual-desktop control
-  tools, documentation, and verification setup.
+  tools, the refined Dashboard shell, documentation, and verification setup.
 - Add the commit range for Build Week work.
 - Add a short testing path for judges.
 
-## Codex And GPT-5.6 Evidence
+## development assistant And GPT-5.6 Evidence
 
 Fill this before submission:
 
-- Main Codex task/session ID: TODO
+- Main development assistant task/session ID: TODO
 - `/feedback` session ID: TODO
 - Baseline commit before Build Week feature: TODO
 - Build Week commit range: TODO
@@ -143,13 +161,14 @@ Fill this before submission:
   `tools/vision.py`, `tools/obsidian.py`, `tools/common.py`,
   `tools/files.py`, `tools/desktop.py`, `tools/conversations.py`,
   `tools/__init__.py`, `agent.py`, `prompts.py`, `.env.example`,
-  `requirements.txt`, driver scripts, README/submission docs, and roadmap.
-- What Codex accelerated: API integration, tool safety design, agent routing,
+  `requirements.txt`, `Dashboard/`, `Dashboard/src-tauri/`, driver scripts,
+  README/submission docs, and roadmap.
+- What development assistant accelerated: API integration, tool safety design, agent routing,
   course-material PDF extraction, Study/Quiz prompt choreography,
   Conversation Mode turn-handling, saved-conversation memory, Obsidian memory
   writes, transcript mirroring, file pull-up, Desktop creation,
   window/virtual-desktop controls, the native desktop companion widget, the
-  modular dashboard prototype, documentation, and verification setup.
+  refined desktop dashboard shell, documentation, and verification setup.
 - Where Ahmed made key product/engineering decisions: Ahmed chose NOVA as the
   Build Week project, kept the repo private while building, and chose to add
   the OpenAI key but avoid automatic GPT-5.6 calls.
@@ -161,9 +180,12 @@ Fill this before submission:
   quota for that exact flow. The local file/window/memory-write tools passed
   direct driver checks, and a neutral full-chat check succeeded on
   2026-07-17. Live manual screen movement and live voice transcript mirroring
-  still need a console session. The dashboard/desktop skin draft is parked
-  locally until the final design is chosen and is intentionally not part of
-  the current GitHub snapshot.
+  still need a console session. The Dashboard streams real stats/Spotify/
+  weather/vault/agent-log data over its local WebSocket bridge. Approve/Deny
+  and Ctrl+K delegation are now connected to the active agent process through
+  the private local command bridge. The remaining dashboard data gap is the
+  calendar page, which is clearly left as Demo Data until Ahmed authorizes a
+  Google/ICS adapter.
 
 ## Judge Testing Instructions
 
@@ -196,6 +218,19 @@ NOVA is a Windows desktop voice agent. To test locally:
    Then search the configured Obsidian vault for "small safe notes".
 11. Optional voice mode:
    .\venv\Scripts\python.exe agent.py console
+12. Desktop dashboard (real data):
+   powershell -ExecutionPolicy Bypass -File Dashboard\start_dashboard.ps1
+   (or: .\venv\Scripts\python.exe Dashboard\server.py and open
+   http://127.0.0.1:8787). Look for the teal LIVE pill next to the clock:
+   CPU/RAM, weather, Spotify, Obsidian notes/memories/tasks, apps, folders,
+   and recent files are real. Swipe or arrow-key through the five pages,
+   launch a real app from the dock, toggle a task (it writes to the vault's
+   NOVA/Tasks.md), and press Ctrl+K for the command palette. Run the voice
+   console at the same time to watch the orb phase and activity feed follow
+   the real agent. Open http://127.0.0.1:8787/health and confirm
+   agentBridge=active, then try a Ctrl+K request and a pending approval.
+   Opening Dashboard\web\index.html directly (no server)
+   shows the same design in simulated demo mode.
 
 The voice console uses the real microphone and speakers. The local tool smoke
 test is the safest first test because it does not require voice input.
@@ -211,15 +246,18 @@ Target length: 2:30 to 2:50.
 1. 0:00-0:15 - Show NOVA running and state the problem.
 2. 0:15-0:45 - Explain what existed before Build Week.
 3. 0:45-1:35 - Demo memory/course-material reading and GPT-5.6 reasoning.
-4. 1:35-2:10 - Show the Desktop Companion widget sitting on the desktop, or
-   confirmed screen help if time allows.
-5. 2:10-2:45 - Explain how Codex and GPT-5.6 were used and show evidence.
+4. 1:35-2:10 - Show the NOVA Dashboard live: the LIVE pill, real CPU/RAM and
+   weather widgets, Spotify controls actually pausing music, the Second Brain
+   page with the real vault note count and model usage, launching a real app
+   from the dock, toggling a task that writes into the Obsidian vault, and the
+   agent activity feed moving while a voice session runs.
+5. 2:10-2:45 - Explain how development assistant and GPT-5.6 were used and show evidence.
 6. 2:45-3:00 - Close with the use case and impact.
 
 Required audio points:
 
 - What was built
-- How Codex was used
+- How development assistant was used
 - How GPT-5.6 was used
 - Why the new feature matters
 
@@ -253,7 +291,7 @@ Added from Ahmed's 2026-07-16 design notes:
 - [ ] Repo is public with a selected license, or private and shared with
       `testing@devpost.com` and `build-week-event@openai.com`
 - [ ] Demo video is public on YouTube and under 3 minutes
-- [ ] Demo audio covers Codex and GPT-5.6
+- [ ] Demo audio covers development assistant and GPT-5.6
 - [ ] Devpost required fields are filled
 - [ ] `/feedback` session ID is entered
 - [ ] Submission status says submitted, not draft

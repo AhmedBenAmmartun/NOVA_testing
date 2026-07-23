@@ -29,7 +29,7 @@ when they hide a bug.
    flag it and suggest `asyncio.to_thread` / `wait_for`.
 7. **Driver:** were driver checks added for new behavior? Were existing
    checks EDITED to pass instead of fixing code? Reject the latter
-   outright. Are both driver copies (`.claude/` and `.agents/`) identical?
+   outright. Is the canonical driver under `.agents/` current and tested?
 8. **Windows:** POSIX-only APIs, hardcoded `/` paths, missing
    `encoding="utf-8"` on file I/O? Flag.
 9. **Protected things** (need Ahmed's explicit OK): removing Gemini
@@ -37,7 +37,7 @@ when they hide a bug.
    `video_input`, changing his voice tuning in agent.py, new pip packages.
 10. **Docs:** ROADMAP.md + HACKATHON_LOG.md updated per AGENTS.md
     "After EVERY completed task"? Tool count still correct in
-    AGENTS.md/CLAUDE.md?
+    AGENTS.md/DEVELOPMENT.md?
 
 ## Output format
 

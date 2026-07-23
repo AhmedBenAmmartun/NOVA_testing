@@ -1,3 +1,6 @@
+import asyncio
+import secrets
+
 from dotenv import load_dotenv
 from google.genai import types
 
@@ -6,17 +9,34 @@ from livekit.agents import AgentServer, AgentSession, Agent, TurnHandlingOptions
 from livekit.plugins import ai_coustics, google
 
 from prompts import SYSTEM_PROMPT
+from nova_agent_bridge import dashboard_bridge_loop, stop_dashboard_bridge
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools import (
+    ask_specialist,
+    list_connected_accounts,
+    sync_email_calendar,
+    get_unread_emails,
+    read_email,
+    get_calendar_agenda,
+    get_next_event,
+    find_calendar_conflicts,
+    get_daily_briefing,
+    check_guardian_security,
+    get_guardian_alerts,
+    get_guardian_status,
+    look_at_screen_locally,
+    start_guardian_vision,
+    stop_guardian_vision,
+    list_pending_actions,
+    approve_action,
+    deny_action,
+    set_nova_safe_mode,
     search_memory,
     read_memory_note,
     save_memory_note,
     search_conversation_history,
     read_conversation_history,
-    ask_gpt56,
-    ask_groq,
-    ask_ollama,
     restart_app,
     close_app,
     control_window,
@@ -139,14 +159,25 @@ class Assistant(Agent):
         super().__init__(
             instructions=SYSTEM_PROMPT,
             tools=[
+                check_guardian_security,
+                list_connected_accounts,
+                sync_email_calendar,
+                get_unread_emails,
+                read_email,
+                get_calendar_agenda,
+                get_next_event,
+                find_calendar_conflicts,
+                get_daily_briefing,
+                get_guardian_alerts,
+                get_guardian_status,
+                look_at_screen_locally,
+                start_guardian_vision,
+                stop_guardian_vision,
                 search_memory,
                 read_memory_note,
                 save_memory_note,
                 search_conversation_history,
                 read_conversation_history,
-                ask_gpt56,
-                ask_groq,
-                ask_ollama,
                 close_app,
                 restart_app,
                 control_window,
@@ -177,6 +208,10 @@ class Assistant(Agent):
                 create_file,
                 capture_screen,
                 analyze_screen_with_gpt56,
+                list_pending_actions,
+                approve_action,
+                deny_action,
+                set_nova_safe_mode,
             ],
         )
 
@@ -227,6 +262,13 @@ async def my_agent(ctx: agents.JobContext):
             ),
         ),
     )
+
+    bridge_session_id = f"job_{secrets.token_hex(8)}"
+    bridge_task = asyncio.create_task(
+        dashboard_bridge_loop(session, bridge_session_id),
+        name="nova_dashboard_bridge",
+    )
+    ctx.add_shutdown_callback(lambda: stop_dashboard_bridge(bridge_task))
 
     await session.generate_reply(
         instructions="Say only: Hello Ahmed. NOVA is ready.",

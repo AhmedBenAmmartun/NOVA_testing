@@ -1,0 +1,10 @@
+# NOVA Gmail / Outlook / Calendar integration
+# Install into NOVA's existing virtual environment.
+google-auth>=2.56.0
+google-auth-oauthlib>=1.4.0
+google-api-python-client>=2.198.0
+msal>=1.37.0
+keyring>=25.7.0
+requests>=2.32.0
+winotify>=1.1.0; platform_system == "Windows"
+tzdata>=2026.3; platform_system == "Windows"

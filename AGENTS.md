@@ -1,6 +1,6 @@
 # AGENTS.md — NOVA (LiveKit)
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-21_
 
 ## What this is
 
@@ -25,6 +25,9 @@ agent.py            LiveKit AgentServer wiring: session, Gemini Realtime
                     tuning), ai_coustics noise cancellation,
                     video_input=False (Ahmed turned it off), greeting
 prompts.py          SYSTEM_PROMPT (NOVA persona)
+nova_bridge.py      private atomic dashboard command inbox/outbox + heartbeat
+nova_agent_bridge.py  injects delegated user turns and resolves approvals
+                    inside the active LiveKit agent process
 tools/              38 function tools split into modules: common.py
                     (sandbox, logging), desktop.py (open/close/restart app,
                     website, is_app_running, window control, notifications,
@@ -39,7 +42,7 @@ tools/              38 function tools split into modules: common.py
                     analysis), obsidian.py (search_memory +
                     read_memory_note + save_memory_note over Ahmed's Obsidian vault,
                     vault-sandboxed); logging to nova_tools.log
-CODEX_PROMPTS.md    the task board + ready-to-run prompts. When Ahmed says
+PROJECT_TASKS.md    the task board + ready-to-run prompts. When Ahmed says
                     "do prompt N", read that file, execute exactly that
                     prompt, check it off on the task board, then follow
                     "After EVERY completed task" below.
@@ -53,6 +56,8 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     OPENAI_API_KEY, SPOTIFY_CLIENT_ID/SECRET, GROQ_API_KEY,
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
 .agents/skills/run-ai-agent/  run skill + driver.py test harness
+Dashboard/          final 5-page desktop shell, local aiohttp/WebSocket data
+                    server, editable layouts, and Tauri 2 Windows wrapper
 ```
 
 ## Run & test (all verified)
@@ -77,14 +82,14 @@ See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
    status" with today's date, note any bugs found, add the next recommended
    step, and bump the "Last updated" line at the top.
 2. **During Build Week, add a dated entry to `HACKATHON_LOG.md`** (feature,
-   files changed, how GPT-5.6/Codex was used, verification results, commit).
+   files changed, how GPT-5.6/development assistant was used, verification results, commit).
 3. **Keep the contribution cheat sheets current**: when the task changes the
    demo, submission story, or who/what contributed, update
    `HACKATHON_SUBMISSION.md` and any relevant README/log sections so the
-   "what we did" and "what Codex/GPT-5.6 contributed" story stays accurate.
+   "what we did" and "what development assistant/GPT-5.6 contributed" story stays accurate.
 4. Run the driver (`tools` + one `chat`, see above) and report the results
    honestly — including failures.
-5. Update `AGENTS.md` and `CLAUDE.md` only if the stack, layout, tool count,
+5. Update `AGENTS.md` and `DEVELOPMENT.md` only if the stack, layout, tool count,
    or rules changed.
 
 ## Non-obvious facts (learned the hard way)
@@ -166,9 +171,23 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   now also mirror to `<vault>/NOVA/Conversations/YYYY/MM/` when configured.
   Driver `tools` passed 31/31; one full chat smoke check succeeded, while the
   final rerun hit Gemini-side 503/504 errors after retries.
-- Desktop dashboard/skin work is parked locally and intentionally ignored
-  from GitHub until Ahmed chooses the right design. Do not assume a tracked
-  `Dashboard/` folder exists in a fresh clone.
+- Dashboard status (updated 2026-07-21): the React/Vite + Tauri shell, the Tkinter
+  skin, and the demo zip were removed at Ahmed's request. `Dashboard/` now
+  holds the real dashboard implemented from `design_handoff_nova_desktop`
+  (kept as `Dashboard/DESIGN_HANDOFF.md`): the 5-page design shell
+  (`web/index.html` + `web/support.js`) with a live WebSocket bridge, served
+  by `Dashboard/server.py` (aiohttp, 127.0.0.1:8787, no new dependencies)
+  with `feeds.py` collectors and `actions.py` handlers. Real data: psutil
+  stats, Spotify now-playing + media-key controls, wttr.in weather, Obsidian
+  vault (count/recent/memories, `NOVA/Tasks.md` write-back, forget →
+  `NOVA/.trash`), agent phase/activity tailed from `nova_tools.log`,
+  approvals from `audit_logs/nova_actions.jsonl`, conversation bubbles from
+  `conversation_logs/`, usage from `cloud_usage.json`, real app catalog /
+  folders / recent files with real launches. Offline = the design's demo
+  mode. Launch via `Dashboard\start_dashboard.ps1`. The private local bridge
+  now sends Ctrl+K text turns to the active LiveKit session and resolves
+  Approve/Deny inside the agent process. Commands are validated, atomic, and
+  expire after two minutes. The calendar remains clearly marked Demo Data.
 - `livekit-plugins-groq` was unused and removed from requirements.txt
   (2026-07-16); `ask_groq` calls Groq through the OpenAI client directly.
   It is still installed in the venv (harmless; gone on a fresh install).

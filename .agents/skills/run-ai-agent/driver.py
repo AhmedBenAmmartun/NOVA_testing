@@ -5,10 +5,10 @@ microphone, speakers, or a LiveKit room, plus launch checks for the real
 console/dev modes.
 
 Usage (from the project root, with the project venv):
-    venv\\Scripts\\python.exe .claude\\skills\\run-ai-agent\\driver.py tools
-    venv\\Scripts\\python.exe .claude\\skills\\run-ai-agent\\driver.py chat "What time is it?"
-    venv\\Scripts\\python.exe .claude\\skills\\run-ai-agent\\driver.py console-check
-    venv\\Scripts\\python.exe .claude\\skills\\run-ai-agent\\driver.py dev-check
+    venv\\Scripts\\python.exe .development assistant\\skills\\run-ai-agent\\driver.py tools
+    venv\\Scripts\\python.exe .development assistant\\skills\\run-ai-agent\\driver.py chat "What time is it?"
+    venv\\Scripts\\python.exe .development assistant\\skills\\run-ai-agent\\driver.py console-check
+    venv\\Scripts\\python.exe .development assistant\\skills\\run-ai-agent\\driver.py dev-check
 
 Subcommands:
     tools          Call the local function tools directly (no API keys needed).

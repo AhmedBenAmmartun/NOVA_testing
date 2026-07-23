@@ -6,17 +6,27 @@
 .spotify_cach*
 credentials.json
 token.json
+tokens.json
+client_secret*.json
+msal_cache*
+oauth_cache*
+auth_cache*
 *.pem
 *.key
+
+# Local databases (nova_integrations sync/token storage, etc.)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
 
 # NOVA private memory and conversation imports
 NOVA Vault/
 NOVA-Vault/
 .obsidian/
 private_data/
-claude_exports/
-nova_memory.db
-nova_memory.db-*
+assistant_exports/
+audit_logs/
 
 # Python
 venv/
@@ -51,7 +61,7 @@ Videos/
 .DS_Store
 Thumbs.db
 
-# Reference repos for Codex to study (cloned, not ours)
+# Reference repos for development assistant to study (cloned, not ours)
 references/
 
 # Build files
@@ -60,6 +70,43 @@ dist/
 node_modules/
 .pnpm-store/
 *.egg-info/
+Dashboard/nova-app/src-tauri/target/
+*.zip
+nova-file-inventory.txt
 
-# Local dashboard/design drafts not ready for GitHub
-Dashboard/
+# NOVA runtime status and logs
+logs/
+*.log
+nova_status.json
+
+# Dashboard runtime artifacts
+Dashboard/runtime/
+Dashboard/__pycache__/
+
+# NOVA temporary integration backups
+.nova-patch-backup/
+.nova_integration_backup/
+
+# Local development assistant configuration
+.agents/launch.json
+
+# Dashboard dependencies and generated builds
+Dashboard/node_modules/
+Dashboard/dist/
+Dashboard/build/
+Dashboard/.next/
+Dashboard/.vite/
+
+# Local testing and runtime output
+coverage/
+.coverage
+htmlcov/
+*.tmp
+*.bak
+
+# Local Git review and audit artifacts
+git-status-*.txt
+git-*-diff-stat.txt
+*-review.patch
+NOVA-Safe-Source-*.manifest.txt
+docs/audit/**/_git_*_raw.txt

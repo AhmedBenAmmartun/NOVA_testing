@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./vendor/react.production.min.js"></script>
+<script src="./vendor/react-dom.production.min.js"></script>
+<script src="./vendor/babel.min.js"></script>
+<script src="./nova-integration.js"></script>
+<script src="./support.js"></script>
+<script type="module" src="./tauri-shell.js"></script>
+<link rel="stylesheet" href="./dashboard-enhancements.css">
+<script type="module" src="./dashboard-enhancements.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#060a14;font-family:'Segoe UI',system-ui,sans-serif;}
+  a{color:#2ee6d6;text-decoration:none;} a:hover{color:#7c86f8;}
+  *{box-sizing:border-box;} ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px;} ::-webkit-scrollbar-track{background:transparent;}
+  @keyframes orbPulse{0%,100%{box-shadow:0 0 24px 4px rgba(46,230,214,.35),0 0 80px 8px rgba(124,134,248,.18);}50%{box-shadow:0 0 40px 10px rgba(46,230,214,.55),0 0 110px 16px rgba(124,134,248,.3);}}
+  @keyframes orbSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  @keyframes orbSpinRev{from{transform:rotate(360deg);}to{transform:rotate(0deg);}}
+  @keyframes wave{0%,100%{transform:scaleY(.25);}50%{transform:scaleY(1);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes toastIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes winIn{from{opacity:0;transform:scale(.94) translateY(12px);}to{opacity:1;transform:scale(1) translateY(0);}}
+</style>
+</helmet>
+<div data-screen-label="NOVA Desktop" style="position:fixed;inset:0;overflow:hidden;color:#eaf0f6;">
+  <img src="wallpaper-clean.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+  <div style="{{ wpStyle }}"></div>
+  <div style="{{ dimStyle }}"></div>
+
+  <!-- top bar -->
+  <div data-nova-chrome="topbar" style="position:absolute;top:0;left:0;right:0;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;z-index:30;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      {{ orbTiny }}
+      <div style="font-family:'Space Grotesk';font-weight:700;letter-spacing:.14em;font-size:14px;">NOVA</div>
+      <sc-if value="{{ isDemo }}" hint-placeholder-val="{{ true }}"><span class="nova-demo-badge" title="The local NOVA bridge is offline; information shown is simulated">Demo Data</span></sc-if>
+      <div style="font-size:12px;color:rgba(234,240,246,.55);margin-left:6px;">{{ clockShort }}</div>
+      <sc-if value="{{ isLive }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(46,230,214,.1);border:1px solid rgba(46,230,214,.35);font-size:10px;letter-spacing:.08em;color:#2ee6d6;"><span style="width:5px;height:5px;border-radius:50%;background:#2ee6d6;"></span>LIVE</div></sc-if>
+      <sc-if value="{{ focusOn }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;padding:3px 10px;border-radius:999px;background:rgba(124,134,248,.14);border:1px solid rgba(124,134,248,.35);font-size:11px;color:#aab1ff;">{{ focusName }} mode</div></sc-if>
+      <sc-if value="{{ showTopStats }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px;margin-left:10px;padding:3px 10px;border-radius:999px;background:rgba(10,14,24,.55);border:1px solid rgba(255,255,255,.08);font-size:11px;color:rgba(234,240,246,.65);">
+          <span style="width:6px;height:6px;border-radius:50%;background:#2ee6d6;"></span><span>CPU {{ cpu }}%</span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#7c86f8;"></span><span>RAM {{ ram }}%</span>
+        </div>
+      </sc-if>
+    </div>
+    <button onClick="{{ openCmd }}" style="display:flex;align-items:center;gap:8px;background:rgba(10,14,24,.55);border:1px solid rgba(255,255,255,.09);border-radius:999px;padding:6px 16px;color:rgba(234,240,246,.55);font-size:12px;cursor:pointer;white-space:nowrap;" style-hover="border-color:rgba(46,230,214,.4);color:#eaf0f6;">⌕ Ask NOVA<span style="font-size:11px;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:1px 5px;color:rgba(234,240,246,.5);">Ctrl K</span></button>
+    <div style="display:flex;align-items:center;gap:10px;position:relative;">
+      <button data-pop="1" onClick="{{ toggleNotif }}" title="Notifications" style="position:relative;width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.09);background:rgba(10,14,24,.62);color:rgba(234,240,246,.7);cursor:pointer;font-size:13px;" style-hover="color:#2ee6d6;border-color:rgba(46,230,214,.4);">⚑<sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:999px;background:#e05f8a;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px;">{{ unread }}</span></sc-if></button>
+      <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+        <div data-pop="1" style="position:absolute;top:40px;right:42px;width:290px;max-height:min(380px,calc(100vh - 120px));overflow-y:auto;overflow-x:hidden;background:rgba(10,14,24,.92);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;z-index:60;animation:fadeUp .18s ease;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-family:'Space Grotesk';font-weight:600;font-size:13px;">Notifications</div>
+            <button onClick="{{ clearNotifs }}" style="background:none;border:none;color:rgba(234,240,246,.5);font-size:11px;cursor:pointer;" style-hover="color:#e05f8a;">Clear all</button>
+          </div>
+          <sc-if value="{{ noNotifs }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:rgba(234,240,246,.55);padding:8px 0;">Nothing yet</div></sc-if>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <sc-for list="{{ notifList }}" as="n" hint-placeholder-count="3">
+              <div style="display:flex;gap:10px;padding:9px 10px;background:rgba(255,255,255,.04);border-radius:10px;align-items:flex-start;">
+                <span style="color:#2ee6d6;font-size:13px;">{{ n.icon }}</span>
+                <span style="flex:1;"><span style="display:block;font-size:12px;font-weight:600;">{{ n.title }}</span><span style="display:block;font-size:11px;color:rgba(234,240,246,.6);">{{ n.text }}</span></span>
+                <span style="font-size:11px;color:rgba(234,240,246,.5);flex-shrink:0;">{{ n.time }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <button data-pop="1" onClick="{{ toggleSettings }}" title="Settings" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.09);background:rgba(10,14,24,.62);color:rgba(234,240,246,.7);cursor:pointer;font-size:14px;" style-hover="color:#2ee6d6;border-color:rgba(46,230,214,.4);">⚙</button>
+      <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+        <div data-pop="1" style="position:absolute;top:40px;right:0;width:250px;max-height:calc(100vh - 110px);overflow-y:auto;overflow-x:hidden;background:rgba(10,14,24,.9);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;z-index:60;animation:fadeUp .18s ease;">
+          <div style="font-family:'Space Grotesk';font-weight:600;font-size:13px;margin-bottom:10px;">Quick Settings</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ settings }}" as="s" hint-placeholder-count="3">
+              <button onClick="{{ s.toggle }}" style="display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:#eaf0f6;font-size:13px;cursor:pointer;padding:6px 4px;border-radius:8px;" style-hover="background:rgba(255,255,255,.06);">
+                <span>{{ s.label }}</span>
+                <span style="{{ s.pillStyle }}"><span style="{{ s.knobStyle }}"></span></span>
+              </button>
+            </sc-for>
+            <div style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(234,240,246,.62);margin-bottom:6px;"><span>Wallpaper dim</span><span>{{ dimPct }}</span></div>
+              <input type="range" min="0" max="80" value="{{ dimVal }}" onChange="{{ onDim }}" style="width:100%;accent-color:#2ee6d6;">
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+              <div style="font-size:12px;color:rgba(234,240,246,.62);margin-bottom:7px;">Focus mode</div>
+              <div style="display:flex;gap:6px;">
+                <sc-for list="{{ focusModes }}" as="fm" hint-placeholder-count="3">
+                  <button onClick="{{ fm.set }}" style="{{ fm.chip }}">{{ fm.name }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+              <div style="font-size:12px;color:rgba(234,240,246,.62);margin-bottom:7px;">Wallpaper</div>
+              <div style="display:flex;gap:8px;">
+                <sc-for list="{{ wallpapers }}" as="wp" hint-placeholder-count="3">
+                  <button onClick="{{ wp.set }}" title="{{ wp.name }}" style="{{ wp.sw }}"></button>
+                </sc-for>
+              </div>
+            </div>
+            <button onClick="{{ lockNow }}" style="margin-top:10px;width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 0;color:rgba(234,240,246,.75);font-size:12px;cursor:pointer;" style-hover="border-color:rgba(46,230,214,.4);color:#eaf0f6;">Lock screen</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- page track -->
+  <div data-page-track="true" onMouseDown="{{ dragStart }}" onTouchStart="{{ touchStart }}" onTouchMove="{{ touchMove }}" onTouchEnd="{{ touchEnd }}" onWheel="{{ onWheel }}" style="{{ trackStyle }}">
+
+      <!-- PAGE 1: MAIN DASHBOARD -->
+      <div data-page-shell="0" style="{{ pg0 }}"><div data-page-canvas="0" data-screen-label="Main Dashboard" style="width:100%;height:100%;padding:84px 46px 110px;position:relative;">
+        <sc-if value="{{ noWidgets }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:84px 46px 110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:rgba(234,240,246,.62);">
+            <div style="font-family:'Space Grotesk';font-size:20px;font-weight:600;">Your canvas is empty</div>
+            <div style="font-size:13px;">Press <span style="color:#2ee6d6;">+</span> to add widgets or pick a layout</div>
+          </div>
+        </sc-if>
+        <div data-layout-group="dashboard-grid" style="display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:108px;grid-auto-flow:dense;gap:14px;height:100%;align-content:start;overflow-y:auto;overflow-x:hidden;">
+          <sc-for list="{{ wlist }}" as="w" hint-placeholder-count="6">
+            <div data-layout-card="dashboard-{{ w.id }}" data-card-title="{{ w.title }}" data-wdrag="1" draggable="{{ w.canDrag }}" onDragStart="{{ w.onDragStart }}" onDragOver="{{ w.onDragOver }}" onDragEnd="{{ w.onDragEnd }}" onMouseEnter="{{ w.onEnter }}" onMouseLeave="{{ w.onLeave }}" style="{{ w.gridStyle }}">
+              <div data-card-surface="true" style="height:100%;background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:14px 16px;position:relative;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;" style-hover="transform:translateY(-3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 34px rgba(0,0,0,.38);border-color:rgba(255,255,255,.16);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;min-height:20px;">
+                  <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);display:flex;align-items:center;gap:6px;">{{ w.title }}<sc-if value="{{ w.pinned }}" hint-placeholder-val="{{ false }}"><span style="color:#2ee6d6;font-size:11px;">pinned</span></sc-if></div>
+                  <sc-if value="{{ w.showCtl }}" hint-placeholder-val="{{ false }}">
+                    <button data-pop="1" onClick="{{ w.onMenu }}" style="background:none;border:none;color:rgba(234,240,246,.6);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;" style-hover="color:#eaf0f6;">⋯</button>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ w.isClock }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                    <div style="font-family:'Space Grotesk';font-size:34px;font-weight:700;line-height:1;">{{ clockTime }}</div>
+                    <div style="font-size:12px;color:rgba(234,240,246,.55);margin-top:4px;">{{ clockDate }}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isWeather }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;align-items:center;gap:14px;">
+                    <div style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffd98a,#f5a97b);flex-shrink:0;"></div>
+                    <div>
+                      <div style="font-family:'Space Grotesk';font-size:26px;font-weight:600;">{{ weatherTemp }}</div>
+                      <div style="font-size:11px;color:rgba(234,240,246,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ weatherDesc }}</div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isNova }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;align-items:center;gap:12px;">
+                    {{ orbSm }}
+                    <div>
+                      <div style="font-size:14px;font-weight:600;">{{ phaseLabel }}</div>
+                      <div style="font-size:11px;color:rgba(234,240,246,.55);">route · {{ route }}</div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isTasks }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;gap:12px;overflow:hidden;min-height:0;">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;min-width:0;">
+                      <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="4">
+                        <button onClick="{{ t.toggle }}" style="display:flex;align-items:center;gap:9px;background:none;border:none;color:#eaf0f6;font-size:13px;cursor:pointer;padding:3px 0;text-align:left;flex-shrink:0;">
+                          <span style="{{ t.boxStyle }}">{{ t.check }}</span>
+                          <span style="{{ t.textStyle }}">{{ t.label }}</span>
+                        </button>
+                      </sc-for>
+                      <sc-if value="{{ noOpenTasks }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:12px;color:rgba(234,240,246,.5);padding:4px 0;">All caught up</div>
+                      </sc-if>
+                      <sc-if value="{{ hasDoneTasks }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(234,240,246,.45);margin-top:4px;flex-shrink:0;">Completed</div>
+                        <sc-for list="{{ doneTasks }}" as="t" hint-placeholder-count="1">
+                          <button onClick="{{ t.toggle }}" title="Mark as not done" style="display:flex;align-items:center;gap:9px;background:none;border:none;color:rgba(234,240,246,.45);font-size:12px;cursor:pointer;padding:2px 0;text-align:left;flex-shrink:0;text-decoration:line-through;" style-hover="color:rgba(234,240,246,.7);">
+                            <span style="color:#2ee6d6;font-size:11px;flex-shrink:0;">✓</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.label }}</span>
+                          </button>
+                        </sc-for>
+                      </sc-if>
+                    </div>
+                    <div style="display:flex;align-items:center;flex-shrink:0;">
+                      <svg viewBox="0 0 52 52" width="58" height="58">
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"></circle>
+                        <circle cx="26" cy="26" r="21" fill="none" stroke="#2ee6d6" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ taskDash }}" transform="rotate(-90 26 26)" style="transition:stroke-dasharray .5s ease;"></circle>
+                        <text x="26" y="25" text-anchor="middle" fill="#eaf0f6" font-size="11" font-weight="700" font-family="Space Grotesk">{{ taskFrac }}</text>
+                        <text x="26" y="36" text-anchor="middle" fill="rgba(234,240,246,.5)" font-size="7">DONE</text>
+                      </svg>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isSystem }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;align-items:center;gap:16px;">
+                    <svg viewBox="0 0 52 52" width="54" height="54" style="flex-shrink:0;">
+                      <circle cx="26" cy="26" r="21" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"></circle>
+                      <circle cx="26" cy="26" r="21" fill="none" stroke="#2ee6d6" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ cpuDash }}" transform="rotate(-90 26 26)" style="transition:stroke-dasharray .8s ease;"></circle>
+                      <text x="26" y="25" text-anchor="middle" fill="#eaf0f6" font-size="11" font-weight="700" font-family="Space Grotesk">{{ cpu }}%</text>
+                      <text x="26" y="36" text-anchor="middle" fill="rgba(234,240,246,.5)" font-size="7">CPU</text>
+                    </svg>
+                    <svg viewBox="0 0 52 52" width="54" height="54" style="flex-shrink:0;">
+                      <circle cx="26" cy="26" r="21" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"></circle>
+                      <circle cx="26" cy="26" r="21" fill="none" stroke="#7c86f8" stroke-width="5" stroke-linecap="round" stroke-dasharray="{{ ramDash }}" transform="rotate(-90 26 26)" style="transition:stroke-dasharray .8s ease;"></circle>
+                      <text x="26" y="25" text-anchor="middle" fill="#eaf0f6" font-size="11" font-weight="700" font-family="Space Grotesk">{{ ram }}%</text>
+                      <text x="26" y="36" text-anchor="middle" fill="rgba(234,240,246,.5)" font-size="7">RAM</text>
+                    </svg>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:9px;min-width:0;">
+                      <div><div style="font-size:11px;color:rgba(234,240,246,.55);margin-bottom:3px;">CPU</div>
+                        <div style="height:4px;background:rgba(255,255,255,.08);border-radius:3px;"><div style="{{ cpuBar }}"></div></div></div>
+                      <div><div style="font-size:11px;color:rgba(234,240,246,.55);margin-bottom:3px;">RAM</div>
+                        <div style="height:4px;background:rgba(255,255,255,.08);border-radius:3px;"><div style="{{ ramBar }}"></div></div></div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isSpotify }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="display:flex;gap:12px;align-items:center;">
+                      <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#173a3a,#0e2130);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:#2ee6d6;font-family:'Space Grotesk';font-size:18px;">♪</div>
+                      <div><div style="font-size:14px;font-weight:600;">{{ trackTitle }}</div><div style="font-size:12px;color:rgba(234,240,246,.55);">{{ trackArtist }}</div></div>
+                    </div>
+                    <div>
+                      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-bottom:10px;"><div style="{{ progBar }}"></div></div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
+                        <button onClick="{{ prevTrack }}" style="background:none;border:none;color:rgba(234,240,246,.6);cursor:pointer;font-size:14px;" style-hover="color:#eaf0f6;">⏮</button>
+                        <button onClick="{{ togglePlay }}" style="width:34px;height:34px;border-radius:50%;border:none;background:#2ee6d6;color:#06131a;cursor:pointer;font-size:13px;">{{ playGlyph }}</button>
+                        <button onClick="{{ nextTrack }}" style="background:none;border:none;color:rgba(234,240,246,.6);cursor:pointer;font-size:14px;" style-hover="color:#eaf0f6;">⏭</button>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isNotes }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:7px;overflow:hidden;">
+                    <sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+                      <div style="font-size:12px;padding:7px 10px;background:rgba(124,134,248,.08);border:1px solid rgba(124,134,248,.16);border-radius:10px;"><span style="color:#7c86f8;">◈</span> {{ n.title }}<span style="color:rgba(234,240,246,.55);float:right;">{{ n.when }}</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isBriefing }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;align-items:center;gap:18px;min-width:0;overflow:hidden;">
+                    <div style="min-width:0;flex:1 1 180px;">
+                      <div style="font-family:'Space Grotesk';font-size:19px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ greeting }}</div>
+                      <div style="font-size:12px;color:rgba(234,240,246,.6);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ briefSub }}</div>
+                    </div>
+                    <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;min-width:0;overflow:hidden;max-height:100%;">
+                      <sc-for list="{{ briefStats }}" as="b" hint-placeholder-count="3">
+                        <div style="padding:8px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;">
+                          <div style="font-size:11px;color:rgba(234,240,246,.55);">{{ b.k }}</div>
+                          <div style="font-size:13px;font-weight:600;margin-top:2px;white-space:nowrap;">{{ b.v }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ w.isCalmini }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:7px;">
+                    <sc-for list="{{ nextEvents }}" as="e" hint-placeholder-count="3">
+                      <div style="display:flex;gap:10px;align-items:center;font-size:12px;">
+                        <div style="{{ e.dotStyle }}"></div>
+                        <div style="flex:1;">{{ e.title }}</div>
+                        <div style="color:rgba(234,240,246,.62);">{{ e.when }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ w.menuOpen }}" hint-placeholder-val="{{ false }}">
+                <div data-pop="1" style="position:absolute;top:34px;right:12px;background:rgba(10,14,24,.95);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:6px;z-index:40;display:flex;flex-direction:column;min-width:120px;max-height:150px;overflow-y:auto;animation:fadeUp .15s ease;box-shadow:0 12px 30px rgba(0,0,0,.4);">
+                  <button onClick="{{ w.onPin }}" style="background:none;border:none;color:#eaf0f6;font-size:12px;text-align:left;padding:7px 10px;border-radius:8px;cursor:pointer;flex-shrink:0;" style-hover="background:rgba(255,255,255,.07);">{{ w.pinLabel }}</button>
+                  <button onClick="{{ w.onDup }}" style="background:none;border:none;color:#eaf0f6;font-size:12px;text-align:left;padding:7px 10px;border-radius:8px;cursor:pointer;flex-shrink:0;" style-hover="background:rgba(255,255,255,.07);">Duplicate</button>
+                  <button onClick="{{ w.onRemove }}" style="{{ w.removeStyle }}" style-hover="background:rgba(224,95,138,.14);">Remove</button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      <sc-if value="{{ showAdd }}" hint-placeholder-val="{{ true }}"><button onClick="{{ togglePicker }}" title="Add widgets" style="position:absolute;width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(10,14,24,.7);backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);color:rgba(234,240,246,.75);font-size:26px;font-weight:300;cursor:pointer;z-index:30;transition:all .2s ease;right:46px;bottom:44px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;" style-hover="color:#06131a;background:#2ee6d6;border-color:#2ee6d6;transform:scale(1.08) rotate(90deg);box-shadow:0 0 26px rgba(46,230,214,.5);">+</button></sc-if></div></div>
+
+      <!-- PAGE 2: NOVA + SECOND BRAIN -->
+      <div data-page-shell="1" style="{{ pg1 }}"><div data-page-canvas="1" data-screen-label="NOVA + Second Brain" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 340px;gap:16px;">
+        <div data-layout-group="brain-column" style="display:grid;grid-template-rows:1fr auto;gap:16px;min-height:0;">
+          <div data-layout-card="brain" data-card-title="Second Brain" data-card-surface="true" style="background:rgba(6,10,20,.72);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);position:relative;overflow:hidden;min-height:0;">
+            <canvas ref="{{ brainRef }}" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+            <div style="position:absolute;top:14px;left:18px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:rgba(234,240,246,.62);">Second Brain · Obsidian vault</div>
+            <div style="position:absolute;top:14px;right:18px;font-size:11px;color:#2ee6d6;">{{ brainCount }} notes linked</div>
+            <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;">
+              {{ orbLg }}
+              <div style="font-family:'Space Grotesk';font-size:13px;font-weight:600;background:rgba(6,10,20,.7);padding:4px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.1);">{{ phaseLabel }}</div>
+            </div>
+          </div>
+          <div data-layout-card="model-routes" data-card-title="Model routes" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:12px 16px;display:flex;align-items:center;gap:14px;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);flex-shrink:0;">Model routes</div>
+            <div style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;min-width:0;scrollbar-width:none;">
+              <sc-for list="{{ models }}" as="m" hint-placeholder-count="5">
+                <div style="{{ m.chipStyle }}"><span style="{{ m.dotStyle }}"></span>{{ m.name }}<span style="font-size:11px;opacity:.65;">{{ m.usage }}</span></div>
+              </sc-for>
+            </div>
+            <div style="margin-left:auto;font-size:12px;color:rgba(234,240,246,.55);flex-shrink:0;white-space:nowrap;">{{ usageTotal }}</div>
+          </div>
+        </div>
+        <div data-layout-group="conversation-column" style="display:grid;grid-template-rows:1fr 1fr;gap:16px;min-height:0;">
+          <div data-layout-card="live-conversation" data-card-title="Live conversation" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;display:flex;flex-direction:column;min-height:0;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Live conversation</div>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;overflow:hidden;">
+              <sc-for list="{{ talk }}" as="b" hint-placeholder-count="3">
+                <div style="{{ b.rowStyle }}"><div style="{{ b.bubbleStyle }}">{{ b.text }}</div></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:flex-end;justify-content:center;gap:3px;height:26px;margin-top:12px;">
+              <sc-for list="{{ bars }}" as="bar" hint-placeholder-count="10">
+                <div style="{{ bar.style }}"></div>
+              </sc-for>
+            </div>
+          </div>
+          <div data-layout-card="execution-timeline" data-card-title="Execution timeline" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;display:flex;flex-direction:column;min-height:0;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Execution timeline</div>
+            <div style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ timeline }}" as="ev" hint-placeholder-count="5">
+                <div style="display:flex;gap:10px;font-size:12px;align-items:baseline;">
+                  <span style="color:rgba(234,240,246,.55);font-size:11px;flex-shrink:0;width:52px;">{{ ev.time }}</span>
+                  <span style="{{ ev.tagStyle }}">{{ ev.tag }}</span>
+                  <span style="color:rgba(234,240,246,.8);font-family:Consolas,monospace;font-size:12px;">{{ ev.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div></div>
+
+      <!-- PAGE 3: APPS & FILES -->
+      <div data-page-shell="2" style="{{ pg2 }}"><div data-page-canvas="2" data-screen-label="Apps and Files" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 320px;gap:16px;">
+        <div data-layout-card="apps" data-card-title="Apps" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:20px;overflow-y:auto;overflow-x:hidden;min-height:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;">Apps</div>
+            <div style="display:flex;align-items:center;gap:7px;"><button onClick="{{ refreshApps }}" title="Refresh installed applications" style="width:29px;height:29px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:rgba(234,240,246,.65);cursor:pointer;">↻</button><input onChange="{{ onAppSearch }}" placeholder="Search apps" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:7px 14px;color:#eaf0f6;font-size:12px;outline:none;width:190px;"></div>
+          </div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:8px;">Pinned</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;margin-bottom:18px;">
+            <sc-for list="{{ pinnedApps }}" as="a" hint-placeholder-count="6">
+              <button onClick="{{ a.open }}" onContextMenu="{{ a.togglePin }}" title="Right-click to pin or unpin" style="display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:none;cursor:pointer;padding:10px 4px;border-radius:14px;color:#eaf0f6;" style-hover="background:rgba(255,255,255,.06);">
+                <span style="{{ a.tileStyle }}">{{ a.glyph }}<span style="{{ a.runStyle }}"></span></span>
+                <span style="font-size:11px;color:rgba(234,240,246,.75);">{{ a.name }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-for list="{{ appGroups }}" as="g" hint-placeholder-count="4">
+            <div style="margin-bottom:14px;">
+              <div style="font-size:11px;letter-spacing:.1em;color:rgba(234,240,246,.62);margin-bottom:6px;">{{ g.letter }}</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;">
+                <sc-for list="{{ g.apps }}" as="a" hint-placeholder-count="3">
+                  <button onClick="{{ a.open }}" onContextMenu="{{ a.togglePin }}" title="Right-click to pin or unpin" style="display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:none;cursor:pointer;padding:10px 4px;border-radius:14px;color:#eaf0f6;" style-hover="background:rgba(255,255,255,.06);">
+                    <span style="{{ a.tileStyle }}">{{ a.glyph }}<span style="{{ a.runStyle }}"></span></span>
+                    <span style="font-size:11px;color:rgba(234,240,246,.75);text-align:center;">{{ a.name }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div data-layout-group="files-column" style="display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;">
+          <div data-layout-card="quick-folders" data-card-title="Quick folders" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Quick folders</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <sc-for list="{{ folders }}" as="f" hint-placeholder-count="6">
+                <button onClick="{{ f.open }}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:7px 11px;color:#eaf0f6;font-size:12px;cursor:pointer;" style-hover="border-color:rgba(46,230,214,.4);">
+                  <span style="color:#f5c97b;">▣</span>{{ f.name }}
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div data-layout-card="recent-files" data-card-title="Recent files" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;overflow:auto;min-height:0;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Recent files</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ recentFiles }}" as="f" hint-placeholder-count="6">
+                <button onClick="{{ f.open }}" style="display:flex;align-items:center;gap:10px;background:none;border:none;color:#eaf0f6;font-size:12px;cursor:pointer;padding:8px 10px;border-radius:10px;text-align:left;" style-hover="background:rgba(255,255,255,.06);">
+                  <span style="{{ f.iconStyle }}">{{ f.ext }}</span>
+                  <span style="flex:1;">{{ f.name }}</span>
+                  <span style="color:rgba(234,240,246,.55);font-size:11px;">{{ f.when }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div></div>
+
+      <!-- PAGE 4: CALENDAR -->
+      <div data-page-shell="3" style="{{ pg3 }}"><div data-page-canvas="3" data-screen-label="Calendar" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 320px;gap:16px;">
+        <div data-layout-card="calendar-month" data-card-title="Calendar month" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:22px;display:flex;flex-direction:column;min-height:0;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;">{{ calendarMonthTitle }}</div>
+            <div style="font-size:12px;color:rgba(234,240,246,.5);">{{ calendarTodayLabel }}</div>
+            <div title="{{ calendarStatusTitle }}" style="margin-left:auto;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:#aab1ff;border:1px solid rgba(124,134,248,.35);background:rgba(124,134,248,.1);border-radius:999px;padding:3px 7px;white-space:nowrap;">{{ calendarStatusLabel }}</div>
+            <button onClick="{{ syncIntegrations }}" title="Synchronize connected read-only email and calendar accounts" style="border:1px solid rgba(46,230,214,.35);background:rgba(46,230,214,.1);color:#2ee6d6;border-radius:9px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap;">{{ syncLabel }}</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:11px;color:rgba(234,240,246,.62);text-align:center;margin-bottom:6px;">
+            <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+          </div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(0,1fr);gap:6px;min-height:0;overflow:hidden;">
+            <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="35">
+              <div style="{{ c.cellStyle }}">
+                <div style="{{ c.numStyle }}">{{ c.num }}</div>
+                <sc-if value="{{ c.hasEvent }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ c.evStyle }}">{{ c.event }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div data-layout-card="coming-up" data-card-title="Coming up" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:18px;overflow:auto;min-height:0;">
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:12px;">Coming up</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ agenda }}" as="e" hint-placeholder-count="5">
+              <div style="display:flex;gap:12px;padding:11px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;">
+                <div style="{{ e.barStyle }}"></div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:600;">{{ e.title }}</div>
+                  <div style="font-size:11px;color:rgba(234,240,246,.5);margin-top:2px;">{{ e.when }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div></div>
+
+      <!-- PAGE 5: AGENT -->
+      <div data-page-shell="4" style="{{ pg4 }}"><div data-page-canvas="4" data-screen-label="Agent Control" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 340px;gap:16px;">
+        <div data-layout-card="agent-activity" data-card-title="Agent activity" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:18px;display:flex;flex-direction:column;min-height:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;">Agent activity</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <sc-for list="{{ actFilters }}" as="f" hint-placeholder-count="5">
+                <button onClick="{{ f.set }}" style="{{ f.chipStyle }}">{{ f.name }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ activityList }}" as="a" hint-placeholder-count="8">
+              <div style="display:flex;gap:12px;align-items:baseline;padding:9px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;">
+                <span style="color:rgba(234,240,246,.5);font-size:11px;flex-shrink:0;width:56px;">{{ a.time }}</span>
+                <span style="{{ a.tagStyle }}">{{ a.tag }}</span>
+                <span style="flex:1;font-family:Consolas,monospace;font-size:12px;color:rgba(234,240,246,.85);overflow-wrap:anywhere;">{{ a.text }}</span>
+                <span style="{{ a.stStyle }}">{{ a.status }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div data-layout-group="agent-column" style="display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;">
+          <div data-layout-card="needs-approval" data-card-title="Needs approval" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);">Needs approval</div>
+              <sc-if value="{{ hasApprovals }}" hint-placeholder-val="{{ false }}"><span style="min-width:16px;height:16px;border-radius:999px;background:#e05f8a;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;">{{ approvalCount }}</span></sc-if>
+            </div>
+            <sc-if value="{{ noApprovals }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:rgba(234,240,246,.5);">Queue clear — nothing waiting</div></sc-if>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ approvals }}" as="ap" hint-placeholder-count="2">
+                <div style="padding:10px 12px;background:rgba(224,95,138,.06);border:1px solid rgba(224,95,138,.22);border-radius:12px;">
+                  <div style="font-size:13px;font-weight:600;">{{ ap.action }}</div>
+                  <div style="font-size:11px;color:rgba(234,240,246,.55);font-family:Consolas,monospace;margin:3px 0 9px;overflow-wrap:anywhere;">{{ ap.detail }}</div>
+                  <div style="display:flex;gap:8px;">
+                    <button onClick="{{ ap.approve }}" style="flex:1;background:rgba(46,230,214,.14);border:1px solid rgba(46,230,214,.4);border-radius:8px;padding:6px 0;color:#2ee6d6;font-size:12px;font-weight:600;cursor:pointer;" style-hover="background:rgba(46,230,214,.25);">Approve</button>
+                    <button onClick="{{ ap.deny }}" style="flex:1;background:rgba(224,95,138,.1);border:1px solid rgba(224,95,138,.35);border-radius:8px;padding:6px 0;color:#f08cab;font-size:12px;font-weight:600;cursor:pointer;" style-hover="background:rgba(224,95,138,.2);">Deny</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);">
+              <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.55);margin-bottom:6px;">Auto-allow</div>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <sc-for list="{{ permList }}" as="pm" hint-placeholder-count="4">
+                  <button onClick="{{ pm.toggle }}" style="display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:rgba(234,240,246,.8);font-size:12px;cursor:pointer;padding:5px 2px;border-radius:8px;" style-hover="background:rgba(255,255,255,.05);">
+                    <span>{{ pm.label }}</span>
+                    <span style="{{ pm.pillStyle }}"><span style="{{ pm.knobStyle }}"></span></span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div data-layout-card="memory-browser" data-card-title="Memory browser" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;display:flex;flex-direction:column;min-height:0;">
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Memory · Obsidian vault</div>
+            <input onChange="{{ onMemSearch }}" placeholder="Search memories" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:7px 14px;color:#eaf0f6;font-size:12px;outline:none;margin-bottom:10px;">
+            <div style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:7px;">
+              <sc-for list="{{ memList }}" as="m" hint-placeholder-count="5">
+                <div style="padding:9px 11px;background:rgba(124,134,248,.07);border:1px solid rgba(124,134,248,.16);border-radius:11px;">
+                  <div style="display:flex;align-items:center;gap:7px;">
+                    <span style="color:#7c86f8;">◈</span>
+                    <span style="flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.title }}</span>
+                    <span style="font-size:11px;color:rgba(234,240,246,.5);">{{ m.when }}</span>
+                    <button onClick="{{ m.del }}" title="Forget" style="background:none;border:none;color:rgba(234,240,246,.5);cursor:pointer;font-size:12px;padding:0 2px;" style-hover="color:#e05f8a;">✕</button>
+                  </div>
+                  <div style="font-size:11px;color:rgba(234,240,246,.6);margin-top:3px;line-height:1.4;">{{ m.snippet }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div></div>
+  </div>
+
+  <!-- edge arrows -->
+  <button data-nova-chrome="edge-nav" onClick="{{ goPrev }}" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:36px;height:64px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(10,14,24,.5);color:rgba(234,240,246,.5);cursor:pointer;font-size:16px;z-index:25;" style-hover="color:#2ee6d6;border-color:rgba(46,230,214,.4);">‹</button>
+  <button data-nova-chrome="edge-nav" onClick="{{ goNext }}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:36px;height:64px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(10,14,24,.5);color:rgba(234,240,246,.5);cursor:pointer;font-size:16px;z-index:25;" style-hover="color:#2ee6d6;border-color:rgba(46,230,214,.4);">›</button>
+
+
+  <!-- widget picker -->
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div data-nova-chrome="picker" onClick="{{ closePicker }}" style="position:absolute;inset:0;background:rgba(3,6,12,.55);z-index:40;"></div>
+    <div data-nova-chrome="picker" style="position:absolute;right:34px;bottom:160px;width:420px;max-height:64vh;background:rgba(10,14,24,.94);backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:18px;z-index:45;overflow:auto;animation:fadeUp .2s ease;">
+      <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:4px;">Add to dashboard</div>
+      <div style="font-size:12px;color:rgba(234,240,246,.5);margin-bottom:14px;">Layouts replace the current arrangement</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <sc-for list="{{ layouts }}" as="l" hint-placeholder-count="3">
+          <button onClick="{{ l.apply }}" style="flex:1;background:rgba(124,134,248,.1);border:1px solid rgba(124,134,248,.25);border-radius:12px;padding:10px;color:#eaf0f6;font-size:12px;font-weight:600;cursor:pointer;" style-hover="border-color:#7c86f8;">{{ l.name }}</button>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <sc-for list="{{ pickerItems }}" as="p" hint-placeholder-count="6">
+          <button onClick="{{ p.add }}" style="display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:11px 12px;color:#eaf0f6;cursor:pointer;text-align:left;" style-hover="border-color:rgba(46,230,214,.45);">
+            <span style="{{ p.tileStyle }}">{{ p.glyph }}</span>
+            <span><span style="display:block;font-size:13px;font-weight:600;">{{ p.name }}</span><span style="display:block;font-size:11px;color:rgba(234,240,246,.5);">{{ p.desc }}</span></span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- page dots (bottom, subtle) -->
+  <div data-nova-chrome="page-dots" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:31;opacity:.45;transition:opacity .25s ease;" style-hover="opacity:1;">
+    <sc-if value="{{ navFlash }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:11px;color:rgba(234,240,246,.65);font-family:'Space Grotesk';letter-spacing:.1em;animation:fadeUp .2s ease;">{{ pageLabel }}</div>
+    </sc-if>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <sc-for list="{{ pages }}" as="p" hint-placeholder-count="4">
+        <button onClick="{{ p.go }}" title="{{ p.label }}" style="{{ p.dotStyle }}"></button>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- app windows -->
+  <sc-for list="{{ winList }}" as="wn" hint-placeholder-count="1">
+    <div data-nova-chrome="app-window" data-app-window="{{ wn.id }}" onMouseDown="{{ wn.focus }}" style="{{ wn.style }}">
+      <div data-app-window-surface="true" style="{{ wn.inner }}">
+        <div data-app-window-titlebar="true" onMouseDown="{{ wn.drag }}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);cursor:grab;flex-shrink:0;">
+          <span style="{{ wn.iconStyle }}">{{ wn.glyph }}</span>
+          <span style="flex:1;font-size:13px;font-weight:600;font-family:'Space Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ wn.title }}</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button data-window-action="snap-left" onClick="{{ wn.snapL }}" title="Snap left" style="background:none;border:none;color:rgba(234,240,246,.45);cursor:pointer;font-size:13px;padding:0 2px;" style-hover="color:#2ee6d6;">⇤</button>
+            <button data-window-action="snap-right" onClick="{{ wn.snapR }}" title="Snap right" style="background:none;border:none;color:rgba(234,240,246,.45);cursor:pointer;font-size:13px;padding:0 2px;" style-hover="color:#2ee6d6;">⇥</button>
+            <button data-window-action="maximize" title="Maximize or restore" style="background:none;border:none;color:rgba(234,240,246,.45);cursor:pointer;font-size:13px;padding:0 2px;" style-hover="color:#2ee6d6;">□</button>
+            <button onClick="{{ wn.doMin }}" title="Minimize" style="width:12px;height:12px;border-radius:50%;border:none;background:#f5c97b;cursor:pointer;padding:0;margin-left:4px;"></button>
+            <button onClick="{{ wn.close }}" title="Close" style="width:12px;height:12px;border-radius:50%;border:none;background:#e05f8a;cursor:pointer;padding:0;"></button>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 12px,transparent 12px 24px);">
+          <span style="{{ wn.bigIconStyle }}">{{ wn.glyph }}</span>
+          <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;">{{ wn.title }}</div>
+          <div style="font-size:12px;color:rgba(234,240,246,.5);font-family:Consolas,monospace;">shell preview — app renders here</div>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+
+  <!-- command palette -->
+  <sc-if value="{{ cmdOpen }}" hint-placeholder-val="{{ false }}">
+    <div data-nova-chrome="command" onClick="{{ closeCmd }}" style="position:absolute;inset:0;background:rgba(3,6,12,.6);z-index:70;"></div>
+    <div data-nova-chrome="command" style="position:absolute;left:50%;top:22%;transform:translateX(-50%);width:560px;max-width:90vw;background:rgba(10,14,24,.95);backdrop-filter:blur(28px);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:16px;z-index:75;animation:fadeUp .18s ease;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        {{ orbCmd }}
+        <input ref="{{ cmdRef }}" onKeyDown="{{ onCmdKey }}" placeholder="Tell NOVA what to do…" style="flex:1;background:none;border:none;outline:none;color:#eaf0f6;font-size:16px;font-family:'Space Grotesk';">
+        <span style="font-size:11px;color:rgba(234,240,246,.5);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:2px 6px;flex-shrink:0;">↵ delegate</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <sc-for list="{{ cmdSuggestions }}" as="s" hint-placeholder-count="4">
+          <button onClick="{{ s.run }}" style="display:flex;align-items:center;gap:10px;background:none;border:none;color:rgba(234,240,246,.75);font-size:13px;cursor:pointer;padding:8px 10px;border-radius:10px;text-align:left;" style-hover="background:rgba(255,255,255,.06);color:#eaf0f6;">
+            <span style="color:#2ee6d6;font-size:12px;">{{ s.icon }}</span>{{ s.label }}
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- live transcript -->
+  <sc-if value="{{ transcriptShow }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:96px;left:50%;transform:translateX(-50%);max-width:620px;display:flex;align-items:center;gap:11px;background:rgba(10,14,24,.72);backdrop-filter:blur(20px);border:1px solid rgba(46,230,214,.25);border-radius:999px;padding:9px 18px;z-index:27;animation:fadeUp .25s ease;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#2ee6d6;flex-shrink:0;animation:orbPulse 1.6s ease-in-out infinite;"></span>
+      <span style="font-size:13px;color:rgba(234,240,246,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ transcript }}</span>
+      <button onClick="{{ hideTranscript }}" style="background:none;border:none;color:rgba(234,240,246,.5);cursor:pointer;font-size:12px;flex-shrink:0;" style-hover="color:#eaf0f6;">✕</button>
+    </div>
+  </sc-if>
+
+  <!-- lock screen -->
+  <sc-if value="{{ locked }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ unlock }}" style="position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(4,7,14,.6);backdrop-filter:blur(34px);cursor:pointer;animation:fadeUp .3s ease;">
+      {{ orbLock }}
+      <div style="font-family:'Space Grotesk';font-size:64px;font-weight:700;line-height:1;">{{ clockTime }}</div>
+      <div style="font-size:15px;color:rgba(234,240,246,.65);">{{ clockDate }}</div>
+      <div style="margin-top:14px;font-size:12px;color:rgba(234,240,246,.5);display:flex;align-items:center;gap:8px;"><span style="width:7px;height:7px;border-radius:50%;background:#2ee6d6;animation:orbPulse 1.8s ease-in-out infinite;"></span>NOVA is still listening — click or press any key to unlock</div>
+    </div>
+  </sc-if>
+
+  <!-- toasts -->
+  <div style="position:absolute;top:12px;right:60px;display:flex;flex-direction:column;gap:8px;z-index:55;align-items:flex-end;pointer-events:none;">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="1">
+      <button onClick="{{ t.dismiss }}" style="pointer-events:auto;display:flex;align-items:center;gap:11px;background:rgba(10,14,24,.45);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 16px;color:#eaf0f6;cursor:pointer;animation:toastIn .3s ease;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:left;">
+        <span style="color:#2ee6d6;font-size:15px;">{{ t.icon }}</span>
+        <span><span style="display:block;font-size:12px;font-weight:600;">{{ t.title }}</span><span style="display:block;font-size:11px;color:rgba(234,240,246,.6);">{{ t.text }}</span></span>
+      </button>
+    </sc-for>
+  </div>
+
+  <!-- dock -->
+  <div data-nova-chrome="dock" style="{{ dockStyle }}">
+    <sc-for list="{{ dock }}" as="d" hint-placeholder-count="8">
+      <button onClick="{{ d.launch }}" title="{{ d.name }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0;transition:transform .15s ease;" style-hover="transform:translateY(-6px) scale(1.12);">
+        <span style="{{ d.tileStyle }}"><sc-if value="{{ d.isOrb }}" hint-placeholder-val="{{ false }}">{{ orbDock }}</sc-if>{{ d.glyph }}</span>
+        <span style="{{ d.runStyle }}"></span>
+      </button>
+    </sc-for>
+  </div>
+  <div data-nova-chrome="dock-peek" onMouseEnter="{{ peekDock }}" style="position:absolute;bottom:0;left:0;right:0;height:14px;z-index:29;"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;wallpaperDim&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.35,&quot;min&quot;:0,&quot;max&quot;:0.8,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Desktop&quot;},&quot;dockAutoHide&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Dock&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Motion&quot;}}">
+class Component extends DCLogic {
+  state = {
+    page: 0, vPrev: 0, pickerOpen: false, settingsOpen: false, hoverId: null, menuId: null,
+    dragging: false, dragX: 0, navFlash: true, notifs: [], toasts: [], notifOpen: false,
+    now: new Date(), lock: false, dockHide: false, privacy: false, dockPeek: false,
+    cpu: 34, ram: 61, playing: true, prog: 38, phase: 'listening', route: 'Gemini Flash',
+    appQuery: '', memQuery: '', cmdOpen: false, actFilter: 'All',
+    wins: [], wz: 5, trackIdx: 0, dimLocal: null, reduceLocal: false, justDoneId: null,
+    focusMode: null, wallpaper: 'photo', sound: false, locked: false, notifsMuted: false,
+    autoAllow: { 'File writes': false, 'Screen capture': false, 'Shell commands': false, 'Web purchases': false },
+    transcript: '', transcriptHide: false,
+    live: false,
+    weatherTemp: '84°', weatherDesc: 'Partly cloudy · H 91° L 76°', weatherBrief: '84° Partly cloudy',
+    spTitle: null, spArtist: null, spProg: null,
+    notesList: null, brainNotes: null, pinnedNames: null, allAppNames: null, appRecords: null,
+    folderNames: null, recentList: null, usageLabels: null, usageTotalLabel: null, briefSubLive: null,
+    integrationStatus: 'not_configured', integrationAccounts: [], mailUnreadTotal: 0, mailItems: [],
+    calendarPayload: null, calendarSyncing: false,
+    usage: { 'Gemini Flash': { tok: 41200, cost: 0.42 }, 'Groq Llama': { tok: 12800, cost: 0.09 }, 'Ollama': { tok: 8400, cost: 0 }, 'GPT-5.6': { tok: 9600, cost: 0.88 }, 'Obsidian Brain': { tok: 5200, cost: 0.04 } },
+    approvals: [
+      { id: 51, action: 'Screen capture', detail: 'screen_capture \u2192 gpt-5.6 vision' },
+      { id: 52, action: 'File write', detail: 'obsidian.write("NOVA/memory/2026-07-19.md")' }
+    ],
+    memories: [
+      { id: 61, title: 'agent-notes.md', snippet: 'LiveKit agent \u2014 barge-in handled via VAD interrupt; latency budget 300ms.', when: '2h' },
+      { id: 62, title: 'preferences.md', snippet: 'Prefers Deep Focus playlist while coding; quiz sessions after 8 PM.', when: '5h' },
+      { id: 63, title: 'build-week-plan.md', snippet: 'Submission Tue 5 PM PT \u2014 demo video under 3 min, README, architecture diagram.', when: '1d' },
+      { id: 64, title: 'lecture-07.md', snippet: 'Key topics: process scheduling, context switches, priority inversion.', when: '1d' },
+      { id: 65, title: 'people/roommate.md', snippet: 'Quiet hours after 11 PM on weekdays.', when: '3d' }
+    ],
+    activity: [
+      { id: 71, time: '2:41 PM', tag: 'Tool', text: 'get_weather("local")', status: 'ok' },
+      { id: 72, time: '2:44 PM', tag: 'Memory', text: 'obsidian.search("agent notes")', status: 'ok' },
+      { id: 73, time: '2:52 PM', tag: 'Route', text: 'router \u2192 groq/llama-3.3', status: 'ok' },
+      { id: 74, time: '3:05 PM', tag: 'Tool', text: 'spotify.play("Deep Focus")', status: 'ok' },
+      { id: 75, time: '3:18 PM', tag: 'Vision', text: 'screen_capture \u2192 gpt-5.6', status: 'approved' }
+    ],
+    widgets: [
+      { id: 8, type: 'briefing', pinned: false },
+      { id: 1, type: 'clock', pinned: true }, { id: 2, type: 'weather', pinned: false },
+      { id: 3, type: 'nova', pinned: true }, { id: 4, type: 'tasks', pinned: false },
+      { id: 5, type: 'spotify', pinned: false }, { id: 6, type: 'system', pinned: false },
+      { id: 7, type: 'notes', pinned: false }
+    ],
+    tasks: [
+      { id: 1, label: 'Record Build Week demo video', done: false },
+      { id: 2, label: 'Finish HACKATHON_SUBMISSION.md', done: true },
+      { id: 3, label: 'Test Obsidian memory write path', done: false },
+      { id: 4, label: 'CS 201 problem set', done: false }
+    ],
+    talk: [
+      { who: 'user', text: 'Nova, what\u2019s on my schedule today?' },
+      { who: 'nova', text: 'Build Week submission prep at 4 PM, study session at 8.' }
+    ],
+    timeline: [
+      { time: '2:41 PM', tag: 'Tool', text: 'get_weather("local")' },
+      { time: '2:44 PM', tag: 'Memory', text: 'obsidian.search("agent notes")' },
+      { time: '2:52 PM', tag: 'Route', text: 'router \u2192 groq/llama-3.3' },
+      { time: '3:05 PM', tag: 'Tool', text: 'spotify.play("Deep Focus")' },
+      { time: '3:18 PM', tag: 'Vision', text: 'screen_capture \u2192 gpt-5.6 (approved)' }
+    ]
+  };
+  WMETA = {
+    briefing: { title: 'Daily briefing', cw: 4, ch: 1 },
+    clock:   { title: 'Clock', cw: 2, ch: 1 },
+    weather: { title: 'Weather', cw: 2, ch: 1 },
+    nova:    { title: 'NOVA status', cw: 2, ch: 1 },
+    tasks:   { title: 'Tasks', cw: 2, ch: 2 },
+    spotify: { title: 'Now playing', cw: 2, ch: 2 },
+    system:  { title: 'System', cw: 2, ch: 1 },
+    notes:   { title: 'Obsidian notes', cw: 2, ch: 2 },
+    calmini: { title: 'Up next', cw: 2, ch: 1 }
+  };
+  BRAND = {
+    'Microsoft Edge': ['#36c5f1', '#0b6fbf', 'e'], 'Word': ['#2b7cd3', '#185abd', 'W'], 'Excel': ['#33c481', '#107c41', 'X'], 'PowerPoint': ['#ff8f6b', '#c43e1c', 'P'], 'Outlook': ['#28a8ea', '#0364b8', 'O'],
+    'Calendar': ['#50b0f9', '#0078d4', '▦'], 'Microsoft Store': ['#4fc3f7', '#0067b8', '▣'], 'Photos': ['#64b5f6', '#1667c9', '▣'], 'Settings': ['#8fa0ae', '#57646f', '⚙'], 'OneNote': ['#ca64ea', '#7719aa', 'N'],
+    'Calculator': ['#9aa2ff', '#5b64d8', '='], 'Clock': ['#b0bec5', '#78909c', '◷'], 'Notepad': ['#7cc0f4', '#2f6fb2', '≡'], 'Paint': ['#f48fb1', '#c2185b', 'Pa'], 'File Explorer': ['#ffd54f', '#f0a30a', '▣'],
+    'Xbox': ['#6dd58c', '#107c10', 'X'], 'LinkedIn': ['#38a3e0', '#0a66c2', 'in'], 'Spotify': ['#1ed760', '#128a3e', '♪'], 'Messenger': ['#7aa7ff', '#0084ff', 'M'], 'Mail': ['#64b5f6', '#0364b8', '✉'],
+    'Maps': ['#f28b82', '#d33b27', '◉'], 'Chrome': ['#4285f4', '#34a853', 'C'], 'Claude': ['#f5a97b', '#d97742', '✳'], 'ChatGPT': ['#8ee6c8', '#10a37f', '⊛'], 'Copilot': ['#7b5cff', '#4335c4', '◈'],
+    'VS Code': ['#35a7f2', '#0e639c', 'VS'], 'Visual Studio 2022': ['#b283f2', '#68217a', 'VS'], 'Obsidian': ['#a88bfa', '#6d28d9', '◆'], 'Ollama': ['#4b5563', '#1f2937', 'ol'], 'Terminal': ['#4b5563', '#111827', '>_'],
+    'Python 3.14': ['#ffd43b', '#3776ab', 'Py'], 'Node.js': ['#8cc84b', '#3c873a', 'No'], 'Git': ['#f0654e', '#bd2c00', 'Gi'], 'Ubuntu': ['#ff7043', '#e95420', 'U'], 'Weather': ['#ffd98a', '#f5a97b', '☀'],
+    'Camera': ['#90a4ae', '#546e7a', '◉'], 'Teams': ['#7b83eb', '#4b53bc', 'T'], 'To Do': ['#64b5f6', '#2564cf', '✓'], 'Whiteboard': ['#90caf9', '#1565c0', 'Wb'], 'Power BI': ['#ffd54f', '#e6b800', 'BI'],
+    'Movies & TV': ['#64b5f6', '#1565c0', '▶'], 'Media Player': ['#f48fb1', '#ad1457', '▶'], 'News': ['#ef9a9a', '#c62828', 'N'], 'People': ['#4db6ac', '#00796b', 'P'], 'Phone Link': ['#4fc3f7', '#0277bd', 'PL'],
+    'Sticky Notes': ['#f7d774', '#d9a514', '▤'], 'Snipping Tool': ['#ce93d8', '#8e24aa', '✂'], 'Alexa': ['#4dd0e1', '#00a8e1', 'A'], 'Amazon': ['#ffb74d', '#f08804', 'a'], 'Bixby': ['#4dd0e1', '#0f6dbd', 'B'],
+    'Samsung Notes': ['#ef9a9a', '#d32f2f', 'SN'], 'Solitaire': ['#81c784', '#2e7d32', '♠'], 'Sound Recorder': ['#b39ddb', '#512da8', '●'], 'Screen recorder': ['#ef5350', '#c62828', '◉'], 'Gallery': ['#f06292', '#c2185b', 'Ga'],
+    'Game Bar': ['#81c784', '#107c10', 'GB'], 'SmartThings': ['#4dd0e1', '#0288d1', 'ST'], 'Publisher': ['#26a69a', '#077568', 'Pu'], 'Access': ['#ef5350', '#a4373a', 'A'], 'OneDrive': ['#28a8ea', '#0364b8', '☁'],
+    'Google Duo': ['#4dd0e1', '#00838f', 'D'], 'iCloud': ['#90caf9', '#3693f3', '☁'], 'Files': ['#ffb74d', '#ef6c00', '▣'], 'Feedback Hub': ['#7986cb', '#3949ab', 'FH'], 'PENUP': ['#4fc3f7', '#0288d1', '✎'],
+    'Quick Search': ['#4dd0e1', '#0097a7', '⌕'], 'Discord': ['#8ea1ff', '#5865f2', 'D']
+  };
+  FOCUS = {
+    'Study': { kinds: ['briefing', 'clock', 'tasks', 'notes', 'calmini', 'nova'], route: 'Obsidian Brain', muted: false },
+    'Work': { kinds: ['briefing', 'clock', 'nova', 'tasks', 'system', 'spotify'], route: 'GPT-5.6', muted: false },
+    'Off-hours': { kinds: ['clock', 'spotify', 'calmini'], route: 'Ollama', muted: true }
+  };
+  brainRef = React.createRef();
+  cmdRef = React.createRef();
+  nid = 100;
+  componentDidMount() {
+    this.restorePersisted();
+    this.connectLive();
+    this.clockT = setInterval(() => {
+      const s = { now: new Date() };
+      if (!this.state.live) {
+        s.cpu = Math.max(8, Math.min(96, this.state.cpu + (Math.random() * 14 - 7)));
+        s.ram = Math.max(30, Math.min(92, this.state.ram + (Math.random() * 6 - 3)));
+        if (this.state.playing) s.prog = (this.state.prog + 0.6) % 100;
+      } else if (this.state.playing && this.state.spProg === null) {
+        s.prog = (this.state.prog + 0.6) % 100;
+      }
+      this.setState(s);
+      this.persistMaybe();
+    }, 1000);
+    this.keyH = (e) => {
+      if (this.state.locked) { this.setState({ locked: false }); return; }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); this.toggleCmd(); return; }
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.key === 'ArrowRight') this.go(1);
+      if (e.key === 'ArrowLeft') this.go(-1);
+      if (e.key === 'Escape') this.setState({ pickerOpen: false, settingsOpen: false, menuId: null, cmdOpen: false, wins: this.state.wins.slice(0, -1) });
+    };
+    window.addEventListener('keydown', this.keyH);
+    this.docH = (e) => {
+      if (e.target.closest && e.target.closest('[data-pop]')) return;
+      const s = this.state;
+      if (s.menuId !== null || s.notifOpen || s.settingsOpen) this.setState({ menuId: null, notifOpen: false, settingsOpen: false });
+    };
+    window.addEventListener('mousedown', this.docH);
+    this.integrationActionH = (event) => {
+      const detail = event.detail || {};
+      if (!detail.type || typeof detail.type !== 'string') return;
+      const payload = detail.payload && typeof detail.payload === 'object' ? detail.payload : {};
+      this.sendLive({ ...payload, type: detail.type });
+    };
+    window.addEventListener('nova:integration-action', this.integrationActionH);
+    this.simT = setTimeout(() => { if (!this.state.live) { this.startTalkLoop(); this.startNotifs(); } }, 2500);
+    this.flashNav();
+    setTimeout(() => this.initBrain(), 150);
+    window.addEventListener('resize', this.sizeBrain = () => this.fitBrain());
+  }
+  componentWillUnmount() {
+    clearInterval(this.clockT); clearInterval(this.talkT); clearInterval(this.notifT);
+    clearTimeout(this.firstNotifT); clearTimeout(this.flashT);
+    clearTimeout(this.simT); clearTimeout(this.reconT);
+    if (this.ws) { const ws = this.ws; this.ws = null; try { ws.close(); } catch (e) {} }
+    clearInterval(this.typeT); clearTimeout(this.fadeT); clearTimeout(this.delT1); clearTimeout(this.delT2); clearTimeout(this.doneT);
+    cancelAnimationFrame(this.raf);
+    window.removeEventListener('keydown', this.keyH);
+    window.removeEventListener('mousedown', this.docH);
+    window.removeEventListener('resize', this.sizeBrain);
+    window.removeEventListener('nova:integration-action', this.integrationActionH);
+  }
+  // ---- NOVA live bridge: real data pushed by Dashboard/server.py over WebSocket.
+  // When no server is reachable the prototype's simulated loops keep running,
+  // so the same file still works as an offline demo.
+  restorePersisted() {
+    try {
+      const patch = {};
+      const w = JSON.parse(localStorage.getItem('nova.widgets') || 'null');
+      if (Array.isArray(w) && w.length && w.every(x => x && this.WMETA[x.type])) {
+        patch.widgets = w.map(x => ({ id: ++this.nid, type: x.type, pinned: !!x.pinned }));
+      }
+      const s = JSON.parse(localStorage.getItem('nova.settings') || 'null');
+      if (s && typeof s === 'object') {
+        for (const k of ['lock', 'dockHide', 'privacy', 'reduceLocal', 'sound', 'wallpaper']) if (k in s) patch[k] = s[k];
+        if (typeof s.dimLocal === 'number') patch.dimLocal = s.dimLocal;
+      }
+      if (Object.keys(patch).length) this.setState(patch);
+    } catch (e) {}
+  }
+  persistMaybe() {
+    try {
+      const st = this.state;
+      const widgets = st.widgets.map(x => ({ type: x.type, pinned: !!x.pinned }));
+      const settings = { lock: st.lock, dockHide: st.dockHide, privacy: st.privacy, reduceLocal: st.reduceLocal, sound: st.sound, wallpaper: st.wallpaper, dimLocal: st.dimLocal };
+      const snap = JSON.stringify([widgets, settings]);
+      if (snap === this.lastSnap) return;
+      this.lastSnap = snap;
+      localStorage.setItem('nova.widgets', JSON.stringify(widgets));
+      localStorage.setItem('nova.settings', JSON.stringify(settings));
+    } catch (e) {}
+  }
+  connectLive() {
+    var backend = window.NOVA_BACKEND || ((/^https?:$/.test(location.protocol) && location.host) ? location.host : null);
+    if (!backend) return; // opened from disk with no server: pure demo mode
+    let ws;
+    try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + backend + '/ws'); } catch (e) { return; }
+    this.ws = ws;
+    ws.onopen = () => {
+      this.stopSims();
+      this.setState({ live: true });
+      window.dispatchEvent(new CustomEvent('nova:integration-connection', { detail: { connected: true, mode: 'live' } }));
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const message = JSON.parse(ev.data);
+        this.onLive(message);
+        window.dispatchEvent(new CustomEvent('nova:integration-data', { detail: message }));
+      } catch (e) {}
+    };
+    ws.onclose = () => {
+      if (this.ws !== ws) return;
+      if (this.state.live) this.setState({ live: false });
+      window.dispatchEvent(new CustomEvent('nova:integration-connection', { detail: { connected: false, mode: 'demo' } }));
+      this.reconT = setTimeout(() => this.connectLive(), 3000);
+    };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  }
+  sendLive(obj) {
+    if (this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(obj)); return true; }
+    return false;
+  }
+  stopSims() {
+    clearTimeout(this.simT); clearInterval(this.talkT); clearInterval(this.notifT); clearTimeout(this.firstNotifT);
+    this.talkT = null; this.notifT = null;
+  }
+  onLive(m) {
+    const st = this.state;
+    switch (m.type) {
+      case 'snapshot': (m.parts || []).forEach(p => this.onLive(p)); break;
+      case 'stats': this.setState({ cpu: m.cpu, ram: m.ram }); break;
+      case 'spotify': {
+        const s = { spTitle: m.title || null, spArtist: m.artist || null, playing: !!m.playing };
+        s.spProg = (typeof m.progress === 'number') ? m.progress : null;
+        if (s.spProg !== null) s.prog = s.spProg;
+        this.setState(s); break;
+      }
+      case 'weather': this.setState({ weatherTemp: m.temp, weatherDesc: m.desc, weatherBrief: m.brief || (m.temp + ' ' + m.desc) }); break;
+      case 'phase': {
+        const s = {};
+        if (m.phase) s.phase = m.phase;
+        if (m.route) s.route = m.route;
+        this.setState(s); break;
+      }
+      case 'activity': {
+        const item = { id: ++this.nid, time: m.time || this.nowStr(), tag: m.tag || 'Tool', text: m.text, status: m.status || 'ok' };
+        this.setState({
+          activity: [...st.activity, item].slice(-40),
+          timeline: [...st.timeline, { time: item.time, tag: item.tag, text: item.text }].slice(-8)
+        });
+        break;
+      }
+      case 'activity_seed': {
+        const rows = (m.items || []).map(x => ({ id: ++this.nid, time: x.time, tag: x.tag || 'Tool', text: x.text, status: x.status || 'ok' }));
+        this.setState({ activity: rows.slice(-40), timeline: rows.slice(-8).map(x => ({ time: x.time, tag: x.tag, text: x.text })) });
+        break;
+      }
+      case 'tasks': this.setState({ tasks: m.items || [] }); break;
+      case 'talk': this.setState({ talk: (m.items || []).slice(-4) }); break;
+      case 'transcript': if (m.text) this.typeTranscript(m.text); break;
+      case 'obsidian': {
+        const s = {};
+        if (typeof m.count === 'number') s.brainNotes = m.count;
+        if (m.recent) s.notesList = m.recent;
+        if (m.memories) s.memories = m.memories;
+        this.setState(s); break;
+      }
+      case 'approvals': this.setState({ approvals: m.items || [] }); break;
+      case 'usage': this.setState({ usageLabels: m.models || {}, usageTotalLabel: m.total || null }); break;
+      case 'apps': {
+        const s = {};
+        if (m.records) s.appRecords = m.records;
+        if (m.pinned) s.pinnedNames = m.pinned;
+        if (m.all) s.allAppNames = m.all;
+        if (m.folders) s.folderNames = m.folders;
+        if (m.recent) s.recentList = m.recent;
+        if (m.icons) s.appIcons = m.icons;
+        this.setState(s); break;
+      }
+      case 'briefing': this.setState({ briefSubLive: m.text || null }); break;
+      case 'integrations': this.setState({
+        integrationStatus: m.status || 'unknown',
+        integrationAccounts: Array.isArray(m.accounts) ? m.accounts : [],
+        mailUnreadTotal: typeof m.totalUnread === 'number' ? m.totalUnread : st.mailUnreadTotal,
+        calendarSyncing: false
+      }); break;
+      case 'mail': this.setState({
+        mailUnreadTotal: typeof m.totalUnread === 'number' ? m.totalUnread : 0,
+        mailItems: Array.isArray(m.items) ? m.items : []
+      }); break;
+      case 'calendar': this.setState({ calendarPayload: m, calendarSyncing: false }); break;
+      case 'notify': this.pushNotif({ icon: m.icon || '◉', title: m.title || 'NOVA', text: m.text || '' }); break;
+    }
+  }
+  startTalkLoop() {
+    const script = [
+      { phase: 'listening', route: 'Gemini Flash' },
+      { user: 'Summarize my agent notes from Obsidian.' },
+      { phase: 'thinking', route: 'Obsidian Brain' },
+      { nova: 'Found 3 notes on the LiveKit agent \u2014 the latest covers barge-in handling.', phase: 'speaking', ev: { tag: 'Memory', text: 'obsidian.read("NOVA/agent-notes.md")' } },
+      { phase: 'listening', route: 'Gemini Flash' },
+      { user: 'Quiz me on lecture 7 after dinner.' },
+      { phase: 'thinking', route: 'GPT-5.6' },
+      { nova: 'Done \u2014 Quiz Mode scheduled at 8 PM over lecture 7.', phase: 'speaking', ev: { tag: 'Tool', text: 'study.schedule_quiz("lec7", "20:00")' } },
+      { phase: 'listening', route: 'Gemini Flash' },
+      { user: 'How\u2019s the build going?' },
+      { phase: 'thinking', route: 'Groq Llama' },
+      { nova: 'Dashboard shell is stable; submission deadline is Tuesday 5 PM PT.', phase: 'speaking', ev: { tag: 'Route', text: 'router \u2192 groq/llama-3.3' } }
+    ];
+    let i = 0;
+    this.talkT = setInterval(() => {
+      const s = script[i % script.length]; i++;
+      const st = {};
+      if (s.phase) st.phase = s.phase;
+      if (s.route) st.route = s.route;
+      if (s.user) { st.talk = [...this.state.talk, { who: 'user', text: s.user }].slice(-4); this.typeTranscript(s.user); }
+      if (s.nova) st.talk = [...this.state.talk, { who: 'nova', text: s.nova }].slice(-4);
+      if (s.ev) {
+        const t = this.state.now;
+        st.timeline = [...this.state.timeline, { time: t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), tag: s.ev.tag, text: s.ev.text }].slice(-8);
+        st.activity = [...this.state.activity, { id: ++this.nid, time: this.nowStr(), tag: s.ev.tag, text: s.ev.text, status: 'ok' }].slice(-40);
+        const rt = st.route || this.state.route, u = { ...this.state.usage };
+        if (u[rt]) { u[rt] = { tok: u[rt].tok + 600 + Math.floor(Math.random() * 900), cost: +(u[rt].cost + 0.02).toFixed(2) }; st.usage = u; }
+      }
+      this.setState(st);
+    }, 3200);
+  }
+  fitBrain() {
+    const cv = this.brainRef.current; if (!cv) return;
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    cv.width = r.width * dpr; cv.height = r.height * dpr;
+  }
+  initBrain() {
+    const cv = this.brainRef.current;
+    if (!cv) { if ((this.brainTries = (this.brainTries || 0) + 1) < 40) setTimeout(() => this.initBrain(), 250); return; }
+    if (this.brainStarted) return; this.brainStarted = true;
+    this.fitBrain();
+    const N = 110, nodes = [];
+    for (let i = 0; i < N; i++) {
+      const a = Math.random() * Math.PI * 2, rr = 0.12 + Math.pow(Math.random(), 0.6) * 0.42;
+      nodes.push({ a, r: rr, sp: (Math.random() * 0.0016 + 0.0004) * (Math.random() < 0.5 ? -1 : 1), sz: 1.5 + Math.random() * 3, hue: Math.random() < 0.22 ? 'teal' : 'violet', ph: Math.random() * Math.PI * 2 });
+    }
+    const edges = [];
+    for (let i = 0; i < N; i++) { edges.push([i, (i + 1 + Math.floor(Math.random() * 6)) % N]); if (Math.random() < 0.4) edges.push([i, Math.floor(Math.random() * N)]); }
+    const draw = () => {
+      const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      if (!W) { this.raf = requestAnimationFrame(draw); return; }
+      const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 1.05, t = performance.now() / 1000;
+      ctx.clearRect(0, 0, W, H);
+      const reduce = (this.props.reduceMotion ?? false) || this.state.reduceLocal;
+      const pos = nodes.map(n => {
+        if (!reduce) n.a += n.sp;
+        const wob = reduce ? 0 : Math.sin(t * 0.7 + n.ph) * 0.012;
+        return [cx + Math.cos(n.a) * (n.r + wob) * R, cy + Math.sin(n.a) * (n.r + wob) * R * 0.72];
+      });
+      ctx.lineWidth = 1;
+      for (const [i, j] of edges) {
+        ctx.strokeStyle = 'rgba(124,134,248,0.14)';
+        ctx.beginPath(); ctx.moveTo(pos[i][0], pos[i][1]); ctx.lineTo(pos[j][0], pos[j][1]); ctx.stroke();
+      }
+      nodes.forEach((n, i) => {
+        ctx.fillStyle = n.hue === 'teal' ? 'rgba(46,230,214,0.85)' : 'rgba(124,134,248,0.7)';
+        ctx.beginPath(); ctx.arc(pos[i][0], pos[i][1], n.sz * (window.devicePixelRatio || 1), 0, Math.PI * 2); ctx.fill();
+      });
+      this.raf = requestAnimationFrame(draw);
+    };
+    draw();
+  }
+  setPage(n) {
+    this.setState({ vPrev: this.state.page, page: (n + 5) % 5, menuId: null, pickerOpen: false, settingsOpen: false, notifOpen: false });
+    this.flashNav();
+  }
+  go(d) { this.setPage(this.state.page + d); }
+  flashNav() {
+    this.setState({ navFlash: true });
+    clearTimeout(this.flashT);
+    this.flashT = setTimeout(() => this.setState({ navFlash: false }), 1800);
+  }
+  startNotifs() {
+    const q = [
+      { icon: '◷', title: 'Reminder', text: 'Build Week demo prep at 4:00 PM' },
+      { icon: '▤', title: 'Tasks', text: '3 tasks left today' },
+      { icon: '◈', title: 'Obsidian', text: 'NOVA saved a memory note' },
+      { icon: '◉', title: 'NOVA', text: 'Quiz Mode ready \u2014 lecture 7' },
+      { icon: '♪', title: 'Spotify', text: 'Deep Focus playlist resumed' },
+      { icon: '◷', title: 'Reminder', text: 'Submission deadline Tue 5 PM PT' }
+    ];
+    let i = 0;
+    const push = () => this.pushNotif(q[i++ % q.length]);
+    this.firstNotifT = setTimeout(push, 3500);
+    this.notifT = setInterval(push, 16000);
+  }
+  pushNotif(n) {
+    const id = ++this.nid;
+    const item = { ...n, id, read: false, time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) };
+    this.setState({ notifs: [...this.state.notifs, item].slice(-20), toasts: this.state.notifsMuted ? this.state.toasts : [...this.state.toasts, item] });
+    if (!this.state.notifsMuted) this.beep(660, .04);
+    setTimeout(() => this.setState({ toasts: this.state.toasts.filter(t => t.id !== id) }), 5200);
+  }
+  endDrag() {
+    const dx = this.state.dragX;
+    this.setState({ dragging: false, dragX: 0 });
+    if (dx < -90) this.go(1); else if (dx > 90) this.go(-1);
+  }
+  addWidget(type) {
+    this.setState({ widgets: [...this.state.widgets, { id: ++this.nid, type, pinned: false }], pickerOpen: false });
+  }
+  applyLayout(kinds) {
+    this.setState({ widgets: kinds.map(t => ({ id: ++this.nid, type: t, pinned: false })), pickerOpen: false });
+  }
+  openApp(name, i, label, appId) {
+    if (this.state.live && appId && this.sendLive({ type: 'app_action', id: appId, action: 'activate' })) {
+      this.setState({ pickerOpen: false, settingsOpen: false, notifOpen: false, menuId: null });
+      return;
+    }
+    const st = this.state, ex = st.wins.find(w => w.name === name);
+    if (ex) { this.setState({ wins: st.wins.map(w => w.name === name ? { ...w, min: false, z: st.wz + 1 } : w), wz: st.wz + 1 }); return; }
+    this.setState({ wins: [...st.wins, { id: ++this.nid, name, i: i || 0, label: label || name, x: null, y: null, min: false, snap: null, z: st.wz + 1 }], wz: st.wz + 1, pickerOpen: false, settingsOpen: false, notifOpen: false, menuId: null });
+    this.pushActivity('Tool', 'apps.launch("' + name + '")');
+  }
+  setFocus(name) {
+    if (this.state.focusMode === name) { this.setState({ focusMode: null, notifsMuted: false }); return; }
+    const f = this.FOCUS[name];
+    this.applyLayout(f.kinds);
+    this.setState({ focusMode: name, route: f.route, notifsMuted: f.muted, settingsOpen: false });
+    this.pushActivity('Task', 'focus.set("' + name + '")');
+  }
+  beep(freq, vol) {
+    if (!this.state.sound) return;
+    try {
+      this.ac = this.ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = this.ac.createOscillator(), g = this.ac.createGain();
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(vol || .05, this.ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(.0001, this.ac.currentTime + .18);
+      o.connect(g); g.connect(this.ac.destination); o.start(); o.stop(this.ac.currentTime + .2);
+    } catch (e) {}
+  }
+  toggleCmd() {
+    const open = !this.state.cmdOpen;
+    this.setState({ cmdOpen: open, pickerOpen: false, settingsOpen: false, notifOpen: false });
+    if (open) setTimeout(() => { if (this.cmdRef.current) this.cmdRef.current.focus(); }, 80);
+  }
+  nowStr() { return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  pushActivity(tag, text, status) {
+    this.setState({ activity: [...this.state.activity, { id: ++this.nid, time: this.nowStr(), tag, text, status: status || 'ok' }].slice(-40) });
+  }
+  delegate(text) {
+    if (!text || !text.trim()) return;
+    if (this.state.live) {
+      this.setState({ cmdOpen: false });
+      this.sendLive({ type: 'delegate', text: text.trim() });
+      return;
+    }
+    this.setState({ cmdOpen: false, phase: 'thinking', route: 'GPT-5.6' });
+    this.pushActivity('Task', 'delegate("' + text + '")', 'running');
+    const u = { ...this.state.usage };
+    u['GPT-5.6'] = { tok: u['GPT-5.6'].tok + 900, cost: +(u['GPT-5.6'].cost + 0.06).toFixed(2) };
+    this.setState({ usage: u });
+    this.delT1 = setTimeout(() => { this.pushActivity('Tool', 'plan \u2192 3 steps queued'); this.setState({ phase: 'speaking' }); }, 2200);
+    this.delT2 = setTimeout(() => {
+      this.setState({ phase: 'listening', route: 'Gemini Flash', activity: this.state.activity.map(a => a.status === 'running' ? { ...a, status: 'ok' } : a) });
+      this.pushNotif({ icon: '\u25c9', title: 'NOVA', text: 'Done \u2014 ' + text });
+    }, 4800);
+  }
+  typeTranscript(text) {
+    clearInterval(this.typeT); clearTimeout(this.fadeT);
+    this.setState({ transcript: '', transcriptHide: false });
+    let i = 0;
+    this.typeT = setInterval(() => {
+      i += 2;
+      this.setState({ transcript: text.slice(0, i) });
+      if (i >= text.length) { clearInterval(this.typeT); this.fadeT = setTimeout(() => this.setState({ transcript: '' }), 3500); }
+    }, 50);
+  }
+  mkOrb(size) {
+    const e = React.createElement;
+    const reduce = (this.props.reduceMotion ?? false) || this.state.reduceLocal;
+    const ph = this.state.phase;
+    const spin = ph === 'thinking' ? 2.4 : ph === 'speaking' ? 3.6 : 7;
+    const abs = { position: 'absolute', inset: 0, borderRadius: '50%' };
+    const b = (n) => Math.max(1, Math.round(size * n)) + 'px';
+    return e('div', { key: 'orb' + size, style: { position: 'relative', width: size + 'px', height: size + 'px', borderRadius: '50%', flexShrink: 0, background: 'radial-gradient(circle at 33% 28%, #2c3468 0%, #171d44 52%, #070a1c 100%)', boxShadow: '0 0 ' + b(0.5) + ' rgba(46,230,214,.35), 0 0 ' + b(1.2) + ' rgba(124,134,248,.22)', animation: reduce ? 'none' : 'orbPulse 3.2s ease-in-out infinite' } },
+      e('div', { style: Object.assign({}, abs, { overflow: 'hidden' }) },
+        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 0deg, transparent 0deg, rgba(46,230,214,.55) 80deg, rgba(124,134,248,.45) 140deg, transparent 220deg, rgba(46,230,214,.28) 300deg, transparent 360deg)', filter: 'blur(' + b(0.09) + ')', animation: reduce ? 'none' : 'orbSpin ' + spin + 's linear infinite' }) }),
+        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 180deg, transparent 0deg, rgba(124,134,248,.5) 70deg, transparent 150deg, rgba(46,230,214,.35) 240deg, transparent 320deg)', filter: 'blur(' + b(0.12) + ')', opacity: .85, animation: reduce ? 'none' : 'orbSpinRev ' + (spin * 1.7).toFixed(1) + 's linear infinite' }) }),
+        e('div', { style: Object.assign({}, abs, { background: 'radial-gradient(circle at 50% 72%, rgba(46,230,214,.45) 0%, transparent 55%)' }) }),
+        e('div', { style: { position: 'absolute', left: '16%', top: '8%', width: '42%', height: '30%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,.7), rgba(255,255,255,0) 70%)', filter: 'blur(' + b(0.05) + ')' } }),
+        e('div', { style: Object.assign({}, abs, { boxShadow: 'inset 0 ' + b(0.04) + ' ' + b(0.12) + ' rgba(255,255,255,.2), inset 0 -' + b(0.06) + ' ' + b(0.2) + ' rgba(46,230,214,.3)' }) })
+      )
+    );
+  }
+  renderVals() {
+    const st = this.state, now = st.now;
+    const dim = st.dimLocal ?? (this.props.wallpaperDim ?? 0.35);
+    const reduce = (this.props.reduceMotion ?? false) || this.state.reduceLocal;
+    const dockHide = (this.props.dockAutoHide ?? false) || st.dockHide;
+    const pageNames = ['Dashboard', 'NOVA', 'Apps & Files', 'Calendar', 'Agent'];
+    const pages = pageNames.map((label, i) => ({
+      label, go: () => this.setPage(i),
+      dotStyle: { width: i === st.page ? '16px' : '5px', height: '5px', borderRadius: '999px', border: 'none', padding: 0, cursor: 'pointer', background: i === st.page ? 'linear-gradient(90deg,#2ee6d6,#7c86f8)' : 'rgba(234,240,246,.25)', transition: 'all .3s ease' }
+    }));
+    const offAt = (i, ref) => { const o = (i - ref + 5) % 5; return o === 4 ? -1 : o; };
+    const pg = (i) => {
+      const o = offAt(i, st.page), po = offAt(i, st.vPrev);
+      const jump = Math.abs(o - po) > 1;
+      return { position: 'absolute', inset: 0, overflow: 'hidden', isolation: 'isolate', contain: 'layout paint', clipPath: 'inset(0)', transform: `translateX(calc(${o * 100}% + ${st.dragX}px))`, transition: (st.dragging || jump || reduce) ? 'none' : 'transform .5s cubic-bezier(.3,.8,.3,1)', zIndex: o === 0 ? 2 : 1 };
+    };
+    const wlist = st.widgets.map(w => {
+      const m = this.WMETA[w.type];
+      return {
+        ...w, title: m.title,
+        gridStyle: { gridColumn: 'span ' + m.cw, gridRow: 'span ' + m.ch, position: 'relative', animation: 'fadeUp .3s ease' },
+        isClock: w.type === 'clock', isWeather: w.type === 'weather', isNova: w.type === 'nova', isTasks: w.type === 'tasks', isSpotify: w.type === 'spotify', isSystem: w.type === 'system', isNotes: w.type === 'notes', isCalmini: w.type === 'calmini', isBriefing: w.type === 'briefing',
+        canDrag: !st.lock,
+        onDragStart: (e) => { this.dragWid = w.id; e.dataTransfer.effectAllowed = 'move'; },
+        onDragOver: (e) => { e.preventDefault(); if (this.dragWid == null || this.dragWid === w.id) return; const ws = [...this.state.widgets]; const from = ws.findIndex(x => x.id === this.dragWid), to = ws.findIndex(x => x.id === w.id); if (from < 0 || to < 0) return; ws.splice(to, 0, ws.splice(from, 1)[0]); this.setState({ widgets: ws }); },
+        onDragEnd: () => { this.dragWid = null; },
+        showCtl: !st.lock && (st.hoverId === w.id || st.menuId === w.id),
+        menuOpen: st.menuId === w.id,
+        pinLabel: w.pinned ? 'Unpin' : 'Pin',
+        removeStyle: { background: 'none', border: 'none', color: w.pinned ? 'rgba(234,240,246,.3)' : '#e05f8a', fontSize: '12px', textAlign: 'left', padding: '7px 10px', borderRadius: '8px', cursor: w.pinned ? 'not-allowed' : 'pointer' },
+        onEnter: () => this.setState({ hoverId: w.id }),
+        onLeave: () => this.setState({ hoverId: null }),
+        onMenu: () => this.setState({ menuId: st.menuId === w.id ? null : w.id }),
+        onPin: () => this.setState({ widgets: st.widgets.map(x => x.id === w.id ? { ...x, pinned: !x.pinned } : x), menuId: null }),
+        onDup: () => this.setState({ widgets: [...st.widgets, { id: ++this.nid, type: w.type, pinned: false }], menuId: null }),
+        onRemove: () => { if (!w.pinned) this.setState({ widgets: st.widgets.filter(x => x.id !== w.id), menuId: null }); }
+      };
+    });
+    const tasks = st.tasks.filter(t => !t.done || t.id === st.justDoneId).map(t => ({
+      ...t, check: t.done ? '✓' : '',
+      boxStyle: { width: '16px', height: '16px', borderRadius: '5px', border: t.done ? '1px solid #2ee6d6' : '1px solid rgba(255,255,255,.25)', background: t.done ? 'rgba(46,230,214,.2)' : 'none', color: '#2ee6d6', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+      textStyle: { textDecoration: t.done ? 'line-through' : 'none', color: t.done ? 'rgba(234,240,246,.55)' : '#eaf0f6', transition: 'color .3s ease' },
+      toggle: () => {
+        const marking = !t.done;
+        if (st.live) this.sendLive({ type: 'task', id: t.id, done: marking });
+        this.setState({ tasks: st.tasks.map(x => x.id === t.id ? { ...x, done: marking } : x), justDoneId: marking ? t.id : null });
+        if (marking) { this.beep(880, .05); clearTimeout(this.doneT); this.doneT = setTimeout(() => this.setState({ justDoneId: null }), 900); }
+      }
+    }));
+    const doneTasks = st.tasks.filter(t => t.done && t.id !== st.justDoneId).map(t => ({ ...t,
+      toggle: () => { if (st.live) this.sendLive({ type: 'task', id: t.id, done: false }); this.setState({ tasks: st.tasks.map(x => x.id === t.id ? { ...x, done: false } : x) }); } }));
+    const taskDone = st.tasks.filter(t => t.done).length;
+    const phaseLabel = st.phase === 'listening' ? 'Listening…' : st.phase === 'thinking' ? 'Thinking' : 'Speaking';
+    const models = [
+      { name: 'Gemini Flash', key: 'Gemini Flash', ok: true }, { name: 'Groq Llama', key: 'Groq Llama', ok: true },
+      { name: 'Ollama', key: 'Ollama', ok: true }, { name: 'GPT-5.6', key: 'GPT-5.6', ok: true }, { name: 'Obsidian Brain', key: 'Obsidian Brain', ok: true }
+    ].map(m => {
+      const active = st.route === m.key && st.phase !== 'listening';
+      return { ...m, usage: (st.usageLabels && st.usageLabels[m.key]) || ((st.usage[m.key].tok / 1000).toFixed(1) + 'k \u00b7 $' + st.usage[m.key].cost.toFixed(2)),
+        chipStyle: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '5px 11px', borderRadius: '999px', whiteSpace: 'nowrap', flexShrink: 0, border: active ? '1px solid rgba(46,230,214,.6)' : '1px solid rgba(255,255,255,.1)', background: active ? 'rgba(46,230,214,.12)' : 'rgba(255,255,255,.03)', color: active ? '#2ee6d6' : 'rgba(234,240,246,.7)' },
+        dotStyle: { width: '6px', height: '6px', borderRadius: '50%', background: active ? '#2ee6d6' : 'rgba(234,240,246,.3)' } };
+    });
+    const talk = st.talk.map((b, i) => ({
+      text: st.privacy ? '••••••••••••••' : b.text,
+      rowStyle: { display: 'flex', justifyContent: b.who === 'user' ? 'flex-end' : 'flex-start' },
+      bubbleStyle: { maxWidth: '85%', fontSize: '12px', lineHeight: 1.45, padding: '8px 12px', borderRadius: b.who === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: b.who === 'user' ? 'rgba(124,134,248,.18)' : 'rgba(46,230,214,.1)', border: b.who === 'user' ? '1px solid rgba(124,134,248,.3)' : '1px solid rgba(46,230,214,.25)' }
+    }));
+    const bars = Array.from({ length: 22 }, (_, i) => ({
+      style: { width: '3px', borderRadius: '2px', background: 'linear-gradient(180deg,#2ee6d6,#7c86f8)', height: (8 + Math.abs(Math.sin(i * 1.3)) * 16) + 'px', transformOrigin: 'bottom', animation: reduce || st.phase === 'thinking' ? 'none' : `wave ${0.7 + (i % 5) * 0.13}s ease-in-out ${i * 0.05}s infinite`, opacity: st.phase === 'thinking' ? 0.3 : 1 }
+    }));
+    const timeline = [...st.timeline].reverse().map(ev => ({
+      ...ev,
+      tagStyle: { fontSize: '11px', letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: '999px', flexShrink: 0, background: ev.tag === 'Tool' ? 'rgba(46,230,214,.12)' : ev.tag === 'Memory' ? 'rgba(124,134,248,.14)' : ev.tag === 'Vision' ? 'rgba(245,169,123,.14)' : 'rgba(255,255,255,.07)', color: ev.tag === 'Tool' ? '#2ee6d6' : ev.tag === 'Memory' ? '#9aa2ff' : ev.tag === 'Vision' ? '#f5a97b' : 'rgba(234,240,246,.6)' }
+    }));
+    const tile = (name, i) => {
+      const base = { position: 'relative', width: '46px', height: '46px', borderRadius: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '16px', color: '#fff', border: '1px solid rgba(255,255,255,.14)', textShadow: '0 1px 2px rgba(0,0,0,.35)' };
+      const ic = (this.state.appIcons || {})[name];
+      if (ic) return { ...base, color: 'transparent', textShadow: 'none', background: 'rgba(255,255,255,.05)', backgroundImage: 'url("' + ic + '")', backgroundSize: '72%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', border: '1px solid rgba(255,255,255,.10)' };
+      const b = this.BRAND[name];
+      if (b) return { ...base, background: 'linear-gradient(135deg, ' + b[0] + ', ' + b[1] + ')' };
+      const hues = [178, 245, 210, 262, 30, 330, 150, 200];
+      const hh = hues[(name.charCodeAt(0) + i) % hues.length];
+      return { ...base, color: '#eaf0f6', textShadow: 'none', background: `linear-gradient(135deg, oklch(0.42 0.09 ${hh}), oklch(0.3 0.08 ${hh + 40}))` };
+    };
+    const glyphOf = (name) => (this.BRAND[name] && this.BRAND[name][2]) || name.slice(0, 2);
+    const recordByName = new Map((st.appRecords || []).map(r => [r.name, r]));
+    const mkApp = (name, i) => {
+      const record = recordByName.get(name);
+      return {
+        name,
+        glyph: glyphOf(name),
+        tileStyle: tile(name, i),
+        runStyle: { position: 'absolute', right: '3px', bottom: '3px', width: '7px', height: '7px', borderRadius: '50%', background: record?.active ? '#f5c97b' : record?.running ? '#2ee6d6' : 'transparent', boxShadow: record?.running ? '0 0 7px rgba(46,230,214,.7)' : 'none' },
+        open: () => this.openApp(name, i, null, record?.id),
+        togglePin: (event) => { event.preventDefault(); if (record?.id && st.live) this.sendLive({ type: 'pin_app', id: record.id, pinned: !record.pinned }); },
+      };
+    };
+    const pinnedApps = (st.pinnedNames || ['Chrome', 'VS Code', 'Claude', 'ChatGPT', 'Obsidian', 'Terminal', 'Spotify', 'File Explorer']).map(mkApp);
+    const allApps = (st.allAppNames || ['Access', 'Alexa', 'Amazon', 'Bixby', 'Calculator', 'Calendar', 'Camera', 'ChatGPT', 'Chrome', 'Claude', 'Clock', 'Copilot', 'Excel', 'Feedback Hub', 'File Explorer', 'Files', 'Gallery', 'Game Bar', 'Git', 'Google Duo', 'iCloud', 'LinkedIn', 'Mail', 'Maps', 'Media Player', 'Messenger', 'Microsoft Edge', 'Microsoft Store', 'Movies & TV', 'News', 'Node.js', 'Notepad', 'Obsidian', 'Ollama', 'OneDrive', 'OneNote', 'Outlook', 'Paint', 'PENUP', 'People', 'Phone Link', 'Photos', 'Power BI', 'PowerPoint', 'Publisher', 'Python 3.14', 'Samsung Notes', 'Screen recorder', 'Settings', 'SmartThings', 'Snipping Tool', 'Solitaire', 'Sound Recorder', 'Spotify', 'Sticky Notes', 'Teams', 'Terminal', 'To Do', 'Ubuntu', 'Visual Studio 2022', 'VS Code', 'Weather', 'Whiteboard', 'Word', 'Xbox']).filter(a => a.toLowerCase().includes(st.appQuery));
+    const groups = {};
+    allApps.forEach((a, i) => { const L = a[0].toUpperCase(); (groups[L] = groups[L] || []).push(mkApp(a, i)); });
+    const appGroups = Object.keys(groups).sort().map(letter => ({ letter, apps: groups[letter] }));
+    const recentFiles = (st.recentList || [
+      { name: 'HACKATHON_SUBMISSION.md', ext: 'MD', when: '2h', c: '#7c86f8' },
+      { name: 'agent.py', ext: 'PY', when: '4h', c: '#2ee6d6' },
+      { name: 'orchestrator.py', ext: 'PY', when: '5h', c: '#2ee6d6' },
+      { name: 'lecture-07-notes.pdf', ext: 'PDF', when: '1d', c: '#e05f8a' },
+      { name: 'demo-script.md', ext: 'MD', when: '1d', c: '#7c86f8' },
+      { name: 'build-week-checklist.md', ext: 'MD', when: '2d', c: '#7c86f8' }
+    ]).map(f => {
+      const col = f.c || ({ MD: '#7c86f8', PY: '#2ee6d6', PDF: '#e05f8a' }[f.ext] || '#9aa2ff');
+      return { ...f,
+        open: () => { if (st.live && f.id && this.sendLive({ type: 'open_recent', id: f.id })) return; this.openApp({ MD: 'Obsidian', PY: 'VS Code', PDF: 'Microsoft Edge' }[f.ext] || 'File Explorer', 0, f.name); },
+        iconStyle: { width: '32px', height: '32px', borderRadius: '9px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: col, flexShrink: 0 } };
+    });
+    const events = { 19: 'Demo prep', 20: 'Record video', 21: 'Submit 5PM PT', 23: 'CS 201 exam', 25: 'Usage resets', 28: 'Study group' };
+    const demoEvents = { 19: 'Demo prep · 4 PM', 20: 'Study · 8 PM', 21: 'Submit · 5 PM', 24: 'CS exam · 10 AM' };
+    const liveCalendar = st.calendarPayload && st.calendarPayload.available !== false ? st.calendarPayload : null;
+    const monthEventMap = {};
+    if (liveCalendar && Array.isArray(liveCalendar.events)) {
+      liveCalendar.events.forEach(e => {
+        const day = Number(e.day);
+        if (!Number.isInteger(day)) return;
+        if (!monthEventMap[day]) monthEventMap[day] = [];
+        monthEventMap[day].push(e);
+      });
+    }
+    const firstWeekday = liveCalendar && Number.isInteger(liveCalendar.firstWeekday) ? liveCalendar.firstWeekday : 3;
+    const daysInMonth = liveCalendar && Number.isInteger(liveCalendar.daysInMonth) ? liveCalendar.daysInMonth : 31;
+    const todayNumber = now.getDate();
+    const calCells = [];
+    for (let i = 0; i < firstWeekday; i++) calCells.push({ num: '', hasEvent: false, cellStyle: { borderRadius: '10px' }, numStyle: {}, evStyle: {} });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const today = d === todayNumber;
+      const liveItems = monthEventMap[d] || [];
+      const firstLive = liveItems[0];
+      const ev = firstLive ? firstLive.title + (liveItems.length > 1 ? ' +' + (liveItems.length - 1) : '') : (!liveCalendar ? demoEvents[d] : '');
+      const color = firstLive?.color || (d === 21 ? '#e05f8a' : '#7c86f8');
+      calCells.push({
+        num: String(d), hasEvent: !!ev, event: ev || '',
+        cellStyle: { borderRadius: '10px', padding: '6px 7px', background: today ? 'rgba(46,230,214,.1)' : 'rgba(255,255,255,.025)', border: today ? '1px solid rgba(46,230,214,.5)' : '1px solid rgba(255,255,255,.05)', overflow: 'hidden', minHeight: 0 },
+        numStyle: { fontSize: '12px', fontWeight: today ? 700 : 500, color: today ? '#2ee6d6' : 'rgba(234,240,246,.8)' },
+        evStyle: { fontSize: '11px', marginTop: '3px', padding: '2px 6px', borderRadius: '6px', background: color + '22', color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+      });
+    }
+    const demoAgenda = [
+      { title: 'Build Week demo prep', when: 'Today · 4:00 PM', color: '#2ee6d6' },
+      { title: 'Study session — lecture 7', when: 'Today · 8:00 PM', color: '#7c86f8' },
+      { title: 'Record YouTube demo (< 3 min)', when: 'Mon · 2:00 PM', color: '#7c86f8' },
+      { title: 'Build Week submission deadline', when: 'Tue · 5:00 PM PT', color: '#e05f8a' },
+      { title: 'CS 201 exam', when: 'Thu · 10:00 AM', color: '#f5a97b' }
+    ];
+    const agendaSource = liveCalendar ? (liveCalendar.upcoming || []) : demoAgenda;
+    const agenda = agendaSource.slice(0, 12).map(e => {
+      const c = e.color || '#7c86f8';
+      return { ...e, c, title: e.title || 'Calendar event', when: e.when || '', barStyle: { width: '3px', borderRadius: '2px', background: c, flexShrink: 0 } };
+    });
+    const nextEvents = agenda.slice(0, 3).map(e => ({ ...e, dotStyle: { width: '7px', height: '7px', borderRadius: '50%', background: e.c, flexShrink: 0 } }));
+    const dockApps = ['Search', 'File Explorer', 'Chrome', 'VS Code', 'Claude', 'ChatGPT', 'Terminal', 'Obsidian', 'Spotify'];
+    const running = st.wins.map(w => w.name);
+    const dock = dockApps.map((name, i) => {
+      const record = recordByName.get(name);
+      return {
+        name, glyph: name === 'Search' ? '⌕' : glyphOf(name),
+        tileStyle: { ...tile(name, i), width: '44px', height: '44px', fontSize: '15px' },
+        runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: (record?.running || running.includes(name)) ? '#2ee6d6' : 'transparent' },
+        launch: () => { if (name === 'Search') { this.toggleCmd(); } else if (st.live) { this.openApp(name, i, null, record?.id); } else { const ex = st.wins.find(w => w.name === name); if (ex) { this.setState({ wins: st.wins.map(w => w.name === name ? { ...w, min: !w.min, z: st.wz + 1 } : w), wz: st.wz + 1 }); } else { this.openApp(name, i); } } }
+      };
+    }).concat([{
+      name: 'NOVA', glyph: '', isOrb: true,
+      tileStyle: { width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none' },
+      runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: '#2ee6d6' },
+      launch: () => this.setState({ page: 1 })
+    }]);
+    const settings = [
+      { label: 'Lock canvas', on: st.lock, k: 'lock' },
+      { label: 'Dock auto-hide', on: st.dockHide, k: 'dockHide' },
+      { label: 'Demo privacy', on: st.privacy, k: 'privacy' },
+      { label: 'Reduce motion', on: st.reduceLocal, k: 'reduceLocal' },
+      { label: 'Sound cues', on: st.sound, k: 'sound' }
+    ].map(s => ({ ...s,
+      toggle: () => this.setState({ [s.k]: !st[s.k] }),
+      pillStyle: { width: '34px', height: '19px', borderRadius: '999px', background: s.on ? 'rgba(46,230,214,.4)' : 'rgba(255,255,255,.12)', display: 'inline-flex', alignItems: 'center', padding: '2px', transition: 'background .2s' },
+      knobStyle: { width: '15px', height: '15px', borderRadius: '50%', background: s.on ? '#2ee6d6' : 'rgba(234,240,246,.6)', transform: s.on ? 'translateX(15px)' : 'translateX(0)', transition: 'transform .2s' }
+    }));
+    const pickerMeta = [
+      ['briefing', 'Daily briefing', 'Morning summary from NOVA', '◐'],
+      ['clock', 'Clock', 'Time and date', '◷'], ['weather', 'Weather', 'Local conditions', '☀'],
+      ['nova', 'NOVA status', 'Voice state and route', '◉'], ['tasks', 'Tasks', 'Daily checklist', '▤'],
+      ['spotify', 'Now playing', 'Spotify controls', '♪'], ['system', 'System', 'CPU and RAM', '▥'],
+      ['notes', 'Obsidian notes', 'Recent vault notes', '◈'], ['calmini', 'Up next', 'Next 3 events', '▦']
+    ];
+    const pickerItems = pickerMeta.map(([type, name, desc, glyph], i) => ({ name, desc, glyph, tileStyle: { ...tile(name, i), width: '40px', height: '40px', fontSize: '15px', flexShrink: 0 }, add: () => this.addWidget(type) }));
+    const layouts = [
+      { name: 'Daily', kinds: ['briefing', 'clock', 'weather', 'nova', 'tasks', 'spotify', 'calmini', 'notes'] },
+      { name: 'Study', kinds: ['clock', 'tasks', 'notes', 'calmini', 'nova', 'system'] },
+      { name: 'Minimal', kinds: ['clock', 'nova'] }
+    ].map(l => ({ ...l, apply: () => this.applyLayout(l.kinds) }));
+    const tagCss = (tag) => ({ fontSize: '11px', letterSpacing: '.06em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: '999px', flexShrink: 0, background: tag === 'Tool' ? 'rgba(46,230,214,.12)' : tag === 'Memory' ? 'rgba(124,134,248,.14)' : tag === 'Vision' ? 'rgba(245,169,123,.14)' : tag === 'Task' ? 'rgba(46,230,214,.2)' : 'rgba(255,255,255,.07)', color: tag === 'Tool' ? '#2ee6d6' : tag === 'Memory' ? '#9aa2ff' : tag === 'Vision' ? '#f5a97b' : tag === 'Task' ? '#2ee6d6' : 'rgba(234,240,246,.6)' });
+    const actFilters = ['All', 'Task', 'Tool', 'Memory', 'Route', 'Vision'].map(name => ({ name, set: () => this.setState({ actFilter: name }),
+      chipStyle: { background: st.actFilter === name ? 'rgba(46,230,214,.14)' : 'rgba(255,255,255,.04)', border: st.actFilter === name ? '1px solid rgba(46,230,214,.5)' : '1px solid rgba(255,255,255,.09)', color: st.actFilter === name ? '#2ee6d6' : 'rgba(234,240,246,.65)', borderRadius: '999px', padding: '4px 11px', fontSize: '11px', cursor: 'pointer' } }));
+    const activityList = [...st.activity].reverse().filter(a => st.actFilter === 'All' || a.tag === st.actFilter).map(a => ({ ...a, tagStyle: tagCss(a.tag),
+      stStyle: { fontSize: '11px', flexShrink: 0, color: a.status === 'running' ? '#f5c97b' : a.status === 'denied' ? '#f08cab' : 'rgba(46,230,214,.75)' } }));
+    const approvalsList = st.approvals.map(ap => ({ ...ap,
+      approve: () => { if (st.live) { this.sendLive({ type: 'approval', id: ap.id, decision: 'approve' }); this.beep(760, .05); return; } this.setState({ approvals: st.approvals.filter(x => x.id !== ap.id) }); this.pushActivity('Vision', ap.detail, 'approved'); this.beep(760, .05); },
+      deny: () => { if (st.live) { this.sendLive({ type: 'approval', id: ap.id, decision: 'deny' }); this.beep(300, .05); return; } this.setState({ approvals: st.approvals.filter(x => x.id !== ap.id) }); this.pushActivity('Vision', ap.detail, 'denied'); this.beep(300, .05); } }));
+    const memList = st.memories.filter(m => (m.title + ' ' + m.snippet).toLowerCase().includes(st.memQuery)).map(m => ({ ...m,
+      del: () => { if (st.live) { this.sendLive({ type: 'forget', title: m.title }); return; } this.setState({ memories: st.memories.filter(x => x.id !== m.id) }); this.pushActivity('Memory', 'obsidian.forget("' + m.title + '")'); } }));
+    const cmdSuggestions = [
+      { icon: '\u25a4', label: 'Add "review PR feedback" to my tasks' },
+      { icon: '\u25c8', label: 'Summarize today\u2019s agent notes' },
+      { icon: '\u266a', label: 'Play Deep Focus and mute notifications' },
+      { icon: '\u25f7', label: 'Remind me 30 min before the deadline' }
+    ].map(s => ({ ...s, run: () => this.delegate(s.label) }));
+    const uTot = Object.values(st.usage).reduce((a, u) => ({ tok: a.tok + u.tok, cost: a.cost + u.cost }), { tok: 0, cost: 0 });
+    const tracks = [{ t: 'Deep Focus', a: 'Ambient Mix \u00b7 Spotify' }, { t: 'Lo-Fi Beats', a: 'Chill Mix \u00b7 Spotify' }, { t: 'Night Drive', a: 'Synthwave \u00b7 Spotify' }];
+    const winVis = st.wins.some(w => !w.min);
+    const hr = now.getHours();
+    const greeting = (hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening') + ', Ahmed';
+    const openCount = st.tasks.filter(t => !t.done).length;
+    const briefStats = [
+      { k: 'Weather', v: st.weatherBrief },
+      { k: 'Tasks', v: openCount + ' open' },
+      { k: 'Next', v: 'Demo prep \u00b7 4 PM' },
+      st.live ? { k: 'Memories', v: st.memories.length + ' in vault' } : { k: 'Overnight', v: '2 memories saved' }
+    ];
+    const pillS = (on) => ({ width: '34px', height: '19px', borderRadius: '999px', background: on ? 'rgba(46,230,214,.4)' : 'rgba(255,255,255,.12)', display: 'inline-flex', alignItems: 'center', padding: '2px', transition: 'background .2s', flexShrink: 0 });
+    const knobS = (on) => ({ width: '15px', height: '15px', borderRadius: '50%', background: on ? '#2ee6d6' : 'rgba(234,240,246,.6)', transform: on ? 'translateX(15px)' : 'translateX(0)', transition: 'transform .2s' });
+    const WPS = { aurora: 'radial-gradient(80% 70% at 85% 80%, rgba(46,230,214,.28) 0%, transparent 60%), radial-gradient(60% 60% at 70% 15%, rgba(124,134,248,.32) 0%, transparent 55%), radial-gradient(120% 90% at 20% 10%, #10315c 0%, #060a14 60%)', space: 'radial-gradient(100% 100% at 50% 120%, #1a1440 0%, #070a1c 60%, #04060e 100%)' };
+    return {
+      brainRef: this.brainRef,
+      orbSm: this.mkOrb(34), orbLg: this.mkOrb(74), orbDock: this.mkOrb(40), orbTiny: this.mkOrb(24), orbCmd: this.mkOrb(28),
+      trackStyle: { position: 'absolute', inset: 0, overflow: 'hidden', transform: winVis ? 'scale(.965)' : 'none', filter: winVis ? 'brightness(.72)' : 'none', transition: 'transform .4s ease, filter .4s ease' },
+      winList: st.wins.filter(w => !w.min).map((w, idx) => {
+        const base = w.snap === 'left' ? { left: '16px', top: '72px', bottom: '104px', width: 'calc(50% - 24px)' }
+          : w.snap === 'right' ? { right: '16px', top: '72px', bottom: '104px', width: 'calc(50% - 24px)' }
+          : w.x !== null ? { left: w.x + 'px', top: w.y + 'px' }
+          : { left: 'max(12px, calc(50% - 320px + ' + (idx * 30) + 'px))', top: 'max(66px, calc(44% - 210px + ' + (idx * 26) + 'px))' };
+        return {
+          id: w.id, glyph: glyphOf(w.name), title: w.label || w.name,
+          style: { position: 'absolute', zIndex: 33 + w.z, ...base },
+          inner: { width: w.snap ? '100%' : '640px', height: w.snap ? '100%' : '420px', maxWidth: '92vw', maxHeight: w.snap ? 'none' : '70vh', background: 'rgba(9,13,24,.9)', backdropFilter: 'blur(28px)', border: '1px solid rgba(255,255,255,.14)', borderRadius: '16px', boxShadow: '0 30px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: reduce ? 'none' : 'winIn .3s cubic-bezier(.2,.9,.3,1.05)' },
+          iconStyle: { ...tile(w.name, w.i), width: '22px', height: '22px', fontSize: '10px', borderRadius: '6px' },
+          bigIconStyle: { ...tile(w.name, w.i), width: '64px', height: '64px', fontSize: '22px', borderRadius: '16px', opacity: .9 },
+          focus: () => { if (w.z <= st.wz - 1) this.setState({ wins: this.state.wins.map(x => x.id === w.id ? { ...x, z: this.state.wz + 1 } : x), wz: this.state.wz + 1 }); },
+          close: () => this.setState({ wins: this.state.wins.filter(x => x.id !== w.id) }),
+          doMin: () => this.setState({ wins: this.state.wins.map(x => x.id === w.id ? { ...x, min: true } : x) }),
+          snapL: () => this.setState({ wins: this.state.wins.map(x => x.id === w.id ? { ...x, snap: x.snap === 'left' ? null : 'left', x: null, y: null } : x) }),
+          snapR: () => this.setState({ wins: this.state.wins.map(x => x.id === w.id ? { ...x, snap: x.snap === 'right' ? null : 'right', x: null, y: null } : x) }),
+          drag: (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            const inner = e.currentTarget.parentElement, outer = inner.parentElement;
+            const host = outer.offsetParent ? outer.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+            const r = inner.getBoundingClientRect();
+            const ox = e.clientX - r.left, oy = e.clientY - r.top;
+            const mm = (ev) => this.setState({ wins: this.state.wins.map(x => x.id === w.id ? { ...x, snap: null, x: ev.clientX - host.left - ox, y: ev.clientY - host.top - oy } : x) });
+            const mu = () => { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); };
+            window.addEventListener('mousemove', mm); window.addEventListener('mouseup', mu);
+            e.preventDefault();
+          }
+        };
+      }),
+      greeting, briefSub: st.briefSubLive || 'NOVA indexed 2 new notes and queued your demo checklist while you were away.', briefStats,
+      locked: st.locked,
+      unlock: () => this.setState({ locked: false }),
+      lockNow: () => this.setState({ locked: true, settingsOpen: false }),
+      orbLock: this.mkOrb(96),
+      focusOn: !!st.focusMode, focusName: st.focusMode,
+      focusModes: ['Study', 'Work', 'Off-hours'].map(name => ({ name, set: () => this.setFocus(name),
+        chip: { flex: 1, background: st.focusMode === name ? 'rgba(46,230,214,.14)' : 'rgba(255,255,255,.04)', border: st.focusMode === name ? '1px solid rgba(46,230,214,.5)' : '1px solid rgba(255,255,255,.1)', color: st.focusMode === name ? '#2ee6d6' : 'rgba(234,240,246,.7)', borderRadius: '9px', padding: '6px 0', fontSize: '11px', cursor: 'pointer' } })),
+      wallpapers: [['photo', 'Photo'], ['aurora', 'Aurora'], ['space', 'Deep space']].map(([k, name]) => ({ name, set: () => this.setState({ wallpaper: k }),
+        sw: { width: '48px', height: '30px', borderRadius: '8px', cursor: 'pointer', padding: 0, border: st.wallpaper === k ? '2px solid #2ee6d6' : '1px solid rgba(255,255,255,.15)', background: k === 'photo' ? 'center/cover url(wallpaper-clean.png)' : WPS[k] } })),
+      wpStyle: { position: 'absolute', inset: 0, background: WPS[st.wallpaper] || 'none', opacity: st.wallpaper === 'photo' ? 0 : 1, transition: 'opacity .5s ease' },
+      permList: Object.keys(st.autoAllow).map(k => ({ label: k, toggle: () => this.setState({ autoAllow: { ...st.autoAllow, [k]: !st.autoAllow[k] } }), pillStyle: pillS(st.autoAllow[k]), knobStyle: knobS(st.autoAllow[k]) })),
+      trackTitle: st.spTitle || tracks[st.trackIdx].t, trackArtist: st.spArtist || tracks[st.trackIdx].a,
+      prevTrack: () => { if (st.live) { this.sendLive({ type: 'media', action: 'previous' }); return; } this.setState({ trackIdx: (st.trackIdx + 2) % 3, prog: 0 }); },
+      nextTrack: () => { if (st.live) { this.sendLive({ type: 'media', action: 'next' }); return; } this.setState({ trackIdx: (st.trackIdx + 1) % 3, prog: 0 }); },
+      dimPct: Math.round(dim * 100) + '%', dimVal: Math.round(dim * 100),
+      onDim: (e) => this.setState({ dimLocal: +e.target.value / 100 }),
+      actFilters, activityList, approvals: approvalsList, memList, cmdSuggestions,
+      doneTasks, hasDoneTasks: doneTasks.length > 0,
+      noOpenTasks: tasks.length === 0,
+      taskDash: (taskDone / Math.max(1, st.tasks.length) * 131.9).toFixed(1) + ' 132',
+      taskFrac: taskDone + '/' + st.tasks.length,
+      hasApprovals: st.approvals.length > 0, noApprovals: st.approvals.length === 0, approvalCount: st.approvals.length,
+      onMemSearch: (e) => this.setState({ memQuery: e.target.value.toLowerCase() }),
+      cmdOpen: st.cmdOpen, cmdRef: this.cmdRef,
+      openCmd: () => this.toggleCmd(), closeCmd: () => this.setState({ cmdOpen: false }),
+      onCmdKey: (e) => { if (e.key === 'Enter') this.delegate(e.target.value); },
+      usageTotal: st.usageTotalLabel || ('Today \u00b7 ' + (uTot.tok / 1000).toFixed(1) + 'k tok \u00b7 $' + uTot.cost.toFixed(2)),
+      transcriptShow: !!st.transcript && !st.transcriptHide,
+      transcript: st.transcript,
+      hideTranscript: () => this.setState({ transcriptHide: true }),
+      pages, wlist, tasks, models, talk, bars, timeline, pinnedApps, appGroups, recentFiles, calCells, agenda, nextEvents, dock, settings, pickerItems, layouts,
+      folders: (st.folderNames || ['Desktop', 'Downloads', 'ML_project', 'AI Agent', 'Projects for nova', 'zonta', 'Obsidian Vault']).map((n, i) => ({ name: n, open: () => { if (st.live && this.sendLive({ type: 'open_folder', name: n })) return; this.openApp('File Explorer', i, 'Explorer · ' + n); } })),
+      notes: st.notesList || [{ title: 'agent-notes.md', when: '2h' }, { title: 'build-week-plan.md', when: '5h' }, { title: 'lecture-07.md', when: '1d' }],
+      clockTime: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      clockShort: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' + now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
+      clockDate: now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }),
+      phaseLabel, route: st.route, brainCount: st.brainNotes == null ? 290 : st.brainNotes,
+      isLive: st.live, isDemo: !st.live, weatherTemp: st.weatherTemp, weatherDesc: st.weatherDesc,
+      cpu: Math.round(st.cpu), ram: Math.round(st.ram),
+      cpuDash: (st.cpu / 100 * 131.9).toFixed(1) + ' 132',
+      ramDash: (st.ram / 100 * 131.9).toFixed(1) + ' 132',
+      showTopStats: !st.widgets.some(w => w.type === 'system'),
+      cpuBar: { height: '100%', width: Math.round(st.cpu) + '%', borderRadius: '3px', background: 'linear-gradient(90deg,#2ee6d6,#7c86f8)', transition: 'width .8s' },
+      ramBar: { height: '100%', width: Math.round(st.ram) + '%', borderRadius: '3px', background: 'linear-gradient(90deg,#7c86f8,#9aa2ff)', transition: 'width .8s' },
+      progBar: { height: '100%', width: st.prog + '%', borderRadius: '2px', background: '#2ee6d6' },
+      playGlyph: st.playing ? '❚❚' : '▶',
+      togglePlay: () => { if (st.live) this.sendLive({ type: 'media', action: 'playpause' }); this.setState({ playing: !st.playing }); },
+      dimStyle: { position: 'absolute', inset: 0, background: `rgba(3,6,14,${dim})` },
+      pg0: pg(0), pg1: pg(1), pg2: pg(2), pg3: pg(3), pg4: pg(4),
+      navFlash: st.navFlash, pageLabel: pageNames[st.page],
+      toasts: st.toasts.map(t => ({ ...t, dismiss: () => this.setState({ toasts: this.state.toasts.filter(x => x.id !== t.id) }) })),
+      notifList: [...st.notifs].reverse().concat((st.mailItems || []).map(m => ({
+        id: m.id, icon: '✉', title: m.subject || 'Unread email',
+        text: (m.sender ? 'From ' + m.sender + ' · ' : '') + (m.account || ''),
+        time: m.receivedAt ? new Date(m.receivedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
+      }))),
+      noNotifs: st.notifs.length === 0 && (st.mailItems || []).length === 0,
+      unread: st.notifs.filter(n => !n.read).length + (st.mailUnreadTotal || 0),
+      hasUnread: st.notifs.some(n => !n.read) || (st.mailUnreadTotal || 0) > 0,
+      notifOpen: st.notifOpen,
+      toggleNotif: () => {
+        const open = !st.notifOpen;
+        this.setState({ notifOpen: open, settingsOpen: false, pickerOpen: false, menuId: null, notifs: open ? st.notifs.map(n => ({ ...n, read: true })) : st.notifs });
+      },
+      clearNotifs: () => this.setState({ notifs: [] }),
+      calendarMonthTitle: liveCalendar?.monthTitle || 'July 2026',
+      calendarTodayLabel: liveCalendar?.todayLabel || 'Demo calendar',
+      calendarStatusLabel: st.integrationStatus === 'connected' ? ((st.integrationAccounts || []).length + ' account' + ((st.integrationAccounts || []).length === 1 ? '' : 's') + ' live') : st.integrationStatus === 'needs_attention' ? 'Needs attention' : st.integrationStatus === 'error' ? 'Error' : 'Not connected',
+      calendarStatusTitle: st.integrationStatus === 'connected' ? 'Read-only synchronized calendar data' : 'Connect Gmail or Outlook using NOVA integrations',
+      syncLabel: st.calendarSyncing ? 'Syncing…' : 'Sync now',
+      syncIntegrations: () => {
+        if (!st.live || st.calendarSyncing) return;
+        this.setState({ calendarSyncing: true });
+        if (!this.sendLive({ type: 'sync_integrations' })) this.setState({ calendarSyncing: false });
+      },
+      dragStart: (e) => {
+        if (e.target.closest('button,input,[data-wdrag]')) return;
+        e.preventDefault();
+        this.dragStartX = e.clientX;
+        this.setState({ dragging: true, dragX: 0 });
+        this.mm = (ev) => this.setState({ dragX: ev.clientX - this.dragStartX });
+        this.mu = () => { window.removeEventListener('mousemove', this.mm); window.removeEventListener('mouseup', this.mu); this.endDrag(); };
+        window.addEventListener('mousemove', this.mm);
+        window.addEventListener('mouseup', this.mu);
+      },
+      touchStart: (e) => {
+        if (e.target.closest('button,input')) return;
+        this.dragStartX = e.touches[0].clientX; this.dragStartY = e.touches[0].clientY;
+        this.setState({ dragging: true, dragX: 0 });
+      },
+      touchMove: (e) => {
+        if (!this.state.dragging) return;
+        const dx = e.touches[0].clientX - this.dragStartX, dy = e.touches[0].clientY - this.dragStartY;
+        if (Math.abs(dy) > Math.abs(dx) * 1.2 && Math.abs(dx) < 30) { this.setState({ dragging: false, dragX: 0 }); return; }
+        this.setState({ dragX: dx });
+      },
+      touchEnd: () => { if (this.state.dragging) this.endDrag(); },
+      onWheel: (e) => {
+        if (this.state.menuId !== null) this.setState({ menuId: null });
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        const t = Date.now();
+        if (this.wLast && t - this.wLast < 950) { this.wAcc = 0; return; }
+        if (!this.wPrev || t - this.wPrev > 350) this.wAcc = 0;
+        this.wPrev = t;
+        this.wAcc = (this.wAcc || 0) + e.deltaX;
+        if (Math.abs(this.wAcc) > 300) { this.go(this.wAcc > 0 ? 1 : -1); this.wAcc = 0; this.wLast = t; }
+      },
+      noWidgets: st.widgets.length === 0 && st.page === 0,
+      showAdd: st.page === 0 && !st.lock,
+      pickerOpen: st.pickerOpen, settingsOpen: st.settingsOpen,
+      togglePicker: () => this.setState({ pickerOpen: !st.pickerOpen, settingsOpen: false, menuId: null }),
+      closePicker: () => this.setState({ pickerOpen: false }),
+      toggleSettings: () => this.setState({ settingsOpen: !st.settingsOpen, pickerOpen: false, menuId: null }),
+      goPrev: () => this.go(-1), goNext: () => this.go(1),
+      onAppSearch: (e) => this.setState({ appQuery: e.target.value.toLowerCase() }),
+      refreshApps: () => { if (st.live) this.sendLive({ type: 'refresh_apps' }); },
+      peekDock: () => { if (dockHide) { this.setState({ dockPeek: true }); clearTimeout(this.peekT); this.peekT = setTimeout(() => this.setState({ dockPeek: false }), 3500); } },
+      dockStyle: { position: 'absolute', bottom: '14px', left: '50%', transform: `translateX(-50%) translateY(${dockHide && !st.dockPeek ? '90px' : '0'})`, display: 'flex', alignItems: 'flex-end', gap: '12px', background: 'rgba(10,14,24,.66)', backdropFilter: 'blur(22px)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '20px', padding: '10px 16px 6px', zIndex: 28, transition: 'transform .35s ease' }
+    };
+  }
+}
+</script>
+</body>
+</html>
