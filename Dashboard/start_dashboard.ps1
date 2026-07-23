@@ -6,6 +6,7 @@
 $root = Split-Path $PSScriptRoot -Parent
 
 $exeCandidates = @(
+    (Join-Path $env:LOCALAPPDATA "NOVA\NOVA.exe"),
     (Join-Path $env:LOCALAPPDATA "Programs\NOVA\NOVA.exe"),
     (Join-Path $PSScriptRoot "nova-app\src-tauri\target\release\NOVA.exe")
 )
