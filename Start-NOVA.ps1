@@ -12,7 +12,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Python = Join-Path $Root 'venv\Scripts\python.exe'
 $Agent = Join-Path $Root 'agent.py'
 $AppDir = Join-Path $Root 'Dashboard\nova-app'
-$InstalledExe = Join-Path $env:LOCALAPPDATA 'Programs\NOVA\NOVA.exe'
+$InstalledExe = Join-Path $env:LOCALAPPDATA 'NOVA\NOVA.exe'
 $ReleaseExe = Join-Path $AppDir 'src-tauri\target\release\NOVA.exe'
 
 if (-not (Test-Path $Python)) {
@@ -35,7 +35,7 @@ function Start-NovaAgent {
         Write-Host 'NOVA voice agent is already running.'
         return
     }
-    Start-Process -FilePath $Python -ArgumentList @($Agent, 'console') -WorkingDirectory $Root
+    Start-Process -FilePath $Python -ArgumentList @("`"$Agent`"", 'console') -WorkingDirectory $Root
     Write-Host 'Started the NOVA voice agent.'
 }
 
