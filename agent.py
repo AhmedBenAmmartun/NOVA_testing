@@ -271,7 +271,7 @@ async def my_agent(ctx: agents.JobContext):
     ctx.add_shutdown_callback(lambda: stop_dashboard_bridge(bridge_task))
 
     await session.generate_reply(
-        instructions="Say only: Hello Ahmed. NOVA is ready.",
+        instructions="Greet Ahmed briefly and naturally. Tell him NOVA is ready.",
         allow_interruptions=True,
     )
 
