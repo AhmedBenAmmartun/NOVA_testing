@@ -5,6 +5,8 @@ AUMIDs, shortcuts, and process details stay inside this Python process.
 """
 from __future__ import annotations
 
+import time
+
 import ctypes
 import hashlib
 import json
@@ -375,7 +377,7 @@ def _window_action(record: ApplicationRecord, action: str) -> bool:
         return False
     user32 = ctypes.windll.user32
     hwnd = windows[0]
-    commands = {"minimize": 6, "maximize": 3, "restore": 9, "focus": 9, "activate": 9}
+    commands = {"minimize": 6, "maximize": 3, "restore": 9, "focus": 9, "activate": 3}
     if action == "close":
         user32.PostMessageW(hwnd, 0x0010, 0, 0)
         return True
@@ -396,7 +398,19 @@ def perform_action(registry: dict[str, ApplicationRecord], app_id: str, action: 
     if action == "activate":
         if _window_action(record, "activate"):
             return True, "focused"
-        return (_start(record), "launched")
+
+        started = _start(record)
+        if not started:
+            return False, "launched"
+
+        if record.process_names:
+            deadline = time.monotonic() + 4.0
+            while time.monotonic() < deadline:
+                time.sleep(0.15)
+                if _window_action(record, "maximize"):
+                    break
+
+        return True, "launched"
     if _window_action(record, action):
         return True, action
     return False, "not_running"
