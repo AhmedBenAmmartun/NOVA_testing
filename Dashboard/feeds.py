@@ -21,7 +21,7 @@ from pathlib import Path
 
 import psutil
 
-from app_registry import build_registry, public_message
+from app_registry import build_registry, public_message, refresh_runtime
 from security import resolve_shortcut_targets, safe_recent_target
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -460,6 +460,21 @@ def _recent_id(shortcut: Path) -> str:
     digest = hashlib.sha256(str(shortcut).encode("utf-8", "surrogatepass")).hexdigest()[:18]
     return f"recent_{digest}"
 
+
+def apps_runtime_message(registry: dict) -> dict:
+    """Return only frequently changing application runtime state."""
+    refresh_runtime(registry)
+    return {
+        "type": "apps_runtime",
+        "records": [
+            {
+                "id": record.app_id,
+                "running": record.running,
+                "active": record.active,
+            }
+            for record in registry.values()
+        ],
+    }
 
 def scan_apps() -> tuple[dict, dict]:
     """Return the normalized app catalog plus trusted backend targets."""

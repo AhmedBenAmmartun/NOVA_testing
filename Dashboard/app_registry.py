@@ -283,6 +283,10 @@ def _annotate_runtime(records: list[ApplicationRecord]) -> None:
         record.active = foreground in pids if foreground else False
 
 
+def refresh_runtime(registry: dict[str, ApplicationRecord]) -> None:
+    """Refresh running and active states without rescanning installed apps."""
+    _annotate_runtime(list(registry.values()))
+
 def build_registry() -> dict[str, ApplicationRecord]:
     candidates = [*discover_shortcuts(), *discover_win32_registry(), *discover_uwp(), *_builtins()]
     by_key: dict[tuple[str, str], ApplicationRecord] = {}

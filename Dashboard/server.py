@@ -208,8 +208,17 @@ async def apps_loop(app: web.Application) -> None:
             app["targets"].setdefault(key, {}).clear()
             app["targets"][key].update(value)
         await app["hub"].publish(message)
-        await asyncio.sleep(10 * 60)
+        await asyncio.sleep(2 * 60)
 
+async def apps_runtime_loop(app: web.Application) -> None:
+    while True:
+        registry = app["targets"].get("apps", {})
+        if registry:
+            message = await asyncio.to_thread(
+                feeds.apps_runtime_message, registry
+            )
+            await app["hub"].publish(message)
+        await asyncio.sleep(2)
 
 async def tools_log_loop(app: web.Application) -> None:
     tail = feeds.FileTail(feeds.NOVA_TOOLS_LOG)
@@ -311,6 +320,7 @@ BACKGROUND_LOOPS = (
     obsidian_loop,
     usage_loop,
     apps_loop,
+    apps_runtime_loop,
     tools_log_loop,
     audit_loop,
     conversation_loop,

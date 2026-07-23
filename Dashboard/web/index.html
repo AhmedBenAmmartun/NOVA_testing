@@ -882,6 +882,22 @@ class Component extends DCLogic {
         if (m.icons) s.appIcons = m.icons;
         this.setState(s); break;
       }
+      case 'apps_runtime': {
+        const runtime = new Map(
+          (Array.isArray(m.records) ? m.records : []).map(r => [r.id, r])
+        );
+        this.setState({
+          appRecords: (st.appRecords || []).map(record => {
+            const current = runtime.get(record.id);
+            return current ? {
+              ...record,
+              running: !!current.running,
+              active: !!current.active
+            } : record;
+          })
+        });
+        break;
+      }
       case 'briefing': this.setState({ briefSubLive: m.text || null }); break;
       case 'integrations': this.setState({
         integrationStatus: m.status || 'unknown',
@@ -1253,20 +1269,72 @@ class Component extends DCLogic {
       return { ...e, c, title: e.title || 'Calendar event', when: e.when || '', barStyle: { width: '3px', borderRadius: '2px', background: c, flexShrink: 0 } };
     });
     const nextEvents = agenda.slice(0, 3).map(e => ({ ...e, dotStyle: { width: '7px', height: '7px', borderRadius: '50%', background: e.c, flexShrink: 0 } }));
-    const dockApps = ['Search', 'File Explorer', 'Chrome', 'VS Code', 'Claude', 'ChatGPT', 'Terminal', 'Obsidian', 'Spotify'];
-    const running = st.wins.map(w => w.name);
-    const dock = dockApps.map((name, i) => {
-      const record = recordByName.get(name);
-      return {
-        name, glyph: name === 'Search' ? '⌕' : glyphOf(name),
-        tileStyle: { ...tile(name, i), width: '44px', height: '44px', fontSize: '15px' },
-        runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: (record?.running || running.includes(name)) ? '#2ee6d6' : 'transparent' },
-        launch: () => { if (name === 'Search') { this.toggleCmd(); } else if (st.live) { this.openApp(name, i, null, record?.id); } else { const ex = st.wins.find(w => w.name === name); if (ex) { this.setState({ wins: st.wins.map(w => w.name === name ? { ...w, min: !w.min, z: st.wz + 1 } : w), wz: st.wz + 1 }); } else { this.openApp(name, i); } } }
-      };
-    }).concat([{
-      name: 'NOVA', glyph: '', isOrb: true,
-      tileStyle: { width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none' },
-      runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: '#2ee6d6' },
+    const dockRecords = (st.appRecords || [])
+      .filter(record => record && (record.pinned || record.running))
+      .filter((record, index, records) =>
+        records.findIndex(item => item.id === record.id) === index
+      )
+      .sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+
+    const dock = [{
+      name: 'Search',
+      glyph: '⌕',
+      tileStyle: { ...tile('Search', 0), width: '44px', height: '44px', fontSize: '15px' },
+      runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: 'transparent' },
+      launch: () => this.toggleCmd()
+    }].concat(dockRecords.map((record, i) => ({
+      name: record.name,
+      glyph: glyphOf(record.name),
+      tileStyle: {
+        ...tile(record.name, i + 1),
+        width: '44px',
+        height: '44px',
+        fontSize: '15px',
+        boxShadow: record.active ? '0 0 0 2px rgba(245,201,123,.75)' : 'none'
+      },
+      runStyle: {
+        width: record.active ? '14px' : '5px',
+        height: '4px',
+        borderRadius: '999px',
+        background: record.active ? '#f5c97b' : record.running ? '#2ee6d6' : 'transparent',
+        boxShadow: record.running ? '0 0 7px rgba(46,230,214,.7)' : 'none',
+        transition: 'all .18s ease'
+      },
+      launch: () => {
+        if (!st.live || !record.id) {
+          this.openApp(record.name, i + 1, null, record.id);
+          return;
+        }
+
+        this.sendLive({
+          type: 'app_action',
+          id: record.id,
+          action: record.active ? 'minimize' : 'activate'
+        });
+      }
+    }))).concat([{
+      name: 'NOVA',
+      glyph: '',
+      isOrb: true,
+      tileStyle: {
+        width: '44px',
+        height: '44px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'none'
+      },
+      runStyle: {
+        width: '5px',
+        height: '4px',
+        borderRadius: '999px',
+        background: '#2ee6d6'
+      },
       launch: () => this.setState({ page: 1 })
     }]);
     const settings = [
