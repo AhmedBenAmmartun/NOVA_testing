@@ -589,6 +589,571 @@ Add one entry per meaningful change. Prefer one feature per entry.
   ChatGPT/Claude conversation, then read the matching note with that phrase
   as the query.
 
+### 2026-07-18 - Refined NOVA desktop shell integration
+
+- Feature: integrate the refined NOVA desktop design into the existing
+  Dashboard surface.
+- User goal: use the attached `NOVA_Desktop_Refined_Codex_Package` as the
+  required visual reference, preserve the LiveKit/Gemini backend, avoid a
+  second AI backend, and launch a usable desktop shell.
+- What existed before: `Dashboard/` had a native Tkinter desktop skin and a
+  React/Vite command-center prototype, but the React shell used list-order
+  widgets and the docs described the dashboard as parked outside Git.
+- What Codex implemented: replaced the React mock companion with a refined
+  glass desktop shell, top bar, workspace tabs, exact coordinate widget grid,
+  collision repair, drag/resize, pin, duplicate, remove, undo, redo, reset,
+  widget gallery, persistent per-workspace layout, dock settings/editor,
+  NOVA command center mock bridge, private-data-safe demo mode, and a React
+  Ctrl+Alt+N emergency exit. Updated the native Tkinter hotkey so Ctrl+Alt+N
+  hides the desktop skin. Reopened `Dashboard/` for source tracking while
+  keeping node modules, builds, and local design metadata ignored.
+- How GPT-5.6 is central: not called directly in this UI slice; the dashboard
+  surfaces NOVA's existing GPT-5.6/Gemini/Groq/Ollama routing story and keeps
+  the bridge ready for real runtime state.
+- Other AI/tools used: Codex read the refined spec/package, inspected the repo,
+  implemented the React shell and safety hotkey, ran checks, and launched the
+  Vite server.
+- Files changed: `Dashboard/src/App.tsx`, `Dashboard/src/index.css`,
+  `Dashboard/src/types.ts`, `Dashboard/src/settings.ts`,
+  `Dashboard/src/novaClient.ts`, `Dashboard/src/widgetRegistry.tsx`,
+  `Dashboard/desktop_widget.py`, Dashboard docs, `.gitignore`, `README.md`,
+  `ROADMAP.md`, `THIRD_PARTY_SERVICES.md`, `AGENTS.md`, `CLAUDE.md`,
+  `HACKATHON_SUBMISSION.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build`
+  passed; `python -m py_compile Dashboard/desktop_widget.py` passed;
+  `python -m unittest Dashboard.test_desktop_skin` passed 7/7; Dashboard
+  `--self-test` passed with WorkerW available. Before this implementation,
+  `driver.py tools` passed 33/33, `console-check` launched the existing
+  voice agent, and a text chat turn succeeded with `get_time`.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the React dashboard with `pnpm run dev`, enable demo
+  mode in settings, show widget drag/resize/collision/undo, edit the dock,
+  click the NOVA orb, and press Ctrl+Alt+N to prove the emergency exit.
+
+### 2026-07-18 - NOVA Desktop packaged Windows app
+
+- Feature: package the refined Dashboard shell as a native Windows app.
+- User goal: move the Dashboard from localhost to an actual application.
+- What existed before: the refined Dashboard launched through Vite at
+  `localhost:8443`; there was no native app wrapper or installer.
+- What Codex implemented: added a Tauri/WebView2 wrapper under
+  `Dashboard/src-tauri`, scaffolded safe native commands for future NOVA
+  bridge calls, generated an original NOVA `.ico`/PNG icon, added
+  `desktop:dev`, `desktop:doctor`, `desktop:build`, and
+  `desktop:build:debug` package scripts, updated ignore rules for Tauri
+  build output, and documented the executable/installer paths.
+- How GPT-5.6 is central: not called directly in this packaging slice; the
+  packaged app preserves the existing NOVA backend and GPT-5.6 remains the
+  opt-in reasoning/screen-analysis specialist.
+- Other AI/tools used: Codex added the Tauri scaffolding, installed
+  `@tauri-apps/cli`, used the local Rust/MSVC/WebView2 toolchain, and ran the
+  native bundle build.
+- Files changed: `Dashboard/package.json`, `Dashboard/pnpm-lock.yaml`,
+  `Dashboard/src-tauri/`, `.gitignore`, `README.md`, `Dashboard/README.md`,
+  `Dashboard/ARCHITECTURE.md`, `THIRD_PARTY_SERVICES.md`, `ROADMAP.md`,
+  `HACKATHON_SUBMISSION.md`, `AGENTS.md`, `CLAUDE.md`, and
+  `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run desktop:doctor` confirmed WebView2, MSVC,
+  Rust, Cargo, Node, and Tauri CLI; `pnpm run typecheck` passed;
+  `pnpm run build` passed; `pnpm run desktop:build` built
+  `Dashboard/src-tauri/target/release/nova-desktop.exe` and
+  `Dashboard/src-tauri/target/release/bundle/nsis/NOVA Desktop_1.0.0_x64-setup.exe`;
+  the built app was launched locally.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: run the packaged `nova-desktop.exe` instead of a browser tab,
+  then show the same widget/dock/demo-mode interactions.
+
+### 2026-07-18 - NOVA Desktop compact launch size
+
+- Feature: make the packaged NOVA Desktop app fit Ahmed's laptop display.
+- User goal: shrink the launched desktop app so it fits on screen.
+- What existed before: the Tauri window opened at `1280x760`, which is too
+  tall for the 1280x720 display once Windows chrome/taskbar are included.
+- What Codex implemented: changed the Tauri default window to a smaller demo
+  size, lowered the minimum size, and tightened dashboard padding, workspace
+  spacing, dock position, and the floating add button placement. Added an
+  intermediate startup hook for the compact app window. This was an
+  intermediate app-size pass; the later native widget split removed the
+  centered/focused app launch behavior.
+- How GPT-5.6 is central: not part of this UI sizing task.
+- Other AI/tools used: Codex made the sizing patch and rebuilt/launched the
+  packaged app.
+- Files changed: `Dashboard/src-tauri/tauri.conf.json`,
+  `Dashboard/src-tauri/src/lib.rs`,
+  `Dashboard/src/index.css`, `README.md`, `Dashboard/README.md`,
+  `ROADMAP.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck`, `pnpm run build`,
+  `pnpm run desktop:build`, Dashboard skin tests, driver `tools`, and one
+  driver chat smoke check were run after the change.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: use the packaged app window directly; no resizing should be
+  needed on a 1280x720 screen.
+
+### 2026-07-18 - NOVA Desktop frameless widget window
+
+- Feature: convert the packaged NOVA surface from a normal app window into a
+  frameless widget.
+- User goal: remove the Windows title bar/minimize/close buttons and keep only
+  the main NOVA rectangle, while still allowing the rectangle to be resized.
+- What existed before: the Tauri wrapper opened as a standard decorated app
+  window with Windows chrome.
+- What Codex implemented: set the Tauri main window to `decorations: false`,
+  kept native resizing enabled, added native commands for widget window drag
+  and resize, made the top bar act as the move region, and added a
+  bottom-right resize grip to the React shell. Added a Tauri close guard and
+  keep-visible loop for the frameless WebView window.
+- How GPT-5.6 is central: not part of this widget-window packaging task.
+- Other AI/tools used: Codex adjusted the Tauri wrapper and React shell,
+  rebuilt the Windows executable, and launched it locally.
+- Files changed: `Dashboard/src-tauri/tauri.conf.json`,
+  `Dashboard/src-tauri/Cargo.toml`, `Dashboard/src-tauri/src/lib.rs`,
+  `Dashboard/src/App.tsx`, `Dashboard/src/index.css`,
+  `Dashboard/src/vite-env.d.ts`, `README.md`, `Dashboard/README.md`,
+  `ROADMAP.md`, `HACKATHON_SUBMISSION.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run
+  desktop:build` passed and rebuilt `nova-desktop.exe` plus the NSIS
+  installer; the frameless widget process launched locally and reported a
+  visible window handle after startup.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch `nova-desktop.exe`, drag the top area to move it, resize
+  from the bottom-right grip, then show the widget and dock interactions.
+
+### 2026-07-18 - NOVA Desktop blank canvas and hover add menu
+
+- Feature: make the frameless NOVA widget start empty and add a richer bottom
+  add menu.
+- User goal: open the widget without preloaded content and add only the
+  widgets/actions Ahmed chooses from the bottom `+`.
+- What existed before: each workspace loaded with default widgets, and the
+  bottom `+` only opened the full widget gallery.
+- What Codex implemented: bumped the persisted dashboard settings version,
+  changed all default workspaces to start with empty widget arrays, hid the
+  edit strip until the workspace has a widget, and replaced the single bottom
+  `+` with a hover/focus menu for search/commands, widget gallery, quick
+  notes, NOVA status, and dock editing.
+- How GPT-5.6 is central: not part of this layout-default task.
+- Other AI/tools used: Codex updated the React shell, CSS, settings schema,
+  docs, and ran verification.
+- Files changed: `Dashboard/src/settings.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `README.md`, `Dashboard/README.md`,
+  `ROADMAP.md`, `HACKATHON_SUBMISSION.md`, `AGENTS.md`, `CLAUDE.md`, and
+  `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed before rebuild; final
+  build and NOVA smoke checks are recorded in the task result.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the widget, show the empty canvas, hover the bottom `+`,
+  open search/commands, then add a chosen widget from the gallery.
+
+### 2026-07-18 - NOVA UI/UX refinement spec pass
+
+- Feature: implement the first actionable pass from
+  `NOVA_UI_UX_Refinement_Spec_for_Codex.docx`.
+- User goal: make NOVA feel more like an AI desktop environment than a normal
+  app window.
+- What existed before: the frameless Dashboard opened directly into a blank
+  full dashboard canvas with widget editing, but it did not expose separate
+  Orb/Panel/Dashboard modes, selected-widget-only controls, Ctrl+Space command
+  palette, or timed toast behavior.
+- What Codex implemented: added persisted Orb, Panel, and Dashboard interface
+  modes; added Ctrl+Space for the command palette; replaced the widget edit
+  control row with a drag handle and selected-widget three-dot menu; changed
+  edit highlighting so only the selected widget is emphasized; and made
+  notifications slide in and auto-dismiss.
+- How GPT-5.6 is central: not called directly in this UI-only refinement pass;
+  the UI continues to preserve the existing NOVA backend boundary for Gemini
+  Live, GPT-5.6, Groq, and Ollama routing.
+- Other AI/tools used: Codex read the uploaded DOCX spec, patched the React
+  shell and settings model, updated docs, rebuilt the Tauri app, and ran smoke
+  checks.
+- Files changed: `Dashboard/src/types.ts`, `Dashboard/src/settings.ts`,
+  `Dashboard/src/App.tsx`, `Dashboard/src/index.css`, `README.md`,
+  `Dashboard/README.md`, `ROADMAP.md`, `HACKATHON_SUBMISSION.md`,
+  `AGENTS.md`, `CLAUDE.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed before rebuild; final
+  build and NOVA smoke checks are recorded in the task result.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: start in Dashboard mode, switch to Orb and Panel, use Ctrl+Space,
+  add a widget, select it, open the three-dot menu, and trigger a toast.
+
+### 2026-07-18 - NOVA Desktop Widget refactor spec pass
+
+- Feature: make the packaged NOVA surface behave like a desktop widget first,
+  with the full dashboard kept as a management mode.
+- User goal: show a smaller frameless widget that starts empty, fits the
+  screen, can be resized, and lets Ahmed add content from the bottom `+`.
+- What existed before: the Tauri shell was frameless and resizable, but it
+  still opened into the dashboard-like shell, painted a full dark background,
+  and kept layout math inline in `App.tsx`.
+- What Codex implemented: added Desktop Widget mode as the default shell,
+  made the Tauri/WebView2 window transparent, added `src/layoutEngine.ts` for
+  work-area clamping, saved-layout normalization, collision repair, safe
+  popover placement, and widget size modes, removed forced grid minimum widths,
+  and upgraded the add-widget panel with search and category filters.
+- How GPT-5.6 is central: not called directly in this UI-only pass; the shell
+  continues to preserve the existing NOVA backend boundary for Gemini Live,
+  GPT-5.6, Groq, and Ollama routing.
+- Other AI/tools used: Codex read the desktop-widget refactor spec, patched
+  the React/Tauri shell, rebuilt the packaged app, and ran smoke checks.
+- Files changed: `Dashboard/src/layoutEngine.ts`, `Dashboard/src/types.ts`,
+  `Dashboard/src/settings.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `Dashboard/src-tauri/tauri.conf.json`,
+  `Dashboard/src-tauri/src/lib.rs`, `README.md`, `Dashboard/README.md`,
+  `Dashboard/ARCHITECTURE.md`, `ROADMAP.md`, `HACKATHON_SUBMISSION.md`,
+  `AGENTS.md`, `CLAUDE.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build`
+  passed; `pnpm run desktop:build` passed and rebuilt `nova-desktop.exe` plus
+  the NSIS installer; `python -m unittest Dashboard.test_desktop_skin` passed
+  7/7; driver `tools` passed 33/33; full driver `chat "What time is it?
+  Answer briefly."` succeeded with a `get_time` tool call.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the packaged app, show the transparent empty Desktop
+  Widget mode, hover the bottom `+`, search the gallery, add a widget, resize
+  the rectangle from the grip, and switch to Panel/Dashboard when needed.
+
+### 2026-07-18 - NOVA Desktop quiet default cleanup
+
+- Feature: reduce the Desktop Widget first screen from an editor-like surface
+  to a quieter widget.
+- User goal: make the new widget feel cleaner and less cluttered.
+- What existed before: the first screen showed three notification cards, a
+  visible empty grid, a five-control header row, edit mode active by default,
+  and a bottom `+` competing with the resize grip.
+- What Codex implemented: hid desktop-mode startup notifications, changed the
+  default persisted settings to locked mode, replaced the header control row
+  with a compact `...` menu, simplified the header to one-line `NOVA ready`,
+  removed the visible empty editor grid, softened the glass/shadow treatment,
+  moved the `+` away from the resize grip, and made the resize affordance
+  quieter until hover.
+- How GPT-5.6 is central: not called directly in this visual cleanup pass; the
+  shell continues to preserve the existing NOVA backend boundary.
+- Other AI/tools used: Codex inspected the isolated local preview, patched the
+  React/Tauri shell and docs, rebuilt the packaged app, and ran smoke checks.
+- Files changed: `Dashboard/src/settings.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `README.md`, `Dashboard/README.md`,
+  `Dashboard/ARCHITECTURE.md`, `ROADMAP.md`, `HACKATHON_SUBMISSION.md`,
+  `AGENTS.md`, `CLAUDE.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build`
+  passed; `pnpm run desktop:build` passed and rebuilt `nova-desktop.exe` plus
+  the NSIS installer. Final Dashboard/NOVA smoke checks are recorded in the
+  task result.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the packaged app and show only the orb/status, empty
+  glass surface, bottom `+`, and subtle resize grip; use `...` only when the
+  demo needs mode/settings/edit actions.
+
+### 2026-07-18 - NOVA Desktop overlay usability fix
+
+- Feature: make dashboard overlays behave like one coherent widget system
+  instead of several independent popups.
+- User goal: opening one thing should close the previous thing, and the widget
+  should be easier to use without guessing what buttons mean.
+- What existed before: widget gallery, settings, dock editor, and command
+  center each had separate boolean state, so multiple panels could stay open
+  and stack. The bottom `+` hover actions used cryptic initials such as `W`,
+  `N`, `S`, and `D`.
+- What Codex implemented: replaced the independent panel booleans with one
+  `activePanel` state, added click-away and Escape dismissal, made opening any
+  panel replace the previous panel, made widget add and command submit actions
+  close their panels, and changed the bottom `+` hover actions to readable
+  labels.
+- How GPT-5.6 is central: not called directly in this UI interaction pass; the
+  shell continues to preserve the existing NOVA backend boundary.
+- Other AI/tools used: Codex inspected the overlay flow, patched the React
+  shell and CSS, updated docs, and ran verification.
+- Files changed: `Dashboard/src/App.tsx`, `Dashboard/src/index.css`,
+  `README.md`, `Dashboard/README.md`, `Dashboard/ARCHITECTURE.md`,
+  `ROADMAP.md`, `AGENTS.md`, `CLAUDE.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build`
+  passed; `pnpm run desktop:build` passed and rebuilt `nova-desktop.exe` plus
+  the NSIS installer; `python -m unittest Dashboard.test_desktop_skin` passed
+  7/7; driver `tools` passed 33/33; full driver `chat "What time is it?
+  Answer briefly."` succeeded with a `get_time` tool call.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: open Search, then Widgets, then Settings; each should replace
+  the last panel. Click the empty surface or press Escape to close.
+
+### 2026-07-18 - NOVA Desktop dynamic taskbar and preview refinement
+
+- Feature: make Desktop Widget mode useful by default and separate the main
+  rectangle from the taskbar.
+- User goal: add the taskbar, add useful starter widgets, show real widget
+  previews when adding, keep pinned widgets fixed, and make the shell more
+  dynamic/refined.
+- What existed before: Desktop Widget mode was clean but too empty, the taskbar
+  was only visible in Dashboard mode, widget gallery choices were mostly text,
+  and pinned widgets still displayed movement affordances while editing.
+- What Codex implemented: bumped settings to a pinned starter layout with NOVA
+  status, clock, and system monitor; added a separated desktop taskbar with app
+  shortcuts and the `+` add flow; added native compact/expanded window sizing;
+  rendered actual widget previews in the add gallery; made pinned widgets hide
+  drag/resize/nudge controls until unpinned; and tightened the default window.
+  This was later superseded by the native split into a `780x250` main widget
+  surface and a `720x76` dock surface.
+- How GPT-5.6 is central: not called directly in this UI pass; the shell keeps
+  the existing NOVA backend boundary for Gemini Live, GPT-5.6, Groq, and
+  Ollama routing.
+- Other AI/tools used: Codex inspected isolated local screenshots, patched the
+  React/Tauri shell and docs, rebuilt the app, and ran verification.
+- Files changed: `Dashboard/src/settings.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `Dashboard/src/layoutEngine.ts`,
+  `Dashboard/src-tauri/tauri.conf.json`, `Dashboard/src-tauri/src/lib.rs`,
+  `README.md`, `Dashboard/README.md`, `Dashboard/ARCHITECTURE.md`,
+  `ROADMAP.md`, `HACKATHON_SUBMISSION.md`, `AGENTS.md`, `CLAUDE.md`, and
+  `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build`
+  passed; `pnpm run desktop:build` passed and rebuilt `nova-desktop.exe` plus
+  the NSIS installer; isolated default-widget screenshot review passed after
+  tightening compact card rendering; `python -m unittest
+  Dashboard.test_desktop_skin` passed 7/7; driver `tools` passed 33/33; full
+  driver `chat "What time is it? Answer briefly."` succeeded with a
+  `get_time` tool call.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: show the main rounded widget and the separate taskbar, open the
+  add gallery to show previews, add a widget, and demonstrate pin/unpin.
+
+### 2026-07-18 - NOVA Desktop native widget split
+
+- Feature: make the packaged Dashboard behave like desktop widgets instead of
+  one normal application window.
+- User goal: stop treating NOVA Desktop as an app; keep only the main rounded
+  widget rectangle and a separate taskbar-like widget surface.
+- What existed before: the Tauri wrapper was frameless and transparent, but it
+  still used one native WebView window that contained both the main widget and
+  taskbar and had startup focus/visibility behavior from the app-style launch.
+- What Codex implemented: split the packaged shell into two Tauri WebView2
+  windows (`main` and `dock`), loaded the dock through `index.html?surface=dock`,
+  set both windows to transparent, frameless, always-on-top, skip-taskbar
+  surfaces, removed the focus-stealing keepalive loop, positioned the main
+  widget above the dock, and added a local-storage request bridge so the dock
+  can open search/widgets/settings or add widgets on the main surface. The dock
+  hover `+` actions now expand inline as compact glyph buttons so the native
+  dock window does not need a tall invisible hit rectangle.
+- How GPT-5.6 is central: not called directly in this UI/native-shell pass; the
+  shell still preserves the existing NOVA backend boundary for Gemini Live,
+  GPT-5.6, Groq, and Ollama routing.
+- Other AI/tools used: Codex inspected the Tauri API from local crate sources,
+  patched React/Tauri/CSS, rebuilt the app, launched the executable, and ran
+  the required NOVA smoke checks.
+- Files changed: `Dashboard/src-tauri/src/lib.rs`,
+  `Dashboard/src-tauri/tauri.conf.json`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `ROADMAP.md`, `HACKATHON_SUBMISSION.md`,
+  `README.md`, `AGENTS.md`, `CLAUDE.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `pnpm run typecheck` passed; `pnpm run build` passed;
+  `pnpm run desktop:build` passed and rebuilt `nova-desktop.exe` plus the NSIS
+  installer; the launched `nova-desktop` process reported no main taskbar window
+  handle; `Dashboard.test_desktop_skin` passed 7/7; driver `tools` passed
+  33/33; full driver `chat "What time is it? Answer briefly."` succeeded with
+  a `get_time` tool call.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the packaged executable and point out that the main widget
+  and taskbar are separate native surfaces with no Windows chrome or taskbar
+  app entry.
+
+### 2026-07-18 - NOVA Dashboard pages and emergency quit bridge
+
+- Feature: make Dashboard mode match the agreed product model and add a real
+  packaged-widget quit shortcut.
+- User goal: launch the widget, link it with NOVA, keep the dashboard as one
+  customizable widget surface, show NOVA-only activity separately, show apps
+  separately, explain real Obsidian graph integration, and include the future
+  always-on standby app direction.
+- What existed before: the React shell still used the older
+  Study/Coding/Focus workspace names, every workspace could act like a widget
+  canvas, Ctrl+Alt+N only hid the browser preview state, and the Apps page did
+  not have a native app discovery path.
+- What Codex implemented: changed the dashboard navigation to Main Dashboard,
+  NOVA Activity, and Apps; kept widget add/edit controls limited to Main
+  Dashboard; added a NOVA Activity page with orb state, live-talk
+  representation, model status, execution timeline, and a safe Obsidian graph
+  contract; added an Apps page that uses a Tauri command to read Start Menu app
+  names in the packaged widget; connected the React bridge client to existing
+  scaffolded Tauri commands; allowed the dock surface to use Tauri commands;
+  and added `Ctrl+Alt+N` emergency quit for `nova-desktop.exe`.
+- How GPT-5.6 is central: not called directly in this UI/native bridge slice;
+  the page surfaces NOVA's existing model-routing story and keeps GPT-5.6 as
+  the opt-in reasoning/screen-analysis specialist.
+- Other AI/tools used: Codex read the project audit and existing Dashboard
+  architecture, patched React/Tauri/CSS/docs, and ran verification.
+- Files changed: `Dashboard/src/types.ts`, `Dashboard/src/settings.ts`,
+  `Dashboard/src/novaClient.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `Dashboard/src-tauri/src/lib.rs`,
+  `Dashboard/src-tauri/capabilities/default.json`, `README.md`,
+  `Dashboard/README.md`, `Dashboard/ARCHITECTURE.md`, `ROADMAP.md`, and
+  `HACKATHON_LOG.md`.
+- Tests or verification: local TypeScript compiler passed; Vite production
+  build passed; after closing the running widget, `CI=true` allowed
+  `tauri build` to complete and refresh both `nova-desktop.exe` and the NSIS
+  installer; `py_compile` passed; `Dashboard.test_desktop_skin` passed 7/7;
+  Dashboard `--self-test` passed; driver `tools` passed 33/33; full driver
+  `chat "What time is it? Answer briefly."` succeeded with a `get_time` tool
+  call; the corrected packaged widget launched locally.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: open Dashboard mode, switch between Main Dashboard, NOVA
+  Activity, and Apps; show that the `+` widget flow belongs to Main Dashboard;
+  press Ctrl+Alt+N in the packaged widget to quit; relaunch from
+  `Dashboard/src-tauri/target/release/nova-desktop.exe`.
+
+### 2026-07-18 - NOVA Desktop layer and sizing correction
+
+- Feature: make the packaged widget behave like a desktop companion instead of
+  an always-on-top overlay.
+- User goal: Ahmed reported that the widget stayed on top of newly opened apps
+  and felt too small, so it did not match the agreed dashboard-widget
+  direction.
+- What existed before: both Tauri windows were configured as `alwaysOnTop`,
+  the default React shell opened in compact Desktop Widget mode, and runtime
+  sizing shrank the main surface to `780x250` when widgets existed.
+- What Codex implemented: removed always-on-top from the Tauri config and Rust
+  setup, made Dashboard mode the default first launch, bumped persisted
+  settings to clear stale tiny layouts, resized the main packaged surface to
+  `980x540`, enlarged the fallback Desktop Widget mode, and kept the dock as a
+  separate `720x76` surface.
+- How GPT-5.6 is central: not called directly in this UI/native-shell fix; the
+  existing NOVA routing story is unchanged.
+- Other AI/tools used: Codex patched the Tauri/React/CSS/docs and will rebuild
+  the packaged app.
+- Files changed: `Dashboard/src-tauri/tauri.conf.json`,
+  `Dashboard/src-tauri/src/lib.rs`, `Dashboard/src/settings.ts`,
+  `Dashboard/src/App.tsx`, `Dashboard/src/index.css`, `README.md`,
+  `Dashboard/README.md`, `Dashboard/ARCHITECTURE.md`, `ROADMAP.md`, and
+  `HACKATHON_LOG.md`.
+- Tests or verification: recorded in the task result.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch `nova-desktop.exe`, open another app over it to verify
+  NOVA no longer stays on top, then return to the larger Dashboard widget.
+
+### 2026-07-18 - NOVA live-demo dashboard parity pass
+
+- Feature: make the real packaged dashboard match the cleaner live demo
+  direction Ahmed approved.
+- User goal: the dashboard should feel like one desktop widget canvas, not a
+  normal app, and should look like the live demo with a separated dock.
+- What existed before: Dashboard mode still had a heavy top bar, workspace tab
+  strip, in-main dock rendering path, and a dark app-like outer surface even
+  though the native wrapper was frameless.
+- What Codex implemented: replaced the top bar/workspace tabs with a compact
+  canvas header, page dots for Main Dashboard / NOVA Activity / Apps, and a
+  small `...` action menu; kept the `+` widget flow inside Main Dashboard only;
+  removed the duplicate in-dashboard dock render so the dock stays a separate
+  native surface; made the outer Tauri/WebView background transparent; and
+  updated the saved settings version so stale compact layouts are cleared.
+- How GPT-5.6 is central: not called directly in this UI-only pass; the shell
+  still preserves NOVA's existing Gemini Live, GPT-5.6, Groq, and Ollama
+  routing boundary.
+- Other AI/tools used: Codex compared the built dashboard against the earlier
+  live-demo prototype, patched React/CSS/settings/docs, and ran local frontend
+  verification.
+- Files changed: `Dashboard/src/settings.ts`, `Dashboard/src/App.tsx`,
+  `Dashboard/src/index.css`, `README.md`, `Dashboard/README.md`,
+  `Dashboard/ARCHITECTURE.md`, `ROADMAP.md`, `AGENTS.md`, `CLAUDE.md`,
+  `HACKATHON_SUBMISSION.md`, and `HACKATHON_LOG.md`.
+- Tests or verification: `Dashboard.test_desktop_skin` passed 7/7;
+  TypeScript compiler passed; Vite production build passed; `CI=true`
+  Tauri build passed and rebuilt both `nova-desktop.exe` and the NSIS
+  installer; `git diff --check` passed. Launching the GUI and running the
+  required NOVA driver smoke check were blocked in this Codex session because
+  escalation requests were rejected with a usage-limit message, so the backend
+  path was not re-smoked during this final pass.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: launch the packaged executable and show only the rounded
+  dashboard canvas plus the separate dock; use the page dots to switch
+  Dashboard / NOVA Activity / Apps, and use the bottom `+` only on Main
+  Dashboard.
+
+### 2026-07-20 - Dashboard v2: design-handoff shell wired to real NOVA data
+
+- Feature: replace the React/Tauri dashboard with the final
+  `design_handoff_nova_desktop` design, implemented as the real dashboard and
+  wired to live agent/system data.
+- User goal: "delete all of the previous dashboard and the zips, clean the
+  project, then implement this zip as the real dashboard" — wired to the real
+  agent event stream, Spotify, system stats, and the Obsidian vault.
+- What existed before: `Dashboard/` held the React/Vite + Tauri shell with a
+  mock NOVA bridge plus the older Tkinter skin files; the project root carried
+  `NOVA_Build_Week_Demo_2026-07-18-clean.zip`. Both were removed (old source
+  robocopied to a scratchpad backup first).
+- What Claude implemented: new `Dashboard/` with the handoff's high-fidelity
+  5-page shell (`web/index.html` + `web/support.js` + wallpaper) plus a live
+  bridge added to the design's logic class (WebSocket, demo fallback, LIVE
+  pill, localStorage layout persistence), and a Python backend —
+  `server.py` (aiohttp, 127.0.0.1:8787), `feeds.py` (collectors), `actions.py`
+  (click handlers). Real data: psutil CPU/RAM; Spotify now-playing via cached
+  OAuth + window title with real media-key controls; wttr.in weather; Obsidian
+  vault note count/recent notes/memory browser; tasks that read AND write
+  `<vault>/NOVA/Tasks.md`; "forget" moves notes to `NOVA/.trash`; agent phase
+  + activity tailed live from `nova_tools.log`; approval queue reconstructed
+  from `audit_logs/nova_actions.jsonl`; conversation bubbles from
+  `conversation_logs/`; usage chips from `cloud_usage.json`; real Start Menu
+  app catalog, Desktop folders, and Recent files with real launches.
+- How GPT-5.6/Codex was used: the design handoff itself is the artifact of the
+  earlier Codex/design sessions; this pass was implemented with Claude. The
+  shell surfaces the GPT-5.6/Groq/Ollama/Gemini routing story on the NOVA page
+  with real request counts from nova_core's cloud budget.
+- Files changed: `Dashboard/` (new: web/, server.py, feeds.py, actions.py,
+  README.md, DESIGN_HANDOFF.md, start_dashboard.ps1), `.claude/launch.json`,
+  `.gitignore`, `ROADMAP.md`, `CLAUDE.md`, `AGENTS.md`,
+  `HACKATHON_SUBMISSION.md`, this log. Deleted: old `Dashboard/`, demo zip.
+- Tests or verification: feeds smoke test 14/14 (parsers, approvals tracker,
+  vault scan, app scan, usage, Spotify shape); driver `tools` 33/33; live
+  browser check confirmed the LIVE pill, real weather (91°), 1,636 vault
+  notes, 7 memory notes, real folders/apps, and driver tool calls streaming
+  into the activity feed with zero console errors. Driver `chat` failed with
+  Gemini-side 503/504 "high demand" after retries (known free-tier issue;
+  tools path unaffected).
+- Codex task/session: none (Claude session).
+- Related commit: TODO.
+- Demo notes: `powershell -File Dashboard\start_dashboard.ps1` (or run
+  `Dashboard\server.py` and open http://127.0.0.1:8787). Show the LIVE pill,
+  swipe the five pages, launch a real app from the dock, toggle a task (it
+  writes to the vault), and run a voice session to watch phase + activity move.
+
+### 2026-07-21 - Final dashboard hardening and real agent command bridge
+
+- Feature: preserve the final five-page NOVA design while completing layout
+  editing, page isolation, mock-window management, offline assets, and the
+  dashboard-to-agent command path.
+- User goal: turn the approved dashboard prototype into the real NOVA desktop
+  surface without changing its appearance or exposing private integrations.
+- What Codex implemented: per-page clipped canvases; movable/resizable main
+  cards in Edit Mode; pin, hide/restore, undo, per-page persistence, and page
+  resets; card-local overflow; constrained draggable/resizable/maximizable/
+  snappable mock windows; a versioned browser contract; self-hosted React,
+  Babel, and Space Grotesk; localhost-origin enforcement; and a private atomic
+  command bridge. Ctrl+K now creates a real LiveKit user text turn, while
+  Approve/Deny calls the in-memory permission engine in the active agent
+  process. Commands are bounded, validated, atomically claimed, expire after
+  two minutes, and never carry secrets or arbitrary executable code.
+- Files changed: `agent.py`, `nova_bridge.py`, `nova_agent_bridge.py`,
+  `Dashboard/actions.py`, `Dashboard/server.py`, dashboard web assets/tests,
+  `README.md`, `START-HERE.md`, `Dashboard/README.md`,
+  `Dashboard/LIVE-INTEGRATION.md`, `ROADMAP.md`, `HACKATHON_SUBMISSION.md`, and
+  this log.
+- Tests or verification: `npm install`, static dashboard build verification,
+  JavaScript syntax lint, 7/7 layout tests, 13/13 Python dashboard/bridge tests,
+  Python compile checks, live WebSocket contract checks, and responsive browser
+  checks at 1920×1080, 1600×900, 1366×768, and 1280×720. The supplied archive
+  did not include Ahmed's Windows `venv` or credentials, so the required driver
+  `tools` and `chat` reruns remain a local post-extract verification step.
+- Codex task/session: TODO.
+- Related commit: TODO.
+- Demo notes: run `agent.py console` and `Dashboard/start_dashboard.ps1`
+  together; verify `/health` says `agentBridge: active`, then submit a Ctrl+K
+  request and resolve a pending action from the Agent page.
+
 ## Third-Party Services And Licenses
 
 Update this section before submission. Note the service purpose and where the

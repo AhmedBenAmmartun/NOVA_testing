@@ -1,6 +1,6 @@
 # NOVA Roadmap
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-21_
 
 ## Mission
 
@@ -9,9 +9,44 @@ tool-using — for coding, school, research, desktop control, media, email,
 calendar, files, and daily productivity. This LiveKit + Gemini Realtime repo
 is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
-## Current status (verified 2026-07-17)
+## Current status (verified 2026-07-21)
 
 Done and working:
+
+- [x] **Dashboard v2 from design handoff (2026-07-20)** — the old React/Tauri
+      `Dashboard/` and the demo zip were removed (source backed up first);
+      the new `Dashboard/` implements `design_handoff_nova_desktop` exactly:
+      the high-fidelity 5-page shell (`web/index.html` + `web/support.js`)
+      served by `Dashboard/server.py` (aiohttp, 127.0.0.1:8787, no new deps)
+      with `feeds.py`/`actions.py`. Wired to REAL data over one WebSocket:
+      psutil CPU/RAM, Spotify now-playing (cached-OAuth Web API + window-title
+      fallback; controls send real media keys), wttr.in weather, Obsidian
+      vault (1,635 notes counted, NOVA/ memory browser, tasks in
+      `<vault>/NOVA/Tasks.md` with write-back, forget → `NOVA/.trash`),
+      agent phase + activity tailed from `nova_tools.log`, approvals queue
+      reconstructed from `audit_logs/nova_actions.jsonl`, chat bubbles from
+      `conversation_logs/`, cloud usage chips from `cloud_usage.json`, and
+      the real Windows app catalog / Desktop folders / Recent files with real
+      launches. Offline it falls back to the design's simulated demo mode.
+      Verified: feeds smoke 14/14, driver `tools` 33/33, live browser check
+      (LIVE pill, real weather/memories/apps, driver tool calls streaming
+      into the activity feed, zero console errors). Driver `chat` was blocked
+      by Gemini-side 503/504 (known free-tier issue, not our code).
+      The 2026-07-21 integration pass added per-page clipped canvases, complete
+      Edit Mode layout controls, self-hosted web runtimes, and a private atomic
+      dashboard-to-agent bridge. Approve/Deny now resolves the permission
+      engine inside the active agent process, and Ctrl+K delegation becomes a
+      real LiveKit user text turn. Remaining adapters: calendar data
+      (Google/ICS) and Store-app (UWP) entries in the launcher.
+
+- [x] **Dashboard-to-agent command bridge (2026-07-21)** — added
+      `nova_bridge.py` and `nova_agent_bridge.py`: bounded local commands,
+      atomic inbox claiming, two-minute expiry, active-session heartbeat,
+      result delivery, approval validation, and no transport of secrets,
+      arbitrary code, or private file contents. Dashboard health now reports
+      whether the agent bridge is active. Automated verification covers the
+      five-page layout engine, dashboard contract, command store, delegated
+      user turns, in-process permission decisions, and result round trips.
 
 - [x] LiveKit agent runs (console mode and LiveKit Cloud dev mode)
 - [x] Gemini Realtime voice conversation (voice "Puck")
@@ -122,9 +157,101 @@ Done and working:
       briefly."` verification succeeded: NOVA called `get_time` and answered;
       Gemini logged retryable 504 warnings during the run but the driver
       exited successfully.
-- [x] Dashboard draft parked locally (2026-07-17): earlier React/native
-      dashboard experiments were removed from the tracked GitHub snapshot and
-      `Dashboard/` is now gitignored until Ahmed chooses the right design.
+- [x] Refined desktop dashboard shell selected (2026-07-18): `Dashboard/`
+      now contains the active React/Vite visual direction from the refined
+      prototype, with a transparent demo-style dashboard canvas, compact page
+      dots for Main Dashboard / NOVA Activity / Apps, a separated mac-like
+      dock surface, exact `x/y/w/h` widget grid, collision handling,
+      pin/duplicate/remove, undo/redo/reset, per-workspace persistence,
+      widget gallery, persistent dock editor/settings, NOVA command center
+      mock bridge, private-data-safe demo mode, and Ctrl+Alt+N emergency
+      desktop exit. The existing native Tkinter skin remains the
+      wallpaper-attached desktop surface and now also treats Ctrl+Alt+N as an
+      emergency hide shortcut.
+- [x] Dashboard packaged as a native Windows app (2026-07-18): added a
+      Tauri/WebView2 wrapper under `Dashboard/src-tauri`, generated an
+      original NOVA icon, added `desktop:dev`, `desktop:doctor`, and
+      `desktop:build` scripts, and built both
+      `Dashboard/src-tauri/target/release/nova-desktop.exe` and the NSIS
+      installer at
+      `Dashboard/src-tauri/target/release/bundle/nsis/NOVA Desktop_1.0.0_x64-setup.exe`.
+- [x] Dashboard app default size adjusted (2026-07-18): the packaged Tauri
+      shell was tightened for Ahmed's 1280x720 display before the later widget
+      split replaced the centered/focused app-style launch behavior.
+- [x] Dashboard packaged window converted to a widget (2026-07-18): the Tauri
+      wrapper is frameless with no Windows minimize/maximize/close chrome,
+      keeps native resizing enabled, exposes native drag/resize commands, and
+      adds a bottom-right resize grip to the React shell. Close requests are
+      prevented so the widget can be hidden through NOVA controls instead.
+- [x] Dashboard blank-start widget layout (2026-07-18): new/refreshed settings
+      start with empty workspaces, hide the edit strip until a widget exists,
+      and expose widget/search/status/dock shortcuts from the bottom `+` hover
+      menu.
+- [x] Dashboard DOCX UI/UX refinement pass (2026-07-18): implemented
+      Orb/Panel/Dashboard interface modes, Ctrl+Space command palette, selected
+      widget highlighting, drag-handle plus three-dot widget controls, and
+      auto-dismissing slide-in toast notifications.
+- [x] Dashboard desktop-widget refactor (2026-07-18): added Desktop Widget
+      mode as the default shell, made the Tauri/WebView2 window transparent
+      and frameless, added a shared work-area layout engine for clamp,
+      normalization, collision repair, safe popover placement, and widget
+      mode sizing, removed forced grid widths so the surface fits smaller
+      screens, and upgraded the bottom `+` gallery with search and category
+      filters. Verified with `pnpm run typecheck`, `pnpm run build`,
+      `pnpm run desktop:build`, Dashboard skin tests 7/7, driver `tools`
+      33/33, and a full driver `chat` time check.
+- [x] Dashboard default-state cleanup (2026-07-18): Desktop Widget mode now
+      launches locked and visually quiet, with no startup notification cards,
+      no visible empty-editor grid, one-line `NOVA ready` status, header
+      controls collapsed into a compact `...` menu, and the bottom `+` moved
+      away from the resize grip. Verified with `pnpm run typecheck`,
+      `pnpm run build`, and `pnpm run desktop:build`; final NOVA smoke checks
+      are recorded in the task result.
+- [x] Dashboard panel usability fix (2026-07-18): replaced independent
+      gallery/settings/dock/command booleans with one active-panel state so
+      opening one surface closes the previous one, added click-away dismissal,
+      made command submission and widget add actions close their panels, and
+      replaced cryptic bottom `+` action initials with readable labels.
+      Verified with `pnpm run typecheck`, `pnpm run build`, `pnpm run
+      desktop:build`, Dashboard skin tests 7/7, driver `tools` 33/33, and a
+      full driver `chat` time check.
+- [x] Dashboard dynamic desktop-widget refinement (2026-07-18): default
+      Desktop Widget mode gained a compact main rounded rectangle, separated
+      taskbar, pinned NOVA status/clock/system starter widgets, native
+      compact/expanded window sizing, visual widget previews in the add
+      gallery, and stricter pinned-widget behavior that hides movement/resize
+      controls until unpinned. Verified with `pnpm run typecheck`, `pnpm run
+      build`, `pnpm run desktop:build`, Dashboard skin tests 7/7, driver
+      `tools` 33/33, and a full driver `chat` time check.
+- [x] Dashboard native widget split (2026-07-18): the packaged Tauri shell now
+      creates two transparent frameless WebView2 widget surfaces: a resizable
+      main widget window (`780x250` default when populated) and a separate
+      taskbar window (`720x76`) loaded with `?surface=dock`. Both skip the
+      Windows taskbar, stay on top, avoid startup focus stealing, and are
+      positioned near the bottom of the desktop. The dock sends add/search/
+      settings requests to the main surface through a local storage bridge.
+      Verified with `pnpm run typecheck`, `pnpm run build`, `pnpm run
+      desktop:build`, Dashboard skin tests 7/7, driver `tools` 33/33, and a
+      full driver `chat` time check; the launched process reported no main
+      taskbar window handle.
+- [x] Dashboard page model and emergency quit bridge (2026-07-18): Dashboard
+      mode now uses the agreed three-page model: Main Dashboard for the
+      customizable widget canvas, NOVA Activity for orb/runtime talk/model/
+      timeline and a safe Obsidian graph visualization, and Apps for pinned
+      plus detected Start Menu apps in the packaged widget. The `+` widget
+      flow is limited to Main Dashboard, dock-side Tauri commands are allowed
+      by the capability file, and `Ctrl+Alt+N` now quits `nova-desktop.exe` in
+      the packaged widget while keeping the browser preview fallback as a
+      hide/restore state. Verified with local `tsc --noEmit`, Vite build,
+      `CI=true` Tauri build, Dashboard skin tests 7/7, driver `tools` 33/33,
+      a full driver `chat` time check, and a local launch of the corrected
+      packaged widget.
+- [x] Dashboard desktop-layer correction (2026-07-18): removed the packaged
+      widget's always-on-top behavior so normal app windows can cover NOVA,
+      changed the default launch mode to the larger Dashboard widget, bumped
+      persisted settings to avoid stale tiny layouts, and resized the main
+      surface to `980x540` by default while keeping the separate `720x76`
+      dock/taskbar surface.
 
 In progress / blocked:
 
@@ -149,8 +276,17 @@ In progress / blocked:
       session and test focus/snap/minimize/new desktop on visible windows.
       The driver covers registration and safety guards but intentionally does
       not move Ahmed's live windows during automated verification.
-- [ ] Desktop dashboard design: choose the final UI direction, then add the
-      selected implementation back to Git with a live NOVA event bridge.
+- [x] Desktop dashboard bridge: the final five-page shell uses the local
+      HTTP/WebSocket server for real feeds, Windows app discovery/launching,
+      approval decisions, and LiveKit text-turn delegation.
+- [ ] Obsidian graph bridge: replace NOVA Activity's safe graph contract with
+      real vault metadata from `[[links]]`, tags, and safe note identifiers,
+      without rendering private note bodies by default or committing vault
+      data.
+- [ ] Always-on NOVA app shell: add tray startup, standby/listening states,
+      minimize-to-tray, and a tray menu for opening/closing the widget while
+      the existing LiveKit/Gemini voice pipeline remains the only assistant
+      backend.
 
 ## NOVA Core 1.0 priority order (added 2026-07-16)
 
@@ -368,11 +504,15 @@ A small always-on-top window on the desktop, linked live to the agent:
 orb with states (idle / listening / thinking / speaking), live transcript,
 and a feed of tool calls as they happen.
 
-- [ ] Choose the final dashboard/HUD design. Earlier `Dashboard/` experiments
-      are parked locally and intentionally ignored from GitHub.
-- [ ] Add a live NOVA event bridge once the chosen design is tracked again.
-- [ ] Desktop polish: tray/startup behavior, minimize-to-tray, multi-monitor
-      placement, and live state animations.
+- [x] Choose the final dashboard/HUD design. The refined prototype direction
+      has been integrated into `Dashboard/` as the active React/Vite shell.
+- [ ] Add a live NOVA event bridge for runtime state, transcript, tool calls,
+      permissions, and cancellation.
+- [ ] Add Windows app registry and real icon extraction/cache for the dock.
+- [ ] Add real Obsidian graph metadata adapter for the NOVA Activity page.
+- [ ] Replace mock Tauri commands with the real private Python NOVA bridge.
+- [ ] Desktop polish: tray/startup behavior, minimize-to-tray, always-on
+      standby/listening, multi-monitor placement, and live state animations.
 
 - Historical reference: the parked website (Phase 5, commit `fea9a3f`) still
   has useful LiveKit transcript/tool-panel patterns.

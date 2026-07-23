@@ -23,11 +23,24 @@ Obsidian memory reading and writing, sandboxed course-material PDF/text
 extraction, prompt-driven Study Mode / Quiz Mode, saved conversation logs, and
 expanded file/window control on top of the existing Gemini/LiveKit voice
 agent. It also includes a first Conversation Mode runtime pass for barge-in
-and queued-reply reliability. The desktop dashboard design is still being
-iterated locally and is not included in this GitHub snapshot. GPT-5.6 is
-opt-in: NOVA only calls it when Ahmed
+and queued-reply reliability. The desktop dashboard now lives in
+`Dashboard/`: the final design-handoff shell — a five-page desktop control
+center (widgets, NOVA + Second Brain, Apps & Files, Calendar, Agent) served
+by a local Python bridge that streams real CPU/RAM, Spotify, weather,
+Obsidian vault notes/memories/tasks, agent phase and tool activity, the
+approval queue, and the real Windows app catalog. GPT-5.6 is opt-in: NOVA only
+calls it when Ahmed
 asks for GPT-5.6/OpenAI reasoning, confirms that a screenshot may be shared
 for screen analysis, or starts Quiz Mode over extracted course material.
+
+The dashboard includes per-page Edit Mode layouts, pin/hide/restore, undo,
+responsive normalized geometry, fully clipped page canvases, managed mock
+windows, a versioned local integration contract, and an explicit Demo Data
+badge whenever the Python bridge is offline. Its required web runtimes and font
+are self-hosted for offline desktop startup. A private local command bridge now
+connects Ctrl+K delegation and Approve/Deny to the active LiveKit agent process;
+commands are validated, atomically claimed, expire after two minutes, and never
+carry credentials or arbitrary executable code.
 
 ## Current Capabilities
 
@@ -63,6 +76,17 @@ for screen analysis, or starts Quiz Mode over extracted course material.
 - Screen capture tool that saves screenshots locally
 - Confirmed screen analysis through GPT-5.6
 - Local test driver for tools, chat, console launch, and LiveKit dev launch
+- NOVA Dashboard in `Dashboard/` (implemented 2026-07-20 from the final
+  design handoff): five swipeable pages — widget dashboard (clock, weather,
+  NOVA status, tasks, now playing, system, Obsidian notes, daily briefing),
+  NOVA + Second Brain (orbiting vault graph, model route chips, live
+  conversation, execution timeline), Apps & Files (real Start Menu catalog,
+  quick folders, recent files), Calendar, and Agent (activity feed, approval
+  queue, memory browser) — plus dock, Ctrl+K command palette, notifications,
+  quick settings, focus modes, and a lock screen. A local aiohttp bridge
+  (`Dashboard/server.py`) streams the real data over one WebSocket; with the
+  server offline the shell runs the design's simulated demo mode. Widget
+  layout and settings persist in the browser.
 
 ## Repository Layout
 
@@ -74,6 +98,8 @@ tools/            Function tools for desktop, files, information, media,
 core/             Task routing/orchestration work in progress
 offline_agent.py  Local Ollama-only text mode
 requirements.txt  Python dependencies
+Dashboard/        NOVA desktop shell: design handoff web app (web/) plus the
+                  aiohttp data bridge (server.py, feeds.py, actions.py)
 ROADMAP.md        NOVA feature roadmap
 HACKATHON_LOG.md  Old-vs-new Build Week evidence log
 HACKATHON_SUBMISSION.md  Devpost submission and contribution cheat sheet
@@ -195,7 +221,21 @@ Local Ollama-only text mode:
 & ".\venv\Scripts\python.exe" offline_agent.py
 ```
 
-Desktop dashboard work is parked locally until the final design is chosen.
+NOVA Dashboard (design shell + real data bridge):
+
+```powershell
+Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+powershell -ExecutionPolicy Bypass -File ".\Dashboard\start_dashboard.ps1"
+```
+
+That starts `Dashboard\server.py` (aiohttp on `127.0.0.1:8787`, real data
+over one WebSocket) and opens the shell in a chromeless Edge app window. A
+teal LIVE pill next to the clock confirms the bridge is connected; without
+the server, opening `Dashboard\web\index.html` directly shows the same design
+in simulated demo mode. See `Dashboard/README.md` for what is real and the
+current gaps. Run `agent.py console` or `agent.py dev` at the same time to make
+Ctrl+K delegation and the approval buttons reach the live agent. The `/health`
+endpoint reports `agentBridge: active` while an agent session is available.
 
 ## Verification
 
@@ -215,6 +255,17 @@ For launch checks:
 
 `console-check` may briefly play audio through the speakers. Do not run this
 near another voice assistant listener.
+
+Dashboard checks:
+
+```powershell
+Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+npm --prefix Dashboard run lint
+npm --prefix Dashboard run build
+npm --prefix Dashboard test
+& ".\venv\Scripts\python.exe" -m py_compile ".\agent.py" ".\nova_bridge.py" ".\nova_agent_bridge.py" ".\Dashboard\server.py" ".\Dashboard\feeds.py" ".\Dashboard\actions.py"
+& ".\venv\Scripts\python.exe" ".\Dashboard\server.py"   # then open http://127.0.0.1:8787 and look for the LIVE pill
+```
 
 ## Safety Notes
 

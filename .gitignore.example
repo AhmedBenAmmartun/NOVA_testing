@@ -1,0 +1,116 @@
+# .gitignore.example
+# Reference copy of this repo's .gitignore rules.
+# Keep this synchronized with .gitignore.
+
+# Secrets
+.env
+.env.*
+!.env.example
+.spotify_cache
+.spotify_cach*
+credentials.json
+token.json
+tokens.json
+client_secret*.json
+msal_cache*
+oauth_cache*
+auth_cache*
+*.pem
+*.key
+
+# Local databases (nova_integrations sync/token storage, etc.)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# NOVA private memory and conversation imports
+NOVA Vault/
+NOVA-Vault/
+.obsidian/
+private_data/
+claude_exports/
+audit_logs/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime files
+nova_tools.log
+*.log
+screenshots/
+notes.txt
+conversation_logs/
+course_materials/*
+!course_materials/.gitkeep
+
+# Accidental personal folders
+Desktop/
+OneDrive/
+Documents/
+Downloads/
+Pictures/
+Music/
+Videos/
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Reference repos for Codex to study (cloned, not ours)
+references/
+
+# Build files
+build/
+dist/
+node_modules/
+.pnpm-store/
+*.egg-info/
+Dashboard/nova-app/src-tauri/target/
+*.zip
+nova-file-inventory.txt
+
+# NOVA runtime status and logs
+logs/
+*.log
+nova_status.json
+
+# Dashboard runtime artifacts
+Dashboard/runtime/
+Dashboard/__pycache__/
+
+# NOVA temporary integration backups
+.nova-patch-backup/
+.nova_integration_backup/
+
+# Local Claude configuration
+.claude/launch.json
+
+# Dashboard dependencies and generated builds
+Dashboard/node_modules/
+Dashboard/dist/
+Dashboard/build/
+Dashboard/.next/
+Dashboard/.vite/
+
+# Local testing and runtime output
+coverage/
+.coverage
+htmlcov/
+*.tmp
+*.bak
+
+# Local Git review and audit artifacts
+git-status-*.txt
+git-*-diff-stat.txt
+*-review.patch
+NOVA-Safe-Source-*.manifest.txt
+docs/audit/**/_git_*_raw.txt

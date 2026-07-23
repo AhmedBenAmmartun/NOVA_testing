@@ -1,0 +1,184 @@
+{
+  "audit_date": "2026-07-22",
+  "repo_root": "C:\\Users\\ahmed\\OneDrive\\Desktop\\AI Agent",
+  "git": {
+    "branch": "codex-nova-desktop-integration",
+    "main_branch": "main",
+    "head_commit": "1da0f5a",
+    "working_tree_status": "large uncommitted/staged change set (~183 status lines): new top-level packages nova_core/, nova_guardian/, nova_integrations/, nova_policy/, providers/ plus a Dashboard rewrite, tests/, scripts/, config/, doc updates are all staged (A) but not committed",
+    "untracked_zips_at_root": [
+      "NOVA-Email-Calendar-Integration-for-Claude.zip",
+      "NOVA-Integration-Source-20260721-160110.zip",
+      "NOVA-Missing-Source-20260721-161704.zip"
+    ],
+    "gitignored_backup_dirs": [
+      ".nova-patch-backup/",
+      ".nova_integration_backup/"
+    ]
+  },
+  "technologies_detected": {
+    "backend_python": [
+      "livekit-agents",
+      "livekit-plugins-google (Gemini Realtime)",
+      "livekit-plugins-ai-coustics (noise cancellation)",
+      "aiohttp (Dashboard/server.py, not pinned explicitly in requirements.txt)",
+      "psutil",
+      "spotipy",
+      "openai (client, also used for Groq/Ollama-compatible calls)",
+      "google-auth / google-auth-oauthlib / google-api-python-client (Gmail/Calendar)",
+      "msal (Outlook/Microsoft Graph)",
+      "keyring (OAuth secret storage)",
+      "pypdf (course material PDFs)",
+      "python-dotenv"
+    ],
+    "frontend": [
+      "hand-written static HTML/CSS/JS (Dashboard/web/index.html + support.js, no bundler)",
+      "vendored React + Babel UMD builds (Dashboard/web/vendor/, offline-capable)",
+      "WebSocket client embedded directly in index.html (connectLive())"
+    ],
+    "desktop_wrapper": [
+      "Tauri v2 (Dashboard/nova-app/src-tauri, Rust)",
+      "NSIS Windows installer bundle target"
+    ],
+    "test_frameworks": [
+      "pytest (root tests/, Dashboard/tests/test_*.py)",
+      "node --test (Dashboard/tests/*.test.js)"
+    ]
+  },
+  "entry_points": [
+    {
+      "name": "voice_agent_console",
+      "command": "venv\\Scripts\\python.exe agent.py console",
+      "file": "agent.py",
+      "description": "Interactive local voice session, LiveKit AgentServer + Gemini Realtime, no LiveKit Cloud dispatch needed",
+      "verified_exists": true
+    },
+    {
+      "name": "voice_agent_dev",
+      "command": "venv\\Scripts\\python.exe agent.py dev",
+      "file": "agent.py",
+      "description": "Registers worker 'my-agent' with LiveKit Cloud; needs explicit dispatch",
+      "verified_exists": true
+    },
+    {
+      "name": "standby_supervisor",
+      "command": "venv\\Scripts\\python.exe nova_startup.py [--check]",
+      "file": "nova_startup.py",
+      "description": "Separate process from agent.py; starts nova_guardian runtime + nova_integrations supervisor, writes logs/nova_status.json, Windows single-instance mutex",
+      "verified_exists": true,
+      "imported_by_agent_py": false
+    },
+    {
+      "name": "dashboard_backend",
+      "command": "venv\\Scripts\\python.exe Dashboard\\server.py  (or Dashboard\\start_dashboard.ps1)",
+      "file": "Dashboard/server.py",
+      "description": "aiohttp app, 127.0.0.1:8787, serves web/ + /ws + /health",
+      "verified_exists": true
+    },
+    {
+      "name": "dashboard_native_shell",
+      "command": "cd Dashboard\\nova-app && npm run tauri dev | npm run tauri build",
+      "file": "Dashboard/nova-app/package.json, Dashboard/nova-app/src-tauri/tauri.conf.json",
+      "description": "Tauri v2 native window loading ../../web (same files server.py serves); does not embed the Python backend, needs Dashboard/server.py running separately for live data",
+      "verified_exists": true
+    },
+    {
+      "name": "combined_manual_launch",
+      "command": "Start-NOVA.ps1 [-DashboardOnly] [-AgentOnly]",
+      "file": "Start-NOVA.ps1",
+      "description": "Starts agent.py console (if not already running) and either the built NOVA.exe or npm run dev; does NOT start nova_startup.py or Dashboard/server.py",
+      "verified_exists": true
+    },
+    {
+      "name": "wakeword_listener",
+      "command": "venv\\Scripts\\python.exe nova_wakeword.py",
+      "file": "nova_wakeword.py",
+      "description": "Standalone local 'Hey Jarvis' wake-word test; never imported by agent.py",
+      "verified_exists": true,
+      "imported_by_agent_py": false
+    },
+    {
+      "name": "offline_agent",
+      "command": "venv\\Scripts\\python.exe offline_agent.py",
+      "file": "offline_agent.py",
+      "description": "Standalone CLI chat straight to local Ollama via tools.models.run_ollama; bypasses LiveKit/Gemini",
+      "verified_exists": true,
+      "imported_by_agent_py": false
+    },
+    {
+      "name": "test_driver",
+      "command": ".claude\\skills\\run-ai-agent\\driver.py {tools|chat|console-check|dev-check}",
+      "file": ".claude/skills/run-ai-agent/driver.py",
+      "verified_exists": true
+    }
+  ],
+  "integrations_detected": [
+    { "name": "LiveKit + Gemini Realtime", "wired_to_live_agent": true, "files": ["agent.py"] },
+    { "name": "ai_coustics noise cancellation", "wired_to_live_agent": true, "files": ["agent.py"] },
+    { "name": "Spotify (Web API + window-title fallback)", "wired_to_live_agent": true, "files": ["tools/media.py"] },
+    { "name": "Obsidian vault (search/read/save notes)", "wired_to_live_agent": true, "files": ["tools/obsidian.py"] },
+    { "name": "Guardian local security/vision monitor", "wired_to_live_agent": true, "files": ["tools/guardian.py", "nova_guardian/*"], "continuous_runtime_started_by": "nova_startup.py (separate process, not agent.py)" },
+    { "name": "Gmail/Outlook/Calendar (nova_integrations)", "wired_to_live_agent": true, "files": ["tools/email_calendar.py", "nova_integrations/*"] },
+    { "name": "Permission/approval engine (nova_policy)", "wired_to_live_agent": true, "files": ["tools/permissions.py", "nova_policy/engine.py", "nova_agent_bridge.py"] },
+    { "name": "Dashboard local command bridge (nova_bridge)", "wired_to_live_agent": true, "files": ["nova_bridge.py", "nova_agent_bridge.py", "Dashboard/actions.py", "Dashboard/server.py"] },
+    { "name": "OpenAI specialist (ask_gpt56)", "wired_to_live_agent": false, "files": ["tools/models.py"], "note": "exported from tools/__init__.py but not imported into agent.py" },
+    { "name": "Groq specialist (ask_groq)", "wired_to_live_agent": false, "files": ["tools/models.py"], "note": "exported from tools/__init__.py but not imported into agent.py" },
+    { "name": "Ollama specialist (ask_ollama)", "wired_to_live_agent": false, "files": ["tools/models.py"], "note": "exported from tools/__init__.py but not imported into agent.py" },
+    { "name": "Unified specialist router (ask_specialist / nova_core / providers)", "wired_to_live_agent": false, "files": ["tools/specialist.py", "nova_core/*", "providers/*"], "note": "ask_specialist IS imported by agent.py (line 16) but is absent from Assistant.tools=[...] (lines 161-215), so it is not callable by the model" },
+    { "name": "Groq provider adapter (providers/groq_provider.py)", "wired_to_live_agent": false, "note": "file exists but is not imported by providers/__init__.py or nova_core/provider_registry.py; orphaned relative to the new router" }
+  ],
+  "suspected_duplicate_or_competing_architectures": [
+    {
+      "id": "core_vs_nova_core",
+      "description": "core/{task,router,orchestrator}.py is legacy routing scaffolding, superseded by nova_core/. Confirmed dead: no file in the repo imports from bare 'core'.",
+      "severity": "low",
+      "evidence": "repo-wide grep for '^(import|from) core(\\.|$| )' returned no matches"
+    },
+    {
+      "id": "specialist_routing_duplication_and_gap",
+      "description": "Two independent specialist-model implementations exist (tools/models.py direct-call vs nova_core+providers+tools/specialist.py router-based), and neither is currently reachable from the live voice agent because Assistant.tools=[...] in agent.py omits ask_specialist, ask_gpt56, ask_groq, and ask_ollama.",
+      "severity": "high",
+      "evidence": "agent.py imports ask_specialist at line 16 but grep of the Assistant.tools=[...] block (lines 161-215) shows no ask_* entries at all"
+    },
+    {
+      "id": "groq_provider_orphaned",
+      "description": "providers/groq_provider.py exists on disk but is not exported from providers/__init__.py and not referenced by nova_core/provider_registry.py or any other file.",
+      "severity": "medium",
+      "evidence": "grep for 'groq_provider|GroqProvider' across nova_core/, providers/, tools/ matched nothing outside the file itself"
+    },
+    {
+      "id": "dashboard_app_icons_duplicate_file",
+      "description": "Dashboard/app_icons.py is the live module imported by app_registry.py; Dashboard/appicons.py is an unreferenced near-duplicate left in the tree.",
+      "severity": "low",
+      "evidence": "grep for 'app_icons|appicons' in *.py matched only app_registry.py importing app_icons"
+    },
+    {
+      "id": "requirements_files_overlap",
+      "description": "requirements-email-calendar.txt's package set is a strict subset already present in requirements.txt; kept separately as an optional standalone installer per its own header comment, not an inconsistency.",
+      "severity": "informational"
+    },
+    {
+      "id": "tauri_shell_is_thin_wrapper",
+      "description": "Dashboard/nova-app's tauri.conf.json build.frontendDist points at the same Dashboard/web/ directory server.py serves, and ships no embedded Python process; Start-NOVA.ps1 can launch the built NOVA.exe without ever starting Dashboard/server.py, leaving it in simulated-demo mode.",
+      "severity": "medium",
+      "evidence": "Dashboard/nova-app/src-tauri/tauri.conf.json build.frontendDist == '../../web'; Start-NOVA.ps1 Start-NovaDashboard function never invokes server.py"
+    },
+    {
+      "id": "repeated_in_place_patch_backups",
+      "description": "Gitignored .nova-patch-backup/ and .nova_integration_backup/ contain multiple dated snapshots from 2026-07-21/22, indicating repeated in-place patch-and-restore cycles immediately preceding this audit.",
+      "severity": "informational"
+    }
+  ],
+  "important_files": {
+    "agent.py": "LiveKit AgentServer entry point; hardcodes Gemini Realtime model/voice/temperature; Assistant.tools list is the single source of truth for which tools are voice-callable",
+    "nova_bridge.py": "Atomic file-based inbox/outbox/heartbeat (CommandStore) shared between Dashboard and agent processes; validates command envelopes, never transports secrets or code",
+    "nova_agent_bridge.py": "Runs inside the live agent process; polls nova_bridge, injects delegated text turns via session.generate_reply, resolves approve/deny via nova_policy.permission_engine",
+    "nova_startup.py": "Standalone standby supervisor; starts nova_guardian + nova_integrations; not imported by or dependent on agent.py",
+    "tools/__init__.py": "Central re-export surface for all 38 function-tool modules; agent.py must import AND separately list each tool for it to be voice-callable",
+    "tools/specialist.py": "ask_specialist tool wrapping nova_core.ModelRouter; imported but not registered in agent.py's tool list",
+    "Dashboard/server.py": "aiohttp backend, binds 127.0.0.1 only, /ws WebSocket hub + /health + static asset serving, 12 background collector loops",
+    "Dashboard/nova-app/src-tauri/tauri.conf.json": "Tauri v2 config; frontendDist points at Dashboard/web (shared with server.py), NSIS bundle target, CSP disabled",
+    "nova_core/router.py": "ModelRouter: candidate-provider selection, cloud-budget gating, fallback ordering",
+    "nova_policy/engine.py": "PermissionEngine / ActionPolicy / PermissionLevel — central approval gate used by tools/permissions.py, tools/email_calendar.py, nova_agent_bridge.py"
+  }
+}

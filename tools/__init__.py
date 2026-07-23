@@ -2,6 +2,25 @@ from .vision import analyze_screen_with_gpt56, capture_screen
 from .models import ask_gpt56, ask_groq, ask_ollama
 from .obsidian import read_memory_note, save_memory_note, search_memory
 from .conversations import read_conversation_history, search_conversation_history
+from .specialist import ask_specialist
+
+from .email_calendar import (
+    list_connected_accounts,
+    sync_email_calendar,
+    get_unread_emails,
+    read_email,
+    get_calendar_agenda,
+    get_next_event,
+    find_calendar_conflicts,
+    get_daily_briefing,
+)
+
+from .permissions import (
+    approve_action,
+    deny_action,
+    list_pending_actions,
+    set_nova_safe_mode,
+)
 
 from .desktop import (
     close_app,
@@ -43,9 +62,19 @@ from .media import (
     play_youtube_song,
 )
 
+from .guardian import (
+    check_guardian_security,
+    get_guardian_alerts,
+    get_guardian_status,
+    look_at_screen_locally,
+    start_guardian_vision,
+    stop_guardian_vision,
+)
+
 
 
 __all__ = [
+    "ask_specialist",
     "get_weather",
     "search_web",
     "open_website",
@@ -84,5 +113,23 @@ __all__ = [
     "save_memory_note",
     "search_conversation_history",
     "read_conversation_history",
+    "list_pending_actions",
+    "approve_action",
+    "deny_action",
+    "set_nova_safe_mode",
+    "check_guardian_security",
+    "get_guardian_alerts",
+    "get_guardian_status",
+    "look_at_screen_locally",
+    "start_guardian_vision",
+    "stop_guardian_vision",
+    "list_connected_accounts",
+    "sync_email_calendar",
+    "get_unread_emails",
+    "read_email",
+    "get_calendar_agenda",
+    "get_next_event",
+    "find_calendar_conflicts",
+    "get_daily_briefing",
 ]
 

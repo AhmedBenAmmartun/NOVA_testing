@@ -1,6 +1,6 @@
 # AGENTS.md — NOVA (LiveKit)
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-21_
 
 ## What this is
 
@@ -25,6 +25,9 @@ agent.py            LiveKit AgentServer wiring: session, Gemini Realtime
                     tuning), ai_coustics noise cancellation,
                     video_input=False (Ahmed turned it off), greeting
 prompts.py          SYSTEM_PROMPT (NOVA persona)
+nova_bridge.py      private atomic dashboard command inbox/outbox + heartbeat
+nova_agent_bridge.py  injects delegated user turns and resolves approvals
+                    inside the active LiveKit agent process
 tools/              38 function tools split into modules: common.py
                     (sandbox, logging), desktop.py (open/close/restart app,
                     website, is_app_running, window control, notifications,
@@ -53,6 +56,8 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     OPENAI_API_KEY, SPOTIFY_CLIENT_ID/SECRET, GROQ_API_KEY,
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
 .agents/skills/run-ai-agent/  run skill + driver.py test harness
+Dashboard/          final 5-page desktop shell, local aiohttp/WebSocket data
+                    server, editable layouts, and Tauri 2 Windows wrapper
 ```
 
 ## Run & test (all verified)
@@ -166,9 +171,23 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   now also mirror to `<vault>/NOVA/Conversations/YYYY/MM/` when configured.
   Driver `tools` passed 31/31; one full chat smoke check succeeded, while the
   final rerun hit Gemini-side 503/504 errors after retries.
-- Desktop dashboard/skin work is parked locally and intentionally ignored
-  from GitHub until Ahmed chooses the right design. Do not assume a tracked
-  `Dashboard/` folder exists in a fresh clone.
+- Dashboard status (updated 2026-07-21): the React/Vite + Tauri shell, the Tkinter
+  skin, and the demo zip were removed at Ahmed's request. `Dashboard/` now
+  holds the real dashboard implemented from `design_handoff_nova_desktop`
+  (kept as `Dashboard/DESIGN_HANDOFF.md`): the 5-page design shell
+  (`web/index.html` + `web/support.js`) with a live WebSocket bridge, served
+  by `Dashboard/server.py` (aiohttp, 127.0.0.1:8787, no new dependencies)
+  with `feeds.py` collectors and `actions.py` handlers. Real data: psutil
+  stats, Spotify now-playing + media-key controls, wttr.in weather, Obsidian
+  vault (count/recent/memories, `NOVA/Tasks.md` write-back, forget →
+  `NOVA/.trash`), agent phase/activity tailed from `nova_tools.log`,
+  approvals from `audit_logs/nova_actions.jsonl`, conversation bubbles from
+  `conversation_logs/`, usage from `cloud_usage.json`, real app catalog /
+  folders / recent files with real launches. Offline = the design's demo
+  mode. Launch via `Dashboard\start_dashboard.ps1`. The private local bridge
+  now sends Ctrl+K text turns to the active LiveKit session and resolves
+  Approve/Deny inside the agent process. Commands are validated, atomic, and
+  expire after two minutes. The calendar remains clearly marked Demo Data.
 - `livekit-plugins-groq` was unused and removed from requirements.txt
   (2026-07-16); `ask_groq` calls Groq through the OpenAI client directly.
   It is still installed in the venv (harmless; gone on a fresh install).

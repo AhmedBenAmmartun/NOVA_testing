@@ -1,0 +1,24 @@
+{
+  "local_timezone": "America/New_York",
+  "google": {
+    "client_config_path": "C:/Users/ahmed/AppData/Local/NOVA/integrations/google_oauth_desktop_client.json"
+  },
+  "microsoft": {
+    "client_id": "PASTE-YOUR-PUBLIC-DESKTOP-APP-CLIENT-ID-HERE",
+    "authority": "https://login.microsoftonline.com/common"
+  },
+  "sync": {
+    "interval_seconds": 180,
+    "initial_mail_limit": 50,
+    "calendar_past_days": 30,
+    "calendar_future_days": 365,
+    "max_backoff_seconds": 900
+  },
+  "notifications": {
+    "enabled": true,
+    "hide_content": false,
+    "quiet_hours_start": "22:00",
+    "quiet_hours_end": "07:00",
+    "suppress_bulk": true
+  }
+}

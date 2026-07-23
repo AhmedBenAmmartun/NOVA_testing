@@ -1,6 +1,6 @@
 # CLAUDE.md — NOVA (LiveKit)
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-21_
 
 ## What this is
 
@@ -25,6 +25,9 @@ agent.py            LiveKit AgentServer wiring: session, Gemini Realtime
                     tuning), ai_coustics noise cancellation,
                     video_input=False (Ahmed turned it off), greeting
 prompts.py          SYSTEM_PROMPT (NOVA persona)
+nova_bridge.py      private atomic dashboard command inbox/outbox + heartbeat
+nova_agent_bridge.py  injects delegated user turns and resolves approvals
+                    inside the active LiveKit agent process
 tools/              38 function tools split into modules: common.py
                     (sandbox, logging), desktop.py (open/close/restart app,
                     website, is_app_running, window control, notifications,
@@ -39,6 +42,12 @@ tools/              38 function tools split into modules: common.py
                     analysis), obsidian.py (search_memory +
                     read_memory_note + save_memory_note over Ahmed's Obsidian vault,
                     vault-sandboxed); logging to nova_tools.log
+Dashboard/          the real NOVA desktop shell (2026-07-20, from
+                    design_handoff_nova_desktop): web/index.html+support.js
+                    5-page design served by server.py (aiohttp,
+                    127.0.0.1:8787) with feeds.py collectors + actions.py
+                    handlers; streams real psutil/Spotify/weather/Obsidian/
+                    agent-log data over /ws; see Dashboard/README.md
 requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     powers course-material PDF extraction)
 .env                secrets: LIVEKIT_URL/API_KEY/API_SECRET, GOOGLE_API_KEY,
@@ -158,9 +167,30 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   now also mirror to `<vault>/NOVA/Conversations/YYYY/MM/` when configured.
   Driver `tools` passed 31/31; one full chat smoke check succeeded, while the
   final rerun hit Gemini-side 503/504 errors after retries.
-- Desktop dashboard/skin work is parked locally and intentionally ignored
-  from GitHub until Ahmed chooses the right design. Do not assume a tracked
-  `Dashboard/` folder exists in a fresh clone.
+- Dashboard status (updated 2026-07-21): the old React/Vite + Tauri shell and the
+  Tkinter skin were deleted at Ahmed's request (source backed up to the
+  session scratchpad first) along with the demo zip. `Dashboard/` now holds
+  the REAL dashboard, implemented from `design_handoff_nova_desktop` (kept as
+  `Dashboard/DESIGN_HANDOFF.md`): the high-fidelity 5-page shell
+  (`web/index.html` + `web/support.js` + wallpaper) with a live WebSocket
+  bridge added to its logic class, served by `Dashboard/server.py` (aiohttp,
+  binds 127.0.0.1:8787, zero new dependencies) with `feeds.py`/`actions.py`.
+  Real wiring: psutil stats, Spotify (cached-OAuth Web API + window-title
+  fallback, media-key controls), wttr.in weather, Obsidian vault (note count,
+  recent notes, memory browser, `<vault>/NOVA/Tasks.md` tasks with
+  write-back; forget moves to `NOVA/.trash`), agent phase + activity tailed
+  from `nova_tools.log`, approvals from `audit_logs/nova_actions.jsonl`,
+  conversation bubbles from `conversation_logs/`, usage chips from
+  `cloud_usage.json`, real Start Menu apps / Desktop folders / Recent files
+  with real launches. With no server the shell falls back to the design's
+  simulated demo. Launch: `Dashboard\start_dashboard.ps1` or
+  `venv\Scripts\python.exe Dashboard\server.py`; browser-pane preview via
+  `.claude/launch.json` (`nova-dashboard`, port 8787). Verified 2026-07-20:
+  feeds smoke 14/14, driver `tools` 33/33, live browser check with real data;
+  driver `chat` blocked by Gemini 503/504 (known issue). The private local
+  bridge now sends Ctrl+K text turns to the active LiveKit session and
+  resolves Approve/Deny inside the agent process. Commands are validated,
+  atomic, and expire after two minutes. Calendar is still Demo Data.
 - `livekit-plugins-groq` was unused and removed from requirements.txt
   (2026-07-16); `ask_groq` calls Groq through the OpenAI client directly.
   It is still installed in the venv (harmless; gone on a fresh install).
