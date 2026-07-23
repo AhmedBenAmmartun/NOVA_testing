@@ -42,7 +42,7 @@ tools/              38 function tools split into modules: common.py
                     analysis), obsidian.py (search_memory +
                     read_memory_note + save_memory_note over Ahmed's Obsidian vault,
                     vault-sandboxed); logging to nova_tools.log
-CODEX_PROMPTS.md    the task board + ready-to-run prompts. When Ahmed says
+PROJECT_TASKS.md    the task board + ready-to-run prompts. When Ahmed says
                     "do prompt N", read that file, execute exactly that
                     prompt, check it off on the task board, then follow
                     "After EVERY completed task" below.
@@ -82,14 +82,14 @@ See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
    status" with today's date, note any bugs found, add the next recommended
    step, and bump the "Last updated" line at the top.
 2. **During Build Week, add a dated entry to `HACKATHON_LOG.md`** (feature,
-   files changed, how GPT-5.6/Codex was used, verification results, commit).
+   files changed, how GPT-5.6/development assistant was used, verification results, commit).
 3. **Keep the contribution cheat sheets current**: when the task changes the
    demo, submission story, or who/what contributed, update
    `HACKATHON_SUBMISSION.md` and any relevant README/log sections so the
-   "what we did" and "what Codex/GPT-5.6 contributed" story stays accurate.
+   "what we did" and "what development assistant/GPT-5.6 contributed" story stays accurate.
 4. Run the driver (`tools` + one `chat`, see above) and report the results
    honestly — including failures.
-5. Update `AGENTS.md` and `CLAUDE.md` only if the stack, layout, tool count,
+5. Update `AGENTS.md` and `DEVELOPMENT.md` only if the stack, layout, tool count,
    or rules changed.
 
 ## Non-obvious facts (learned the hard way)

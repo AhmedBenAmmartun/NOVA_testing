@@ -57,7 +57,7 @@ Done and working:
       search, system info, time, save/read notes, list/read/create files
 - [x] `.env` credential loading fixed (was silently loading nothing)
 - [x] `requirements.txt` completed (ai-coustics added)
-- [x] Test harness + run skill (`.claude/skills/run-ai-agent/` — `tools`,
+- [x] Test harness + run skill (`.agents/skills/run-ai-agent/` — `tools`,
       `chat`, `console-check`, `dev-check` all pass)
 - [x] **Phase 1 complete (2026-07-09)** — see below
 - [x] Music controls with zero setup: `control_music` (play/pause, next,
@@ -132,13 +132,13 @@ Done and working:
       Gemini-side 503/504 errors after retries.
 - [x] Full-vault Obsidian Markdown access pass (2026-07-17): memory search
       now scans existing Markdown notes across the vault, including large
-      ChatGPT/Claude exports that previously exceeded the old 100 KB note
+      ChatGPT/development assistant exports that previously exceeded the old 100 KB note
       limit. `read_memory_note` can return capped excerpts for long notes
       when given a query, while `.obsidian/` remains blocked and writes still
       stay inside `<vault>/NOVA/`.
 - [x] Debug pass (2026-07-16): compile check passed, driver `tools` passed
       19/19, `agent.py console` startup check passed, and `AGENTS.md` /
-      `CLAUDE.md` were corrected to say NOVA now registers 29 tools.
+      `DEVELOPMENT.md` were corrected to say NOVA now registers 29 tools.
 - [x] Pylance/type-check cleanup (2026-07-16, pyright 0 errors + driver
       `tools` 19/19): the ~1k reported problems were almost all from the
       cloned `references/` study repos — now excluded from analysis in
@@ -433,7 +433,7 @@ Port Outlook (Graph device flow) from the old repo, or add Gmail:
       when configured.
 - [x] Memory write path — `save_memory_note` creates new Markdown notes under
       `<vault>/NOVA/`, never overwrites, and refuses obvious secrets.
-- [x] Large exported conversations — existing ChatGPT/Claude Markdown exports
+- [x] Large exported conversations — existing ChatGPT/development assistant Markdown exports
       in the vault are searchable, and long reads return query-focused
       excerpts instead of refusing the file.
 - [ ] **Next recommended step:** add memory cleanup/indexing: duplicate note
@@ -571,5 +571,5 @@ When Ahmed says a feature is done:
 1. Move it to Current status with the date.
 2. Note any bugs found.
 3. Add the next recommended step.
-4. Update the "Last updated" date here and in `CLAUDE.md` if the stack or
+4. Update the "Last updated" date here and in `DEVELOPMENT.md` if the stack or
    rules changed.

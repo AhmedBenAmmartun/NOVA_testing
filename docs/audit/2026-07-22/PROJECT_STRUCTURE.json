@@ -2,12 +2,12 @@
   "audit_date": "2026-07-22",
   "repo_root": "C:\\Users\\ahmed\\OneDrive\\Desktop\\AI Agent",
   "git": {
-    "branch": "codex-nova-desktop-integration",
+    "branch": "nova-desktop-integration",
     "main_branch": "main",
     "head_commit": "1da0f5a",
     "working_tree_status": "large uncommitted/staged change set (~183 status lines): new top-level packages nova_core/, nova_guardian/, nova_integrations/, nova_policy/, providers/ plus a Dashboard rewrite, tests/, scripts/, config/, doc updates are all staged (A) but not committed",
     "untracked_zips_at_root": [
-      "NOVA-Email-Calendar-Integration-for-Claude.zip",
+      "NOVA-Email-Calendar-Integration-for-development assistant.zip",
       "NOVA-Integration-Source-20260721-160110.zip",
       "NOVA-Missing-Source-20260721-161704.zip"
     ],
@@ -107,8 +107,8 @@
     },
     {
       "name": "test_driver",
-      "command": ".claude\\skills\\run-ai-agent\\driver.py {tools|chat|console-check|dev-check}",
-      "file": ".claude/skills/run-ai-agent/driver.py",
+      "command": ".development assistant\\skills\\run-ai-agent\\driver.py {tools|chat|console-check|dev-check}",
+      "file": ".agents/skills/run-ai-agent/driver.py",
       "verified_exists": true
     }
   ],

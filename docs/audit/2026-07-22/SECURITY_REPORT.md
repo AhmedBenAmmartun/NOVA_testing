@@ -35,7 +35,7 @@ diff, or anywhere in git history.**
 |---|---|
 | `.env` | untracked, gitignored |
 | `.spotify_cache` | untracked, gitignored (`.spotify_cach*` rule) |
-| `.nova-patch-backup/`, `.nova_integration_backup/` | untracked, gitignored — timestamped backup snapshots from prior Codex integration passes; not inspected for secrets by this audit since they're out of scope for git tracking, but see CLEANUP_PLAN.md — **recommend a manual skim before ever archiving/sharing these**, since backup snapshots of an integration pass could contain accidentally-copied config. |
+| `.nova-patch-backup/`, `.nova_integration_backup/` | untracked, gitignored — timestamped backup snapshots from prior development assistant integration passes; not inspected for secrets by this audit since they're out of scope for git tracking, but see CLEANUP_PLAN.md — **recommend a manual skim before ever archiving/sharing these**, since backup snapshots of an integration pass could contain accidentally-copied config. |
 
 None of these were opened or their contents summarized here.
 

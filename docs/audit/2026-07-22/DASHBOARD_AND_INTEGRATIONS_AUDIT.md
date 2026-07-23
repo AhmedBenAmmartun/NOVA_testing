@@ -241,13 +241,13 @@ via `EnumWindows` (`.py:348-369`) matched against `record.process_names`.
 | Dock: Chrome | `index.html:1256` (`dockApps`) → `mkApp()` `index.html:1184-1194` | `openApp()` `index.html:1016` | `app_action` → `actions.py:88-97` | `app_registry.perform_action` → `os.startfile` | **Working** if Chrome is discovered by `discover_shortcuts`/`discover_win32_registry` (renamed via `APP_DISPLAY_RENAMES`, `app_registry.py:31-36`); **Partially working** (falls back to fake window) if not found | Discovery depends on a real Start Menu shortcut or uninstall-registry icon path existing | None — works as designed when Chrome is actually installed with a Start Menu entry |
 | Dock: VS Code | same path | same | same | same | **Working** if "Visual Studio Code" shortcut exists (renamed to "VS Code") | Same discovery dependency | None |
 | Dock: Terminal | same path | same | same | `KNOWN_PROCESSES["Terminal"] = ("windowsterminal.exe",)` `app_registry.py:46` | **Working** if Windows Terminal Start Menu shortcut exists | — | — |
-| Dock: Claude | same path | same | same | `KNOWN_PROCESSES["Claude"] = ("claude.exe",)` `app_registry.py:43` | **Working** if the Claude desktop app created a Start Menu shortcut | Only launches/focuses the desktop app — no deep link into a conversation | — |
-| Dock: ChatGPT | same path | same | same | `KNOWN_PROCESSES["ChatGPT"] = ("chatgpt.exe",)` `app_registry.py:44` | Same pattern as Claude | — | — |
+| Dock: development assistant | same path | same | same | `KNOWN_PROCESSES["development assistant"] = ("development assistant.exe",)` `app_registry.py:43` | **Working** if the development assistant desktop app created a Start Menu shortcut | Only launches/focuses the desktop app — no deep link into a conversation | — |
+| Dock: ChatGPT | same path | same | same | `KNOWN_PROCESSES["ChatGPT"] = ("chatgpt.exe",)` `app_registry.py:44` | Same pattern as development assistant | — | — |
 | Dock: Obsidian | same path | same | same | `KNOWN_PROCESSES["Obsidian"] = ("obsidian.exe",)` `app_registry.py:45` | **Working** if the Obsidian desktop app is installed | — | — |
 | Dock: Spotify | same path | same | same | `KNOWN_PROCESSES["Spotify"] = ("spotify.exe",)` `app_registry.py:47` | **Working** | — | — |
 | Dock: **Search** | `index.html:1256, 1261, 1264` | `name === 'Search'` special-cases to `this.toggleCmd()` | none — never reaches the WebSocket | NOVA's own Ctrl+K command palette (`index.html:1044-1047`) | **Working, but not what the icon implies**: does **not** open Windows Search/Start menu search — it opens NOVA's local delegate/command palette | Not a bug, but worth relabeling in the UI if the intent is "search my PC" | Rename the tile or add a real `explorer.exe search-ms:` path if Windows Search was the intent |
-| Start menu grid: any of the ~60 names in `allAppNames` (`index.html:1196`), incl. **Chrome, Edge (`Microsoft Edge`), Outlook, Settings, Terminal, VS Code, Ollama, Obsidian, Spotify, Claude, ChatGPT** etc. | `index.html:1196-1199` (`mkApp` per name) | `openApp()` | `app_action` | `app_registry` discovery (shortcuts / win32 registry / UWP `Get-StartApps`) | **Working** for anything actually installed with a discoverable shortcut/registry entry/UWP AUMID; **Partially working / silent fallback to fake window** for anything in the hardcoded `allAppNames` list that is not actually installed on this machine (e.g. Xbox, Bixby, Samsung Notes, PENUP — these are cosmetic entries copied from a generic Windows Start-menu mock and will almost never resolve to a real `appId`) | The 60-name list (`index.html:1196`) is static/hardcoded demo content, not derived from `st.allAppNames` unless the live feed supplies it (it does: `apps` message sets `s.allAppNames = m.all`, `index.html:879`) — so once live, the *real* Start-menu-derived list replaces the demo list. In demo/offline mode the fake list is shown and every tile opens a fake window | None needed once live; document that the offline fallback list is cosmetic |
-| **Codex** | — | — | — | — | **Missing.** No occurrence of "Codex" anywhere in `Dashboard/web/index.html`, `support.js`, `dashboard-enhancements.js`, or `app_registry.py` (`KNOWN_PROCESSES` has no Codex entry, and it is absent from `allAppNames`) | Not wired at all — clicking nothing opens Codex specifically; it would only appear if a generic Start-Menu shortcut named "Codex" is discovered and happens to render via the fallback OKLCH gradient tile with no branding | Add a `KNOWN_PROCESSES`/`APP_DISPLAY_RENAMES` entry and a dock/allApps tile if Codex desktop presence is wanted |
+| Start menu grid: any of the ~60 names in `allAppNames` (`index.html:1196`), incl. **Chrome, Edge (`Microsoft Edge`), Outlook, Settings, Terminal, VS Code, Ollama, Obsidian, Spotify, development assistant, ChatGPT** etc. | `index.html:1196-1199` (`mkApp` per name) | `openApp()` | `app_action` | `app_registry` discovery (shortcuts / win32 registry / UWP `Get-StartApps`) | **Working** for anything actually installed with a discoverable shortcut/registry entry/UWP AUMID; **Partially working / silent fallback to fake window** for anything in the hardcoded `allAppNames` list that is not actually installed on this machine (e.g. Xbox, Bixby, Samsung Notes, PENUP — these are cosmetic entries copied from a generic Windows Start-menu mock and will almost never resolve to a real `appId`) | The 60-name list (`index.html:1196`) is static/hardcoded demo content, not derived from `st.allAppNames` unless the live feed supplies it (it does: `apps` message sets `s.allAppNames = m.all`, `index.html:879`) — so once live, the *real* Start-menu-derived list replaces the demo list. In demo/offline mode the fake list is shown and every tile opens a fake window | None needed once live; document that the offline fallback list is cosmetic |
+| **development assistant** | — | — | — | — | **Missing.** No occurrence of "development assistant" anywhere in `Dashboard/web/index.html`, `support.js`, `dashboard-enhancements.js`, or `app_registry.py` (`KNOWN_PROCESSES` has no development assistant entry, and it is absent from `allAppNames`) | Not wired at all — clicking nothing opens development assistant specifically; it would only appear if a generic Start-Menu shortcut named "development assistant" is discovered and happens to render via the fallback OKLCH gradient tile with no branding | Add a `KNOWN_PROCESSES`/`APP_DISPLAY_RENAMES` entry and a dock/allApps tile if development assistant desktop presence is wanted |
 | File Explorer | `index.html:1195, 1256` | `openApp()` | `app_action` | `_builtins()` → `explorer.exe` (`app_registry.py:236`) | **Working** — always resolves, no discovery dependency | — | — |
 | Settings | `allAppNames` list | `openApp()` | `app_action` | `_builtins()` → `ms-settings:` UWP URI (`app_registry.py:237`) | **Working** — `os.startfile("ms-settings:")` reliably opens Windows Settings | — | — |
 | Recent files (Obsidian/VS Code/Edge icons by extension) | `index.html:1200-1211` | `open()` → `sendLive({type:'open_recent', id})` | `actions.py:126-142` | `security.can_open_recent_target` + `os.startfile` | **Working** — resolves `.lnk` targets server-side via `resolve_shortcut_targets` (`security.py:170-182`), blocked for sensitive paths (`safe_paths.py`/`security.py` denylist) | — | — |
@@ -299,7 +299,7 @@ credentials and works the moment Spotify is open. The Spotify Web API path
 (`tools/media.py:74-108`, `Dashboard/feeds.py:147-183`) needs
 `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` in `.env` and a cached OAuth token
 at `PROJECT_ROOT/.spotify_cache` (existence confirmed via `.gitignore:5-6`
-coverage; content not read). **Status: Working** per CLAUDE.md's own
+coverage; content not read). **Status: Working** per DEVELOPMENT.md's own
 verification note and consistent with the code read here — playback control
 (`play_spotify_song`, `tools/media.py:256-322`) needs Spotify Premium and an
 active device, everything else (media-key transport control, now-playing
@@ -321,7 +321,7 @@ to save anything matching `SECRET_MARKERS` (`.py:14-23`, `.py:209-210`) — a
 simple substring heuristic (`.env`, `api key`, `bearer `, `sk-`, `token`,
 etc.), which is a **best-effort, not a guarantee** (won't catch a secret with
 unusual formatting) but is a reasonable belt-and-suspenders check for an
-LLM-authored note. **Status: Working**, matches CLAUDE.md's claims.
+LLM-authored note. **Status: Working**, matches DEVELOPMENT.md's claims.
 
 ### 2.3 Gmail/Google Calendar + Microsoft Graph/Outlook (`nova_integrations/`)
 
@@ -508,7 +508,7 @@ dashboard runs). `feeds.weather_message()` (`feeds.py:232-250`) hits
 `https://wttr.in/{city}?format=j1` with a 10s timeout and a broad
 `except Exception: return None` (degrades to "no weather card" rather than
 crashing the polling loop), optional `NOVA_CITY` env var, no API key —
-**Working**, matches CLAUDE.md's claim exactly.
+**Working**, matches DEVELOPMENT.md's claim exactly.
 
 ---
 
@@ -517,10 +517,10 @@ crashing the polling loop), optional `NOVA_CITY` env var, no API key —
 Icon wiring matrix: of the ~13 distinct UI-element rows traced end-to-end,
 **10 reach a real OS-level launch call** (`os.startfile`/`ShowWindow`/
 `keybd_event`) when the target app is actually installed and discoverable —
-Chrome, VS Code, Terminal, Claude, ChatGPT, Obsidian, Spotify, File Explorer,
+Chrome, VS Code, Terminal, development assistant, ChatGPT, Obsidian, Spotify, File Explorer,
 Settings, recent files, quick folders, and media keys all genuinely work.
 **1 is mislabeled** (the "Search" dock tile opens NOVA's own command palette,
-not Windows Search). **1 is entirely unwired** (Codex has no icon, no
+not Windows Search). **1 is entirely unwired** (development assistant has no icon, no
 `app_registry` entry, no dock/list presence anywhere). The generic ~60-name
 Start-menu grid is only real once the dashboard is `live` and the server has
 supplied `st.allAppNames`; offline/demo mode shows a cosmetic hardcoded list

@@ -1,6 +1,6 @@
-# Codex Prompts for NOVA (this repo — LiveKit + Gemini Realtime)
+# development assistant Prompts for NOVA (this repo — LiveKit + Gemini Realtime)
 
-_Created 2026-07-15, adapted from Ahmed's `nova-codex-kit.zip`._
+_Created 2026-07-15, adapted from Ahmed's `nova-development assistant-kit.zip`._
 
 > **Warning about the kit:** the zip's `AGENTS.md` and skills describe the
 > OLD Flask Nova (`nova.py`, Vosk, Piper, HUD orb, SQLite). None of that
@@ -9,16 +9,16 @@ _Created 2026-07-15, adapted from Ahmed's `nova-codex-kit.zip`._
 > format, the golden rules, and the demo advice, all adapted below.
 
 Every prompt follows **Goal / Context / Constraints / Done when**.
-Paste ONE prompt per Codex session. Codex must read `AGENTS.md` first and
+Paste ONE prompt per development assistant session. development assistant must read `AGENTS.md` first and
 follow its "After EVERY completed task" section (update `ROADMAP.md` +
 `HACKATHON_LOG.md`, run the driver, report honestly).
 
 ## Golden rules
 
-1. One task = one Codex session. Session goes sideways → start FRESH with a
+1. One task = one development assistant session. Session goes sideways → start FRESH with a
    cleaner prompt instead of arguing with it.
 2. The driver defines "done": `driver.py tools` + one `chat` must pass.
-   Never let Codex edit the driver checks just to make them pass.
+   Never let development assistant edit the driver checks just to make them pass.
 3. Same mistake twice → add a rule to `AGENTS.md`.
 4. Review every diff before accepting. Run it yourself, every time.
 5. Anything destructive or that sends data off the machine → NOVA asks Ahmed
@@ -39,14 +39,14 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 **Core — the winning demo. Build in this order:**
 
-- [x] 1. Read a memory note back (DONE 2026-07-16, Claude)
-- [x] 2. Course materials — PDF text extraction (DONE 2026-07-16, Codex)
+- [x] 1. Read a memory note back (DONE 2026-07-16, development assistant)
+- [x] 2. Course materials — PDF text extraction (DONE 2026-07-16, development assistant)
 - [ ] 3. Study Mode & Quiz Mode ← prompt rules added 2026-07-16; final chat
       verification blocked by Gemini/OpenAI quota
-- [x] 3b. Memory write path ("remember this") (DONE 2026-07-16, Codex)
+- [x] 3b. Memory write path ("remember this") (DONE 2026-07-16, development assistant)
 - [ ] 3c. Exam-prep briefing chain
-- [x] 3d. Session conversation memory (DONE 2026-07-16, Codex)
-- [x] 3e. File pull-up + Desktop/window control (DONE 2026-07-16, Codex)
+- [x] 3d. Session conversation memory (DONE 2026-07-16, development assistant)
+- [x] 3e. File pull-up + Desktop/window control (DONE 2026-07-16, development assistant)
 - [ ] 4. Lecture Mode
 - [ ] 8. Demo hardening (always LAST)
 
@@ -74,13 +74,13 @@ $env:PYTHONIOENCODING = 'utf-8'
 - [ ] B3. Brain-dump → outline
 - [ ] B4. "Where did I put it"
 
-Rule for Codex: when Ahmed says "do prompt N", read this file, execute that
+Rule for development assistant: when Ahmed says "do prompt N", read this file, execute that
 prompt exactly, check it off here, and follow AGENTS.md's
 "After EVERY completed task" section.
 
 ---
 
-## 1. Read a memory note back — ✅ DONE 2026-07-16 (by Claude; skip this one)
+## 1. Read a memory note back — ✅ DONE 2026-07-16 (by development assistant; skip this one)
 
 Goal: Expose a `read_memory_note` function tool so NOVA can read back a note
 that `search_memory` found.
@@ -94,7 +94,7 @@ vault (mirror how the driver isolates NOTES_PATH). No new packages.
 Done when: driver `tools` passes with the new check, and one `chat` turn can
 search for a note and read its contents back.
 
-## 2. Course materials — PDF/slide text extraction — DONE 2026-07-16 (Codex)
+## 2. Course materials — PDF/slide text extraction — DONE 2026-07-16 (development assistant)
 
 Goal: Add a `read_course_material` tool that extracts text from a PDF (and
 .txt/.md) inside a sandboxed `course_materials/` folder.
@@ -141,7 +141,7 @@ PNG/JPG only, size-capped. No new packages.
 Done when: A photo of handwritten notes in Pictures/ comes back as clean
 structured notes in a chat turn, and the driver passes.
 
-## 3b. Memory write path ("NOVA, remember this") — DONE 2026-07-16 (Codex)
+## 3b. Memory write path ("NOVA, remember this") — DONE 2026-07-16 (development assistant)
 
 Goal: A `save_memory_note` tool so NOVA can write new notes into a `NOVA/`
 folder inside the Obsidian vault.
@@ -172,7 +172,7 @@ missing. Keep spoken output short — a briefing, not a lecture.
 Done when: One `chat` command visibly triggers 3+ tool calls and ends with
 a spoken summary plus an offer to quiz.
 
-## 3d. Session conversation memory — DONE 2026-07-16 (Codex)
+## 3d. Session conversation memory — DONE 2026-07-16 (development assistant)
 
 Goal: Save each live NOVA session as a timestamped local Markdown transcript
 with a fitting title, then let NOVA search/read those logs in later sessions.
@@ -182,7 +182,7 @@ summary call, no transcript text in `nova_tools.log`.
 Done when: Driver `tools` creates an isolated temp conversation log, searches
 it, reads `latest`, and passes.
 
-## 3e. File pull-up + Desktop/window control — DONE 2026-07-16 (Codex)
+## 3e. File pull-up + Desktop/window control — DONE 2026-07-16 (development assistant)
 
 Goal: Let NOVA pull up files/folders Ahmed asks for, create new files/folders
 on the correct OneDrive Desktop location, and control visible Windows windows
@@ -284,7 +284,7 @@ not; enrollment can be redone.
 
 Goal: Give `offline_agent.py` a voice, in stages that each work alone.
 Context: @offline_agent.py (working text loop via `run_ollama`), Phase 17
-in @ROADMAP.md. The old nova-codex-kit's voice-pipeline notes
+in @ROADMAP.md. The old nova-development assistant-kit's voice-pipeline notes
 (faster-whisper + Piper) apply HERE, not to the main Gemini agent.
 Constraints: Stage 1 first: speak replies with Windows built-in speech
 (System.Speech via pythonnet-free route or pyttsx3 — prefer zero/minimal

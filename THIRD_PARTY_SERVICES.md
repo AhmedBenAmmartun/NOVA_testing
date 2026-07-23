@@ -15,7 +15,7 @@ terms and licenses.
 
 | Service | Used for | Required for demo? | Notes before submission |
 | --- | --- | --- | --- |
-| OpenAI Codex | Build workflow, implementation evidence, `/feedback` session | Yes | Keep Codex session logs and final `/feedback` session ID. |
+| OpenAI development assistant | Build workflow, implementation evidence, `/feedback` session | Yes | Keep development assistant session logs and final `/feedback` session ID. |
 | GPT-5.6 | Explicit reasoning and confirmed screen analysis | Yes | Used through OpenAI Responses API only when NOVA calls `ask_gpt56` or `analyze_screen_with_gpt56`. |
 | LiveKit | Realtime agent/room infrastructure | Yes for voice/dev mode | LiveKit Cloud terms apply if using cloud services. |
 | Google Gemini API | Current realtime voice model and text driver path | Yes for current voice path | Keep API key in `.env`; do not commit. |
@@ -89,7 +89,7 @@ Before shipping or recommending a model:
 
 Allowed:
 
-- Original NOVA code written by Ahmed/Codex
+- Original NOVA code written by Ahmed/development assistant
 - Original screenshots and demos that do not expose private data
 - Original art/assets created for the project
 - Open-source assets with compatible licenses and required attribution

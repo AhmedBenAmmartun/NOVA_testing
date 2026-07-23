@@ -1,7 +1,7 @@
 # NOVA — Project Structure Inventory
 
 Read-only inspection. Repo root: `C:\Users\ahmed\OneDrive\Desktop\AI Agent`.
-Branch at time of audit: `codex-nova-desktop-integration` (main: `main`).
+Branch at time of audit: `nova-desktop-integration` (main: `main`).
 `.env` was not opened; only variable *names* were read from `.env.example`
 (the tracked template) and confirmed against `agent.py`/`nova_startup.py`
 loader calls.
@@ -15,7 +15,7 @@ but **is not yet part of any commit** on this branch. Five new top-level
 Python packages appear this way: `nova_core/`, `nova_guardian/`,
 `nova_integrations/`, `nova_policy/`, `providers/` — plus a large Dashboard
 rewrite, `tests/`, `scripts/`, `config/`, and doc updates. Three inventory
-zips also sit at repo root (`NOVA-Email-Calendar-Integration-for-Claude.zip`,
+zips also sit at repo root (`NOVA-Email-Calendar-Integration-for-development assistant.zip`,
 `NOVA-Integration-Source-20260721-160110.zip`,
 `NOVA-Missing-Source-20260721-161704.zip`) — untracked build artifacts from
 whatever process staged this work, gitignored via `*.zip`.
@@ -182,10 +182,10 @@ AI Agent/
 │   └── audit/2026-07-22/        This audit's output directory (already contained
 │                                GIT_STATE_BEFORE.md / SECURITY_REPORT.md from a parallel
 │                                audit task before this file was added)
-├── .claude/skills/run-ai-agent/  driver.py test harness + SKILL.md (tools/chat/
-│                               console-check/dev-check commands, see CLAUDE.md)
+├── .agents/skills/run-ai-agent/  driver.py test harness + SKILL.md (tools/chat/
+│                               console-check/dev-check commands, see DEVELOPMENT.md)
 ├── .agents/skills/                Mirrors run-ai-agent plus nova-code-review,
-│                               nova-tool-pattern — appears to be a Codex-side skills copy
+│                               nova-tool-pattern — appears to be a development assistant-side skills copy
 ├── course_materials/              Gitignored except .gitkeep; one sample PDF present
 ├── models/wakewords/              Local wake-word model assets for nova_wakeword.py
 ├── references/                    Gitignored clone-for-study repos (openai-python,
@@ -198,7 +198,7 @@ AI Agent/
 │                               nova_integrations patches) — evidence of iterative
 │                               in-place patch runs on 2026-07-21/22
 └── AGENTS.md, README.md, ROADMAP.md, HACKATHON_LOG.md, HACKATHON_SUBMISSION.md,
-    THIRD_PARTY_SERVICES.md, CODEX_PROMPTS.md, START-HERE.md   Narrative/process docs
+    THIRD_PARTY_SERVICES.md, PROJECT_TASKS.md, START-HERE.md   Narrative/process docs
 ```
 
 ## 2. Entry points (verified against actual code, not docs)
@@ -213,9 +213,9 @@ AI Agent/
 | Combined manual launch | `Start-NOVA.ps1` (`-DashboardOnly` / `-AgentOnly` switches) | Starts `agent.py console` if not already running (`Win32_Process` command-line match), then either the installed/`release` `NOVA.exe` or `npm run dev` inside `Dashboard\nova-app`. Does **not** start `nova_startup.py`'s standby supervisor or `Dashboard\server.py` itself — the PS1 assumes the Tauri exe path and doesn't launch the aiohttp backend, so a bare `Start-NOVA.ps1` run leaves the dashboard in demo mode unless `Dashboard/server.py` is started separately. |
 | Local wake-word test | `venv\Scripts\python.exe nova_wakeword.py` | Standalone; never invoked by `agent.py`, `Start-NOVA.ps1`, or `nova_startup.py`. |
 | Offline text chat | `venv\Scripts\python.exe offline_agent.py` | Standalone CLI to local Ollama only, via `tools.models.run_ollama`. Bypasses LiveKit and Gemini entirely. |
-| Test harness | `.claude\skills\run-ai-agent\driver.py {tools|chat|console-check|dev-check}` | Documented and consistent with actual `agent.py`/`tools/` structure. |
+| Test harness | `.agents\skills\run-ai-agent\driver.py {tools|chat|console-check|dev-check}` | Documented and consistent with actual `agent.py`/`tools/` structure. |
 
-All commands referenced in `CLAUDE.md`/`AGENTS.md`/`Start-NOVA.ps1`/`START-HERE.md` point at files that exist on disk; verified above.
+All commands referenced in `DEVELOPMENT.md`/`AGENTS.md`/`Start-NOVA.ps1`/`START-HERE.md` point at files that exist on disk; verified above.
 
 ## 3. Frontend ↔ backend communication (Dashboard)
 
@@ -223,7 +223,7 @@ All commands referenced in `CLAUDE.md`/`AGENTS.md`/`Start-NOVA.ps1`/`START-HERE.
 - Origin check (`_origin_allowed`) restricts the WS handshake to same-host origins or the three `tauri://`/`http(s)://tauri.localhost` origins — rejects arbitrary external pages with `HTTPForbidden`.
 - Server → client: a `Hub` class fans out JSON messages to all connected sockets and caches the latest per-`type` message plus a 40-item activity ring buffer; new clients get a `type: "snapshot"` replay on connect.
 - Client → server: `websocket_handler` parses inbound JSON, calls `actions.handle(message, targets, approvals, bridge)` in a thread, and republishes whatever `actions.handle` returns (used for app-launch/pin actions and for delegate/approval commands, which land in `nova_bridge.command_store`).
-- Frontend implementation lives in `Dashboard/web/index.html`'s `connectLive()` (not in `support.js`): reads `window.NOVA_BACKEND` (set to `127.0.0.1:8787` by `tauri-shell.js` when running under Tauri) or falls back to `location.host` when loaded over http(s); with neither, it silently stays in the original design's simulated-demo mode (`support.js`'s loops keep running). This is the "real vs simulated" switch described in `CLAUDE.md`.
+- Frontend implementation lives in `Dashboard/web/index.html`'s `connectLive()` (not in `support.js`): reads `window.NOVA_BACKEND` (set to `127.0.0.1:8787` by `tauri-shell.js` when running under Tauri) or falls back to `location.host` when loaded over http(s); with neither, it silently stays in the original design's simulated-demo mode (`support.js`'s loops keep running). This is the "real vs simulated" switch described in `DEVELOPMENT.md`.
 
 ## 4. Model-routing flow — the key duplicate/gap
 
@@ -244,9 +244,9 @@ providers/__init__.py  →  providers/openai_provider.py, providers/ollama_provi
          registry — a second, unrelated gap: a written-but-unwired Groq adapter)
 ```
 
-Meanwhile `tools/models.py` (`ask_gpt56`, `ask_groq`, `ask_ollama`) is the **older**, independent specialist implementation described as working in `CLAUDE.md`'s "Non-obvious facts" — it talks to providers directly via the OpenAI client, with no `nova_core` involvement. It is exported from `tools/__init__.py` but, like `ask_specialist`, is not imported into `agent.py` at all. So there are effectively **two competing specialist-routing implementations** (`tools/models.py` direct-call vs. `nova_core`+`providers`+`tools/specialist.py` router), and **neither is currently attached to the live voice agent's tool list** — a functional regression/incomplete-migration, not just a stale-doc issue, since `CLAUDE.md` describes the old tools as working and opt-in.
+Meanwhile `tools/models.py` (`ask_gpt56`, `ask_groq`, `ask_ollama`) is the **older**, independent specialist implementation described as working in `DEVELOPMENT.md`'s "Non-obvious facts" — it talks to providers directly via the OpenAI client, with no `nova_core` involvement. It is exported from `tools/__init__.py` but, like `ask_specialist`, is not imported into `agent.py` at all. So there are effectively **two competing specialist-routing implementations** (`tools/models.py` direct-call vs. `nova_core`+`providers`+`tools/specialist.py` router), and **neither is currently attached to the live voice agent's tool list** — a functional regression/incomplete-migration, not just a stale-doc issue, since `DEVELOPMENT.md` describes the old tools as working and opt-in.
 
-The truly dead code is separate: `core/` (root-level `task.py`/`router.py`/`orchestrator.py`) is imported by nothing anywhere in the repo (confirmed by repo-wide grep) — it predates `nova_core/` and both `CLAUDE.md` and this audit treat it as legacy scaffolding, not part of any active flow.
+The truly dead code is separate: `core/` (root-level `task.py`/`router.py`/`orchestrator.py`) is imported by nothing anywhere in the repo (confirmed by repo-wide grep) — it predates `nova_core/` and both `DEVELOPMENT.md` and this audit treat it as legacy scaffolding, not part of any active flow.
 
 ## 5. Tool-registration flow (agent.py ← tools/)
 
@@ -271,7 +271,7 @@ Both lists must match for a tool to be callable; as shown in §4, they currently
 - `integration_feeds.py` layers a read-only snapshot of `nova_integrations` (connected accounts, unread mail counts, calendar) plus an event-log tail on top of the same Hub.
 - `actions.py` (255 lines) is the only place with side effects: app launch/pin (`app_registry.perform_action`), recent-file/folder open (guarded by `security.can_open_recent_target`/`is_sensitive_path`), and writing delegate/approval commands into `nova_bridge.command_store` for the agent process to pick up.
 - `server.py`'s 12 background loops (`BACKGROUND_LOOPS`) call into `feeds`/`integration_feeds`/`nova_bridge` on fixed intervals (2s stats, 4s Spotify, 30 min weather, 60s Obsidian, 30s usage, 10 min app rescan, 1s log tail, 1s audit tail, 2s conversation tail, 0.5s bridge results, 20s integrations, 1s integration events) and publish through the `Hub`, which fans out over `/ws` to `index.html`'s `connectLive()`.
-- Everything above is real (live system/file/API data) when `Dashboard/server.py` is running; with no server reachable, `index.html` stays on `support.js`'s original simulated-demo loops (per `CLAUDE.md`, calendar specifically is still called out there as "Demo Data" even in live mode — not verified further in this pass).
+- Everything above is real (live system/file/API data) when `Dashboard/server.py` is running; with no server reachable, `index.html` stays on `support.js`'s original simulated-demo loops (per `DEVELOPMENT.md`, calendar specifically is still called out there as "Demo Data" even in live mode — not verified further in this pass).
 
 ## 7. Authentication / secret flow (no secret values read)
 
@@ -281,8 +281,8 @@ Both lists must match for a tool to be callable; as shown in §4, they currently
   - `nova_startup.py`: `load_dotenv(ENV_PATH, override=True)` where `ENV_PATH = PROJECT_ROOT / ".env"` — only loads `.env`, not `.env.local`, and does override.
   - `offline_agent.py`: same two-call pattern as `agent.py`.
   - `Dashboard/server.py`: `load_dotenv(PROJECT_ROOT / ".env.local")` then `load_dotenv(PROJECT_ROOT / ".env")`.
-- `.env.example` documents these variable groups (names only): LiveKit (`LIVEKIT_URL/API_KEY/API_SECRET`), Gemini (`GOOGLE_API_KEY`, `NOVA_REALTIME_MODEL`/`NOVA_VOICE`/`NOVA_TEMPERATURE` — present but, per `CLAUDE.md`, ignored by `agent.py`, which hardcodes Ahmed's tuning), OpenAI specialist (`OPENAI_API_KEY`, `NOVA_ENABLE_OPENAI`, `NOVA_OPENAI_MODEL`), Groq (`GROQ_API_KEY`, `GROQ_MODEL`, `NOVA_ENABLE_GROQ`), Ollama (`NOVA_ENABLE_OLLAMA`, `NOVA_OLLAMA_MODEL`, `NOVA_OLLAMA_BASE_URL`), provider routing (`NOVA_PROFILE`, `NOVA_FALLBACK_ENABLED`), cloud budget (`NOVA_CLOUD_BUDGET_ENABLED`, `NOVA_CLOUD_DAILY_REQUEST_LIMIT`), Guardian (`NOVA_GUARDIAN_ENABLED`, `NOVA_SECURITY_MONITOR_ENABLED`, `NOVA_WINDOW_MONITOR_ENABLED`, `NOVA_GUARDIAN_AUTO_RESPONSE`, `NOVA_SECURITY_SCAN_INTERVAL_SECONDS`), ambient vision (`NOVA_VISION_MODE`, `NOVA_LOCAL_VISION_ONLY`, `NOVA_PAUSE_ON_SENSITIVE_WINDOWS`, `NOVA_LOCAL_VISION_MODEL`, several timeout/threshold/retention vars, `NOVA_VISION_EXCLUDED_PROCESSES`, `NOVA_SENSITIVE_WINDOW_KEYWORDS`), Spotify (`SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI`).
-  - Per `CLAUDE.md`'s known issues, the real `.env` additionally has a duplicate `OBSIDIAN_VAULT_PATH`/`OBSIDIAN_VAULT_NAME` pair — not independently re-verified here since it requires opening `.env`, which this audit avoided per instructions.
+- `.env.example` documents these variable groups (names only): LiveKit (`LIVEKIT_URL/API_KEY/API_SECRET`), Gemini (`GOOGLE_API_KEY`, `NOVA_REALTIME_MODEL`/`NOVA_VOICE`/`NOVA_TEMPERATURE` — present but, per `DEVELOPMENT.md`, ignored by `agent.py`, which hardcodes Ahmed's tuning), OpenAI specialist (`OPENAI_API_KEY`, `NOVA_ENABLE_OPENAI`, `NOVA_OPENAI_MODEL`), Groq (`GROQ_API_KEY`, `GROQ_MODEL`, `NOVA_ENABLE_GROQ`), Ollama (`NOVA_ENABLE_OLLAMA`, `NOVA_OLLAMA_MODEL`, `NOVA_OLLAMA_BASE_URL`), provider routing (`NOVA_PROFILE`, `NOVA_FALLBACK_ENABLED`), cloud budget (`NOVA_CLOUD_BUDGET_ENABLED`, `NOVA_CLOUD_DAILY_REQUEST_LIMIT`), Guardian (`NOVA_GUARDIAN_ENABLED`, `NOVA_SECURITY_MONITOR_ENABLED`, `NOVA_WINDOW_MONITOR_ENABLED`, `NOVA_GUARDIAN_AUTO_RESPONSE`, `NOVA_SECURITY_SCAN_INTERVAL_SECONDS`), ambient vision (`NOVA_VISION_MODE`, `NOVA_LOCAL_VISION_ONLY`, `NOVA_PAUSE_ON_SENSITIVE_WINDOWS`, `NOVA_LOCAL_VISION_MODEL`, several timeout/threshold/retention vars, `NOVA_VISION_EXCLUDED_PROCESSES`, `NOVA_SENSITIVE_WINDOW_KEYWORDS`), Spotify (`SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI`).
+  - Per `DEVELOPMENT.md`'s known issues, the real `.env` additionally has a duplicate `OBSIDIAN_VAULT_PATH`/`OBSIDIAN_VAULT_NAME` pair — not independently re-verified here since it requires opening `.env`, which this audit avoided per instructions.
 - `nova_integrations/secrets.py` exists as a dedicated module (uses `keyring`, per `requirements.txt`) for OAuth-token-style secrets separate from the `.env` static-key flow — consistent with Gmail/Outlook needing per-account OAuth rather than a single static key.
 
 ## 8. Startup/shutdown flow
@@ -296,7 +296,7 @@ Both lists must match for a tool to be callable; as shown in §4, they currently
 
 1. **`core/` vs `nova_core/`** — `core/router.py`/`task.py`/`orchestrator.py` predate `nova_core/`, are imported by nothing (verified by grep), and are dead code left in place. Low risk (inert), but noise for anyone reading the tree.
 2. **Specialist-model routing: `tools/models.py` vs `nova_core`+`providers`+`tools/specialist.py`** — two independent implementations of "ask a specialist model" exist; per §4, **neither is currently reachable from the live voice agent** because `Assistant.tools=[...]` in `agent.py` omits `ask_specialist`, `ask_gpt56`, `ask_groq`, and `ask_ollama` alike, despite `ask_specialist` being imported. This is the most actionable finding — it's not stale documentation, it's a real functional gap in the code as it stands right now.
-3. **`providers/groq_provider.py`** — written, but not exported from `providers/__init__.py` and not referenced by `nova_core/provider_registry.py` or anywhere else. Orphaned relative to the new router even though `tools/models.py`'s older `ask_groq` still works independently (per `CLAUDE.md`).
+3. **`providers/groq_provider.py`** — written, but not exported from `providers/__init__.py` and not referenced by `nova_core/provider_registry.py` or anywhere else. Orphaned relative to the new router even though `tools/models.py`'s older `ask_groq` still works independently (per `DEVELOPMENT.md`).
 4. **`Dashboard/app_icons.py` vs `Dashboard/appicons.py`** — `app_registry.py` imports `app_icons` (`icon_data_uri`, `save_cache`); `appicons.py` is unreferenced anywhere in the repo. Likely an earlier draft left behind.
 5. **`requirements.txt` vs `requirements-email-calendar.txt`** — the latter's package list is now a strict subset already folded into the former (both list identical `google-auth`/`google-auth-oauthlib`/`google-api-python-client`/`msal`/`keyring`/`winotify`/`tzdata` pins); kept separately per its own header comment as an optional standalone installer, not a version mismatch.
 5b. **Dashboard's Tauri wrapper is a thin shell, not a self-contained app** — `nova-app`'s `tauri.conf.json` points `frontendDist` at the *same* `Dashboard/web/` folder `server.py` serves, and ships no embedded Python process. Running the built `NOVA.exe` alone (as `Start-NOVA.ps1` does when it finds that exe) gives you the design shell with **no live data** unless `Dashboard/server.py` is separately running — `Start-NOVA.ps1` does not start it.

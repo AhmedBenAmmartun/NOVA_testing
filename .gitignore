@@ -25,7 +25,7 @@ NOVA Vault/
 NOVA-Vault/
 .obsidian/
 private_data/
-claude_exports/
+assistant_exports/
 audit_logs/
 
 # Python
@@ -61,7 +61,7 @@ Videos/
 .DS_Store
 Thumbs.db
 
-# Reference repos for Codex to study (cloned, not ours)
+# Reference repos for development assistant to study (cloned, not ours)
 references/
 
 # Build files
@@ -87,8 +87,8 @@ Dashboard/__pycache__/
 .nova-patch-backup/
 .nova_integration_backup/
 
-# Local Claude configuration
-.claude/launch.json
+# Local development assistant configuration
+.agents/launch.json
 
 # Dashboard dependencies and generated builds
 Dashboard/node_modules/

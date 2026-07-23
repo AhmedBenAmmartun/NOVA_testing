@@ -93,7 +93,7 @@ resolves successfully.
   - `npm run build` → exit 0, prints `Static dashboard build verified:
     offline assets, five clipped canvases, secure apps, Desktop Mode, and
     live email/calendar wiring are present.` — confirms the "verified
-    2026-07-20" build claim in `CLAUDE.md` still holds today.
+    2026-07-20" build claim in `DEVELOPMENT.md` still holds today.
   - `npm test` (via `node --test tests/*.test.js`) → **16/16 passed**
     (Dashboard JS suite: desktop-mode-state, email-calendar-wiring,
     layout-engine).
@@ -101,8 +101,8 @@ resolves successfully.
   this was **not run** (requires the Rust toolchain — out of scope for a
   read-only audit and not something to install per instructions). Config
   files were inspected instead (Section 5).
-- `.claude\skills\run-ai-agent\driver.py tools` (per `CLAUDE.md`'s mandated
-  post-change check) → **33/33 checks OK**, matching the count `CLAUDE.md`
+- `.agents\skills\run-ai-agent\driver.py tools` (per `DEVELOPMENT.md`'s mandated
+  post-change check) → **33/33 checks OK**, matching the count `DEVELOPMENT.md`
   already records for 2026-07-20. `chat`/`console-check` were **not** run
   (they call live Gemini/speak aloud, explicitly excluded by the task).
 
@@ -131,7 +131,7 @@ resolves successfully.
 - **User impact:** On this machine, as currently provisioned, the whole
   email/calendar feature (a major, recently-added capability per git status
   — `tools/email_calendar.py`, the `NOVA-Email-Calendar-Integration-for-
-  Claude.zip`, etc.) is non-functional. It degrades gracefully everywhere it
+  development assistant.zip`, etc.) is non-functional. It degrades gracefully everywhere it
   is called from production code (`nova_integrations/startup_hook.py:18-20`,
   `Dashboard/actions.py:146-169`, `Dashboard/integration_feeds.py` all wrap
   `get_runtime()`/the sync call in `except Exception:`), so NOVA does not
@@ -205,7 +205,7 @@ resolves successfully.
   start. `agent.py`'s tool registration already imports `tools` (which
   imports `tools.models`), so this latency is likely already present in
   today's agent startup independent of the new packages, but `nova_core`'s
-  own import (used nowhere yet per `CLAUDE.md`'s note that `core/` model
+  own import (used nowhere yet per `DEVELOPMENT.md`'s note that `core/` model
   routing scaffolding "is written but not imported anywhere") would add a
   *second*, separate ~30-50s hit the moment anything starts importing it,
   and repeated smoke-test/import-validation runs in this session
@@ -322,7 +322,7 @@ resolves successfully.
   `time.sleep()` calls themselves can stay unchanged since they run on the
   worker thread once offloaded.
 - **Verification steps:** After the change, run
-  `.claude\skills\run-ai-agent\driver.py tools` and confirm the
+  `.agents\skills\run-ai-agent\driver.py tools` and confirm the
   `control_window`, `open_notifications`, `open_quick_settings`, and
   `manage_virtual_desktop` checks (currently passing at 33/33) still pass;
   ideally add a timing assertion or manual test that these no longer block
@@ -428,7 +428,7 @@ resolves successfully.
 - **Verification steps:** After refactoring, re-run the import-validation
   pass (`importlib.import_module` on all five packages individually and in
   different orders) and confirm no `ImportError`; run
-  `.claude\skills\run-ai-agent\driver.py tools` to confirm nothing that
+  `.agents\skills\run-ai-agent\driver.py tools` to confirm nothing that
   depends on these packages broke.
 
 ---
@@ -526,7 +526,7 @@ resolves successfully.
   `providers/__init__.py` (which only exports `OllamaProvider` and
   `OpenAIProvider`), and a repo-wide grep for `GroqProvider` found zero
   references anywhere. Meanwhile, a fully working Groq integration already
-  exists and is documented in `CLAUDE.md` as `ask_groq` in
+  exists and is documented in `DEVELOPMENT.md` as `ask_groq` in
   `tools/models.py`, implemented directly against the OpenAI-compatible
   client (`GROQ_BASE_URL`/`DEFAULT_GROQ_MODEL` at
   `tools/models.py:17-18`).
@@ -536,7 +536,7 @@ resolves successfully.
   Groq support already exists there, or might not realize
   `tools.models.ask_groq` is the actual, working implementation.
 - **Technical cause:** Unfinished scaffolding — same pattern already noted
-  in `CLAUDE.md`'s "Known issues" for `core/` ("written but not imported
+  in `DEVELOPMENT.md`'s "Known issues" for `core/` ("written but not imported
   anywhere yet").
 - **Evidence:**
   ```
@@ -552,7 +552,7 @@ resolves successfully.
   `providers/__init__.py` + `nova_core/provider_registry.py`, or delete the
   empty file until it's actually needed, to avoid the dead-stub confusion.
   This is a design decision for Ahmed, not something to change unilaterally
-  per `CLAUDE.md`'s "ask Ahmed" guidance for the `core/` scaffolding.
+  per `DEVELOPMENT.md`'s "ask Ahmed" guidance for the `core/` scaffolding.
 - **Verification steps:** N/A until a decision is made; if implemented,
   verify via `driver.py tools` and a manual `ask_groq`-equivalent smoke
   test through the new provider.
@@ -747,7 +747,7 @@ resolves successfully.
 & node --test Dashboard/tests/*.test.js                    → 16 pass, 0 fail
 & npm run lint  (in Dashboard/)                             → exit 0
 & npm run build (in Dashboard/)                             → exit 0, "Static dashboard build verified..."
-& venv\Scripts\python.exe .claude\skills\run-ai-agent\driver.py tools
+& venv\Scripts\python.exe .agents\skills\run-ai-agent\driver.py tools
   → PASS: 33/33 checks OK
 & venv\Scripts\python.exe -m pip show pytest tzdata        → both "not found"
 ```

@@ -34,7 +34,7 @@ manual verification.
     `AgentSession(turn_handling=..., aec_warmup_duration=0.8, llm=...)` at
     `agent.py:224-226`.
   - `room_io.RoomOptions(video_input=False, audio_input=... ai_coustics
-    noise cancellation ...)` at `agent.py:256-263` — matches CLAUDE.md's
+    noise cancellation ...)` at `agent.py:256-263` — matches DEVELOPMENT.md's
     "video_input OFF" claim.
 - Streaming/tool-calling: tool list is passed via `Assistant.__init__`
   `tools=[...]` (`agent.py:161-215`) to the `Agent` base class, which
@@ -44,12 +44,12 @@ manual verification.
 - Error handling: none explicit around session/model construction; relies on
   LiveKit's own retry/error surfacing.
 - Registered/reachable: yes, this is the live session.
-- Status: **Working** (per CLAUDE.md's own verification history; not
+- Status: **Working** (per DEVELOPMENT.md's own verification history; not
   re-verified live in this audit — no code path issue found).
 - Evidence: `agent.py:76-93`, `agent.py:157-217`, `agent.py:222-276`.
 - Recommended fix: none required. Note only: `NOVA_REALTIME_MODEL`,
   `NOVA_VOICE`, `NOVA_TEMPERATURE` exist in `.env.example` but are dead
-  (unread) — CLAUDE.md already documents this as intentional (Ahmed's
+  (unread) — DEVELOPMENT.md already documents this as intentional (Ahmed's
   tuning). No action needed unless Ahmed asks to wire them up.
 - Difficulty: N/A (informational).
 
@@ -61,7 +61,7 @@ live agent (`agent.py`) uses **none** of them:
 
 **System A — `tools/models.py` direct functions (`ask_gpt56`, `ask_groq`,
 `ask_ollama`)**
-- Claimed behavior (CLAUDE.md): three opt-in specialist tools, each a thin
+- Claimed behavior (DEVELOPMENT.md): three opt-in specialist tools, each a thin
   wrapper around an `AsyncOpenAI`-compatible client (OpenAI Responses API,
   Groq via OpenAI-compatible endpoint, local Ollama via OpenAI-compatible
   endpoint).
@@ -78,7 +78,7 @@ live agent (`agent.py`) uses **none** of them:
 - Error handling: good (per-exception messages, no crashes) — but moot
   since unreachable.
 - Status: **Present but not wired** (regression from a prior working state
-  — CLAUDE.md's "Non-obvious facts" section still describes these as live
+  — DEVELOPMENT.md's "Non-obvious facts" section still describes these as live
   opt-in tools, which is now stale).
 - Evidence: `agent.py:15-70` (import list), `agent.py:161-215` (tool list),
   `tools/models.py:368-465`.
@@ -120,10 +120,10 @@ live agent (`agent.py`) uses **none** of them:
   `nova_core/provider_registry.py:260-284`.
 - Recommended fix: add `ask_specialist` to `Assistant.tools=[...]` in
   `agent.py` (one line) if this new router is meant to replace System A: it
-  is a straightforward CLAUDE.md-required "smallest safe change" — but
+  is a straightforward DEVELOPMENT.md-required "smallest safe change" — but
   Ahmed should be asked which of System A or System B he wants live, since
   right now the net effect is **zero specialist-model capability reachable
-  from voice**, a real capability regression versus what CLAUDE.md
+  from voice**, a real capability regression versus what DEVELOPMENT.md
   describes as working. Also either implement `providers/groq_provider.py`
   or drop `ProviderName.GROQ` from `nova_core/configuration.py` to avoid a
   provider that is configured but never actually registered.
@@ -131,7 +131,7 @@ live agent (`agent.py`) uses **none** of them:
   `GroqProvider` properly, mirroring `OpenAIProvider`).
 
 **System C — `core/` (task.py, router.py, orchestrator.py) — old scaffolding**
-- Verified per CLAUDE.md's existing claim ("not imported anywhere yet"):
+- Verified per DEVELOPMENT.md's existing claim ("not imported anywhere yet"):
   still true. `grep -rn "import core\b" --include=*.py .` and
   `grep -rln "from core"` (excluding `__pycache__`) return **no matches**
   anywhere outside `core/` itself.
@@ -139,7 +139,7 @@ live agent (`agent.py`) uses **none** of them:
   run_ollama` directly (System A's internals), so even if wired up later it
   would bypass both `nova_core` and `tools/specialist.py` — a third,
   independently-coupled routing path.
-- Status: **Dead or unused** (confirmed unchanged from CLAUDE.md's prior
+- Status: **Dead or unused** (confirmed unchanged from DEVELOPMENT.md's prior
   finding).
 - Evidence: `core/orchestrator.py:1-111`, `core/router.py:1-47`,
   `core/task.py:1-42`; empty grep results for any importer.
@@ -147,7 +147,7 @@ live agent (`agent.py`) uses **none** of them:
   `providers/`) or explicitly document it as an intentionally-parked
   alternative design. Leaving three unreconciled routing systems in the
   tree is a maintenance hazard.
-- Difficulty: Small (delete) / ask Ahmed first per CLAUDE.md's own rule
+- Difficulty: Small (delete) / ask Ahmed first per DEVELOPMENT.md's own rule
   ("don't delete; wire it up or ask Ahmed").
 
 ### Section 1 summary table
@@ -168,7 +168,7 @@ live agent (`agent.py`) uses **none** of them:
 
 `Assistant.tools=[...]` in `agent.py:161-215` lists **53** function tools
 actually registered with the live LiveKit session (counted directly from
-the list). CLAUDE.md's `tools/` docstring still says "38 function tools" —
+the list). DEVELOPMENT.md's `tools/` docstring still says "38 function tools" —
 that count predates the `email_calendar.py`, `guardian.py`, `permissions.py`
 modules and is stale. Additionally, 4 more tool functions exist in the
 codebase but are **not** reachable (`ask_gpt56`, `ask_groq`, `ask_ollama`,
@@ -378,7 +378,7 @@ because it's a second entry point into the live agent process (from
 ## Summary
 
 - **Tool count**: 53 tools are actually registered with the live LiveKit
-  session (`agent.py:161-215`), versus the "38 tools" figure in CLAUDE.md's
+  session (`agent.py:161-215`), versus the "38 tools" figure in DEVELOPMENT.md's
   layout description — that figure is stale (predates
   `email_calendar.py`/`guardian.py`/`permissions.py`). A further 4 tool
   functions exist in code but are unreachable (`ask_gpt56`, `ask_groq`,

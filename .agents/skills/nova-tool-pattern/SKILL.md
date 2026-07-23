@@ -41,7 +41,7 @@ async def my_tool(context: RunContext, arg: str) -> str:
    - `tools/__init__.py` (import + `__all__`)
    - `agent.py` (`tools=[...]` list in `Assistant`)
 5. **Add a driver check** in both driver copies
-   (`.claude/skills/run-ai-agent/driver.py` AND
+   (`.agents/skills/run-ai-agent/driver.py` AND
    `.agents/skills/run-ai-agent/driver.py` — keep them identical).
    Isolate side effects: notes go to the temp `NOTES_PATH`, Obsidian checks
    use the temp vault already set up in `check_tools`. Never let a check
@@ -58,7 +58,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 8. **Update the docs** per AGENTS.md "After EVERY completed task":
    ROADMAP.md, HACKATHON_LOG.md (during Build Week), and the tool count in
-   AGENTS.md + CLAUDE.md.
+   AGENTS.md + DEVELOPMENT.md.
 
 ## Hard don'ts
 

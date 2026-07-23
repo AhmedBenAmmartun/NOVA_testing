@@ -15,7 +15,7 @@ new hackathon work are tracked in [HACKATHON_LOG.md](HACKATHON_LOG.md).
 - Suggested category: Apps for Your Life
 - Submission deadline: July 21, 2026 at 5:00 PM PT / 8:00 PM ET
 - Required evidence: a working project, repository URL, README setup
-  instructions, public YouTube demo under 3 minutes, and the `/feedback` Codex
+  instructions, public YouTube demo under 3 minutes, and the `/feedback` development assistant
   session ID for the main build thread
 
 The Build Week feature adds explicit GPT-5.6 reasoning, screen-help tools,
@@ -63,7 +63,7 @@ carry credentials or arbitrary executable code.
   under the vault's `NOVA/` folder without overwriting and refuses obvious
   secrets
 - Obsidian vault search/read covers existing Markdown notes across the vault,
-  including long ChatGPT/Claude exports; long reads return capped excerpts
+  including long ChatGPT/development assistant exports; long reads return capped excerpts
   when a query is provided
 - Session conversation memory: timestamped Markdown transcripts in
   `conversation_logs/`, with search/read tools for later sessions; live voice
@@ -281,7 +281,7 @@ npm --prefix Dashboard test
 ## Hackathon Documentation
 
 - [HACKATHON_LOG.md](HACKATHON_LOG.md) records what existed before Build Week
-  and what Codex adds during the submission period.
+  and what development assistant adds during the submission period.
 - [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md) tracks the Devpost form,
   demo video plan, repo readiness, and final submission checklist.
 - [THIRD_PARTY_SERVICES.md](THIRD_PARTY_SERVICES.md) tracks the services,

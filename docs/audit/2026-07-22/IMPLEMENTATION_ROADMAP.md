@@ -41,7 +41,7 @@ originally scoped:
 
 | Task | Priority | Dependency | Files/Components | Risk | Verification | Suggested Commit |
 |---|---|---|---|---|---|---|
-| Add a Codex `KNOWN_PROCESSES`/dock entry — currently entirely unwired | P1 | None | `Dashboard/app_registry.py`, `Dashboard/web/index.html` | Low | Click the new tile, confirm Codex launches | "Add Codex to the app registry and dock" |
+| Add a development assistant `KNOWN_PROCESSES`/dock entry — currently entirely unwired | P1 | None | `Dashboard/app_registry.py`, `Dashboard/web/index.html` | Low | Click the new tile, confirm development assistant launches | "Add development assistant to the app registry and dock" |
 | Relabel or re-point the "Search" dock tile (currently opens NOVA's own command palette, not Windows Search) | P2 | Ahmed's call on intended behavior | `Dashboard/web/index.html` | Trivial | Visual check | "Clarify Search tile behavior" |
 | Document (in `Dashboard/README.md`) that the offline/demo Start-menu grid's ~60 hardcoded names are cosmetic placeholders, not a real app catalog | P3 | None | `Dashboard/README.md` | None | Doc-only | "Document offline demo app list as cosmetic" |
 | Update `Dashboard/README.md`'s stale "Calendar page is still design demo data" line — it's now wired (see §1.12) | P2 | None | `Dashboard/README.md` | None | Doc-only | "Correct stale calendar-integration doc note" |
@@ -103,7 +103,7 @@ in this audit (not in `nova_guardian/`, not in `tools/`, not referenced by
 | Task | Priority | Dependency | Notes |
 |---|---|---|---|
 | Scope enrollment UX (voice sample capture, storage format) | P3 | Ahmed's priority call | Needs a design decision before code |
-| Choose a local speaker-embedding approach (fully offline, per CLAUDE.md's privacy posture) | P3 | Above | Large — new dependency, new model, new code |
+| Choose a local speaker-embedding approach (fully offline, per DEVELOPMENT.md's privacy posture) | P3 | Above | Large — new dependency, new model, new code |
 | Define unknown-speaker behavior and confidence threshold | P3 | Above | Security-relevant — should mirror `nova_guardian`'s existing "fail closed, don't auto-punish" philosophy |
 
 Estimated difficulty: **Large**. Recommend treating as its own dedicated
@@ -131,7 +131,7 @@ pass, not incremental.
 |---|---|---|---|---|---|
 | Fix NOVA-001 so both existing suites hit 100% (14/14, 34/34) | P0 | Stage 1 dep install | `tests/`, `Dashboard/tests/` | Low | Suite re-run |
 | Add unit tests for `nova_policy/engine.py`'s gating (there currently appear to be none dedicated to the permission engine itself — only consumers are tested indirectly) | P2 | None | New `tests/test_permission_engine.py` | Low | New tests pass |
-| Add a regression test asserting `agent.py`'s `Assistant.tools=[...]` list matches its import list (would have caught the `ask_specialist` gap automatically) | P1 | None | New test in `.claude/skills/run-ai-agent/` or `tests/` | Low | Test fails today (proving it would have caught NOVA-current gap), passes after Stage 1's routing fix |
+| Add a regression test asserting `agent.py`'s `Assistant.tools=[...]` list matches its import list (would have caught the `ask_specialist` gap automatically) | P1 | None | New test in `.agents/skills/run-ai-agent/` or `tests/` | Low | Test fails today (proving it would have caught NOVA-current gap), passes after Stage 1's routing fix |
 | Fix the circular `nova_core`↔`providers` import (NOVA-005) before it causes a real break | P2 | None | `nova_core/configuration.py`, `providers/base.py` | Medium (refactor, needs care) | Re-run import validation in varied import orders |
 | Offline/demo-mode vs. production-mode separation | Already exists | — | `Dashboard/web/index.html`'s `connectLive()` fallback to `support.js` | — | Already verified working per structure audit |
 
@@ -165,5 +165,5 @@ everything already worked).
 4. Place Ahmed's Google OAuth desktop client JSON + connect one real account (Stage 5).
 5. Add logging to `Dashboard/feeds.py`'s silent excepts (Stage 4).
 6. Delete `Dashboard/appicons.py` (Stage 1/3, trivial).
-7. Add Codex to the app registry (Stage 3).
+7. Add development assistant to the app registry (Stage 3).
 8. Defer `openai` import in `providers/*.py` for faster cold starts (Stage 1).

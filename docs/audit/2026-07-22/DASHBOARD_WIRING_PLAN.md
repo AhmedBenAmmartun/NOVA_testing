@@ -64,7 +64,7 @@ via `app_icons.icon_data_uri` (ctypes-based extraction) — **not**
 `Dashboard/appicons.py`, which is dead code, see `CLEANUP_PLAN.md`.
 
 **Gap to close**: add a `KNOWN_PROCESSES`/`APP_DISPLAY_RENAMES` entry for
-Codex (currently the one traced UI target with zero wiring anywhere).
+development assistant (currently the one traced UI target with zero wiring anywhere).
 
 ## 4. Event names and data contracts — already versioned and consistent
 
@@ -159,4 +159,4 @@ already in `IMPLEMENTATION_ROADMAP.md`:
 1. Dependency install (unblocks calendar/mail live data — the biggest visible "dashboard doesn't show real data" complaint has a one-line fix).
 2. Screen-capture permission gating (security, unrelated to dashboard but same priority tier).
 3. Specialist-model routing decision (unblocks "model-routing status" dashboard display, currently nothing to show).
-4. Dashboard-specific polish: Codex icon, Search tile relabel, feeds.py logging, crash auto-restart, CSP.
+4. Dashboard-specific polish: development assistant icon, Search tile relabel, feeds.py logging, crash auto-restart, CSP.

@@ -20,7 +20,7 @@ absent — crash, silent skip, graceful fallback message, etc.
 | Variable | Purpose | Required? | Used by | In `.env`? | In `.env.example`? | Default when missing |
 |---|---|---|---|---|---|---|
 | `GOOGLE_API_KEY` | Gemini Realtime auth | Required | `google.realtime.RealtimeModel` (implicit SDK read) | Yes | Yes | Session construction fails |
-| `NOVA_REALTIME_MODEL` | Intended override for Gemini model name | Optional | **Not read** — `agent.py` hardcodes the model | Yes | Yes | **Dead var** — documented known issue, Ahmed's tuning is intentionally hardcoded (CLAUDE.md) |
+| `NOVA_REALTIME_MODEL` | Intended override for Gemini model name | Optional | **Not read** — `agent.py` hardcodes the model | Yes | Yes | **Dead var** — documented known issue, Ahmed's tuning is intentionally hardcoded (DEVELOPMENT.md) |
 | `NOVA_VOICE` | Intended override for TTS voice | Optional | **Not read** — hardcoded `"Puck"` | Yes | Yes | Dead var, same reason |
 | `NOVA_TEMPERATURE` | Intended override for LLM temperature | Optional | **Not read** — hardcoded `0.5` | Yes | Yes | Dead var, same reason |
 
@@ -112,7 +112,7 @@ absent — crash, silent skip, graceful fallback message, etc.
 | Variable | Purpose | Required? | Used by | In `.env.example`? |
 |---|---|---|---|---|
 | `OBSIDIAN_VAULT_PATH` | Path to Obsidian vault | Required for Obsidian tools | `tools/obsidian.py` | **No — added below** |
-| `OBSIDIAN_VAULT_NAME` | Display name | Not read by any code (per CLAUDE.md's existing known-issue note) | — | **No — added below, marked dead** |
+| `OBSIDIAN_VAULT_NAME` | Display name | Not read by any code (per DEVELOPMENT.md's existing known-issue note) | — | **No — added below, marked dead** |
 
 ## Dashboard / startup — found in real `.env` or code, missing from `.env.example`
 | Variable | Purpose | Required? | Used by | In `.env.example`? |

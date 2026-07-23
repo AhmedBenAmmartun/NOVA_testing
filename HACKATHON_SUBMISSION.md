@@ -14,13 +14,13 @@ Verified with the Devpost Hackathons plugin on 2026-07-14 UTC.
 ## What Needs To Be Ready
 
 - [x] Working NOVA project with a meaningful Build Week extension
-- [x] GPT-5.6 and Codex are central to the new feature
+- [x] GPT-5.6 and development assistant are central to the new feature
 - [x] Clear old-vs-new documentation in [HACKATHON_LOG.md](HACKATHON_LOG.md)
 - [ ] Dated commits showing Build Week work
 - [ ] Repo URL
 - [ ] Public YouTube demo video under 3 minutes
-- [ ] Audio in the demo explaining how Codex and GPT-5.6 were used
-- [ ] `/feedback` Codex session ID from the main build thread
+- [ ] Audio in the demo explaining how development assistant and GPT-5.6 were used
+- [ ] `/feedback` development assistant session ID from the main build thread
 - [x] README setup and run instructions
 - [x] Third-party services and license notes
 - [ ] Final category selected
@@ -37,7 +37,7 @@ Use this section while filling out the submission form.
 | Category | Yes | Apps for Your Life |
 | Code repo URL | Yes | TODO |
 | Project/testing link and instructions | No | See "Judge Testing Instructions" below |
-| `/feedback` Codex Session ID | Yes | TODO |
+| `/feedback` development assistant Session ID | Yes | TODO |
 | Plugin/dev-tool install instructions | No | Not a plugin. Use README run instructions. |
 
 ## Project Metadata Draft
@@ -64,7 +64,7 @@ debug, test, or automate code workflows.
 
 Draft list:
 
-- Codex
+- development assistant
 - GPT-5.6
 - Python
 - LiveKit Agents
@@ -95,7 +95,7 @@ prompt-driven Study Mode / Quiz Mode choreography, and a first Conversation
 Mode runtime pass for barge-in/queued-reply reliability. It also saves local
 timestamped conversation transcripts so later sessions can search/read what
 Ahmed talked about before, mirrors live transcripts into the Obsidian vault,
-can search/read existing ChatGPT/Claude Markdown exports from the vault with
+can search/read existing ChatGPT/development assistant Markdown exports from the vault with
 capped excerpts for long notes, and now includes local file pull-up plus richer Windows window/desktop
 controls. It also includes the NOVA Dashboard (rebuilt 2026-07-20 from the
 final design handoff): a full-screen desktop control center with five
@@ -140,7 +140,7 @@ TODO after implementation:
   reasoning requests, analyzes confirmed screenshots through the Responses API,
   and generates quiz questions from extracted course material when quota is
   available.
-- Explain what Codex built or accelerated. DONE: Codex added tool wiring,
+- Explain what development assistant built or accelerated. DONE: development assistant added tool wiring,
   safety gates, docs, smoke-test updates, the course-material extraction path,
   the Study/Quiz prompt choreography, and the first Conversation Mode runtime
   turn-handling pass, local saved-conversation memory, Obsidian memory writes
@@ -149,11 +149,11 @@ TODO after implementation:
 - Add the commit range for Build Week work.
 - Add a short testing path for judges.
 
-## Codex And GPT-5.6 Evidence
+## development assistant And GPT-5.6 Evidence
 
 Fill this before submission:
 
-- Main Codex task/session ID: TODO
+- Main development assistant task/session ID: TODO
 - `/feedback` session ID: TODO
 - Baseline commit before Build Week feature: TODO
 - Build Week commit range: TODO
@@ -163,7 +163,7 @@ Fill this before submission:
   `tools/__init__.py`, `agent.py`, `prompts.py`, `.env.example`,
   `requirements.txt`, `Dashboard/`, `Dashboard/src-tauri/`, driver scripts,
   README/submission docs, and roadmap.
-- What Codex accelerated: API integration, tool safety design, agent routing,
+- What development assistant accelerated: API integration, tool safety design, agent routing,
   course-material PDF extraction, Study/Quiz prompt choreography,
   Conversation Mode turn-handling, saved-conversation memory, Obsidian memory
   writes, transcript mirroring, file pull-up, Desktop creation,
@@ -251,13 +251,13 @@ Target length: 2:30 to 2:50.
    page with the real vault note count and model usage, launching a real app
    from the dock, toggling a task that writes into the Obsidian vault, and the
    agent activity feed moving while a voice session runs.
-5. 2:10-2:45 - Explain how Codex and GPT-5.6 were used and show evidence.
+5. 2:10-2:45 - Explain how development assistant and GPT-5.6 were used and show evidence.
 6. 2:45-3:00 - Close with the use case and impact.
 
 Required audio points:
 
 - What was built
-- How Codex was used
+- How development assistant was used
 - How GPT-5.6 was used
 - Why the new feature matters
 
@@ -291,7 +291,7 @@ Added from Ahmed's 2026-07-16 design notes:
 - [ ] Repo is public with a selected license, or private and shared with
       `testing@devpost.com` and `build-week-event@openai.com`
 - [ ] Demo video is public on YouTube and under 3 minutes
-- [ ] Demo audio covers Codex and GPT-5.6
+- [ ] Demo audio covers development assistant and GPT-5.6
 - [ ] Devpost required fields are filled
 - [ ] `/feedback` session ID is entered
 - [ ] Submission status says submitted, not draft

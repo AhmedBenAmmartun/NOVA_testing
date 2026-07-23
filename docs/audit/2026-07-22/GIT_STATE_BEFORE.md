@@ -4,7 +4,7 @@
 `C:\Users\ahmed\OneDrive\Desktop\AI Agent`
 
 ## Branch
-`codex-nova-desktop-integration` (up to date with `origin/codex-nova-desktop-integration`)
+`nova-desktop-integration` (up to date with `origin/nova-desktop-integration`)
 
 ## Remote
 ```
@@ -29,7 +29,7 @@ Full 30-entry log saved to `_git_log_raw.txt` in this folder.
 ## Working tree state (as found, untouched)
 
 **This is a large, mostly-staged pending change set** — appears to be a bulk merge
-of Codex-produced work (email/calendar integration, `nova_guardian`, `nova_core`,
+of development assistant-produced work (email/calendar integration, `nova_guardian`, `nova_core`,
 `providers/`, `nova_integrations/`, the Tauri `Dashboard/nova-app` desktop shell,
 `Dashboard/` server + tests) that has not yet been committed.
 
@@ -54,9 +54,9 @@ The audit only *reads* this state and writes new files under `docs/audit/`.
 |---|---|---|
 | `.env` | **No** | Present on disk, correctly untracked. Only `.env.example` is tracked. |
 | `.spotify_cache` | No | Present on disk, untracked, covered by `.gitignore`. |
-| `*.zip` (3 files in root) | No | `NOVA-Email-Calendar-Integration-for-Claude.zip`, `NOVA-Integration-Source-20260721-160110.zip` (5.3 MB), `NOVA-Missing-Source-20260721-161704.zip` — all untracked, covered by `*.zip` in `.gitignore`. See CLEANUP_PLAN.md. |
+| `*.zip` (3 files in root) | No | `NOVA-Email-Calendar-Integration-for-development assistant.zip`, `NOVA-Integration-Source-20260721-160110.zip` (5.3 MB), `NOVA-Missing-Source-20260721-161704.zip` — all untracked, covered by `*.zip` in `.gitignore`. See CLEANUP_PLAN.md. |
 | `nova-file-inventory.txt` (348 KB) | No | Untracked, covered by `.gitignore`. |
-| `.nova-patch-backup/`, `.nova_integration_backup/` | No | Timestamped backup snapshots from prior Codex integration work, untracked, covered by `.gitignore`. |
+| `.nova-patch-backup/`, `.nova_integration_backup/` | No | Timestamped backup snapshots from prior development assistant integration work, untracked, covered by `.gitignore`. |
 | OAuth/token/credential caches | No occurrences found tracked | grep for `token|credential|.cache|oauth|client_secret` in tracked files only matched `docs/FGCU_AND_OAUTH_SETUP.md` (a setup guide, not a credential file). |
 | `venv/`, `.venv/`, `node_modules/`, `.pnpm-store/` | No | Present, untracked, ignored. |
 

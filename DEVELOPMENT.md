@@ -1,4 +1,4 @@
-# CLAUDE.md — NOVA (LiveKit)
+# DEVELOPMENT.md — NOVA (LiveKit)
 
 _Last updated: 2026-07-21_
 
@@ -53,7 +53,7 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
 .env                secrets: LIVEKIT_URL/API_KEY/API_SECRET, GOOGLE_API_KEY,
                     OPENAI_API_KEY, SPOTIFY_CLIENT_ID/SECRET, GROQ_API_KEY,
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
-.claude/skills/run-ai-agent/   run skill + driver.py test harness
+.agents/skills/run-ai-agent/   run skill + driver.py test harness
 ```
 
 ## Run & test (all verified)
@@ -61,16 +61,16 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
 ```powershell
 # from the project root
 $env:PYTHONIOENCODING = 'utf-8'
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" tools           # local tools, no keys
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" chat "..."      # full agent turn, text
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
-& ".\venv\Scripts\python.exe" ".claude\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" tools           # local tools, no keys
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" chat "..."      # full agent turn, text
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" console-check   # real app launch (SPEAKS ALOUD)
+& ".\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" dev-check       # LiveKit Cloud registration
 & ".\venv\Scripts\python.exe" agent.py console                                        # human path: live voice chat
 ```
 
 After ANY change to `prompts.py`, `tools/`, or `agent.py`, run `tools` +
 one `chat` before calling it done. Never claim something works untested.
-See `.claude/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
+See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
 
 ## After EVERY completed task (mandatory — do not skip)
 
@@ -78,14 +78,14 @@ See `.claude/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
    status" with today's date, note any bugs found, add the next recommended
    step, and bump the "Last updated" line at the top.
 2. **During Build Week, add a dated entry to `HACKATHON_LOG.md`** (feature,
-   files changed, how GPT-5.6/Codex was used, verification results, commit).
+   files changed, how GPT-5.6/development assistant was used, verification results, commit).
 3. **Keep the contribution cheat sheets current**: when the task changes the
    demo, submission story, or who/what contributed, update
    `HACKATHON_SUBMISSION.md` and any relevant README/log sections so the
-   "what we did" and "what Codex/GPT-5.6 contributed" story stays accurate.
+   "what we did" and "what development assistant/GPT-5.6 contributed" story stays accurate.
 4. Run the driver (`tools` + one `chat`, see above) and report the results
    honestly — including failures.
-5. Update `AGENTS.md` and `CLAUDE.md` only if the stack, layout, tool count,
+5. Update `AGENTS.md` and `DEVELOPMENT.md` only if the stack, layout, tool count,
    or rules changed.
 
 ## Non-obvious facts (learned the hard way)
@@ -185,7 +185,7 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   with real launches. With no server the shell falls back to the design's
   simulated demo. Launch: `Dashboard\start_dashboard.ps1` or
   `venv\Scripts\python.exe Dashboard\server.py`; browser-pane preview via
-  `.claude/launch.json` (`nova-dashboard`, port 8787). Verified 2026-07-20:
+  `.agents/launch.json` (`nova-dashboard`, port 8787). Verified 2026-07-20:
   feeds smoke 14/14, driver `tools` 33/33, live browser check with real data;
   driver `chat` blocked by Gemini 503/504 (known issue). The private local
   bridge now sends Ctrl+K text turns to the active LiveKit session and
