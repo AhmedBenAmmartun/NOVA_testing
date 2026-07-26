@@ -11,8 +11,8 @@ NOVA's Dashboard is evolving from a webpage-over-desktop into a real desktop
 shell (widgets, dock, workspaces, window management). This captures the
 architecture lessons from studying Seelen UI (a real Rust/Tauri desktop-shell
 project) and a broader vision pass — what to adopt now, what to build later,
-and what never to copy. Full research: `references/seelen-ui-study.md` and
-`references/desktop-shell-vision.md`.
+and what never to copy. Full research: `notes/seelen-ui-study.md` and
+`notes/desktop-shell-vision.md`.
 
 ## Core principle: separate responsibilities into processes
 
