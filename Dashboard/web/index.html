@@ -39,9 +39,9 @@
     <div style="display:flex;align-items:center;gap:10px;">
       {{ orbTiny }}
       <div style="font-family:'Space Grotesk';font-weight:700;letter-spacing:.14em;font-size:14px;">NOVA</div>
-      <sc-if value="{{ isDemo }}" hint-placeholder-val="{{ true }}"><span class="nova-demo-badge" title="The local NOVA bridge is offline; information shown is simulated">Demo Data</span></sc-if>
       <div style="font-size:12px;color:rgba(234,240,246,.55);margin-left:6px;">{{ clockShort }}</div>
-      <sc-if value="{{ isLive }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(46,230,214,.1);border:1px solid rgba(46,230,214,.35);font-size:10px;letter-spacing:.08em;color:#2ee6d6;"><span style="width:5px;height:5px;border-radius:50%;background:#2ee6d6;"></span>LIVE</div></sc-if>
+      <sc-if value="{{ isLive }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(46,230,214,.1);border:1px solid rgba(46,230,214,.35);font-size:10px;letter-spacing:.08em;color:#2ee6d6;"><span style="width:5px;height:5px;border-radius:50%;background:#2ee6d6;"></span>DASHBOARD</div></sc-if>
+      <div style="margin-left:6px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{ agentBadgeBg }};border:1px solid {{ agentBadgeBorder }};font-size:10px;letter-spacing:.08em;color:{{ agentBadgeColor }};"><span style="width:5px;height:5px;border-radius:50%;background:{{ agentBadgeColor }};"></span>{{ agentBadgeLabel }}</div>
       <sc-if value="{{ focusOn }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;padding:3px 10px;border-radius:999px;background:rgba(124,134,248,.14);border:1px solid rgba(124,134,248,.35);font-size:11px;color:#aab1ff;">{{ focusName }} mode</div></sc-if>
       <sc-if value="{{ showTopStats }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;align-items:center;gap:8px;margin-left:10px;padding:3px 10px;border-radius:999px;background:rgba(10,14,24,.55);border:1px solid rgba(255,255,255,.08);font-size:11px;color:rgba(234,240,246,.65);">
@@ -150,7 +150,7 @@
                     {{ orbSm }}
                     <div>
                       <div style="font-size:14px;font-weight:600;">{{ phaseLabel }}</div>
-                      <div style="font-size:11px;color:rgba(234,240,246,.55);">route · {{ route }}</div>
+                      <div style="font-size:11px;color:rgba(234,240,246,.55);">{{ routeLabel }}</div>
                     </div>
                   </div>
                 </sc-if>
@@ -208,17 +208,17 @@
                   </div>
                 </sc-if>
                 <sc-if value="{{ w.isSpotify }}" hint-placeholder-val="{{ false }}">
-                  <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;">
-                    <div style="display:flex;gap:12px;align-items:center;">
-                      <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#173a3a,#0e2130);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:#2ee6d6;font-family:'Space Grotesk';font-size:18px;">♪</div>
-                      <div><div style="font-size:14px;font-weight:600;">{{ trackTitle }}</div><div style="font-size:12px;color:rgba(234,240,246,.55);">{{ trackArtist }}</div></div>
+                  <div style="{{ spotifyPanelStyle }}">
+                    <div style="display:flex;gap:12px;align-items:center;position:relative;z-index:1;">
+                      <div style="{{ spotifyArtStyle }}">{{ spotifyArtGlyph }}</div>
+                      <div style="min-width:0;"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ trackTitle }}</div><div style="font-size:12px;color:rgba(234,240,246,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ trackArtist }}</div><div style="font-size:10px;color:rgba(234,240,246,.45);margin-top:2px;">{{ spotifyStatusLabel }}</div></div>
                     </div>
-                    <div>
-                      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-bottom:10px;"><div style="{{ progBar }}"></div></div>
-                      <div style="display:flex;align-items:center;justify-content:center;gap:18px;">
-                        <button onClick="{{ prevTrack }}" style="background:none;border:none;color:rgba(234,240,246,.6);cursor:pointer;font-size:14px;" style-hover="color:#eaf0f6;">⏮</button>
+                    <div style="position:relative;z-index:1;">
+                      <div style="height:4px;background:rgba(255,255,255,.12);border-radius:2px;margin-bottom:10px;"><div style="{{ progBar }}"></div></div>
+                      <div style="display:flex;align-items:center;justify-content:center;gap:18px;opacity:{{ spotifyControlsOpacity }};">
+                        <button onClick="{{ prevTrack }}" style="background:none;border:none;color:rgba(234,240,246,.7);cursor:pointer;font-size:14px;">⏮</button>
                         <button onClick="{{ togglePlay }}" style="width:34px;height:34px;border-radius:50%;border:none;background:#2ee6d6;color:#06131a;cursor:pointer;font-size:13px;">{{ playGlyph }}</button>
-                        <button onClick="{{ nextTrack }}" style="background:none;border:none;color:rgba(234,240,246,.6);cursor:pointer;font-size:14px;" style-hover="color:#eaf0f6;">⏭</button>
+                        <button onClick="{{ nextTrack }}" style="background:none;border:none;color:rgba(234,240,246,.7);cursor:pointer;font-size:14px;">⏭</button>
                       </div>
                     </div>
                   </div>
@@ -296,6 +296,7 @@
           <div data-layout-card="live-conversation" data-card-title="Live conversation" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;display:flex;flex-direction:column;min-height:0;">
             <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Live conversation</div>
             <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;overflow:hidden;">
+              <sc-if value="{{ noTalk }}" hint-placeholder-val="{{ false }}"><div style="margin:auto;text-align:center;font-size:12px;color:rgba(234,240,246,.48);">{{ conversationEmpty }}</div></sc-if>
               <sc-for list="{{ talk }}" as="b" hint-placeholder-count="3">
                 <div style="{{ b.rowStyle }}"><div style="{{ b.bubbleStyle }}">{{ b.text }}</div></div>
               </sc-for>
@@ -309,6 +310,7 @@
           <div data-layout-card="execution-timeline" data-card-title="Execution timeline" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;display:flex;flex-direction:column;min-height:0;">
             <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Execution timeline</div>
             <div style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:9px;">
+              <sc-if value="{{ noTimeline }}" hint-placeholder-val="{{ false }}"><div style="margin:auto;text-align:center;font-size:12px;color:rgba(234,240,246,.48);">No NOVA activity yet today</div></sc-if>
               <sc-for list="{{ timeline }}" as="ev" hint-placeholder-count="5">
                 <div style="display:flex;gap:10px;font-size:12px;align-items:baseline;">
                   <span style="color:rgba(234,240,246,.55);font-size:11px;flex-shrink:0;width:52px;">{{ ev.time }}</span>
@@ -353,12 +355,20 @@
         </div>
         <div data-layout-group="files-column" style="display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;">
           <div data-layout-card="quick-folders" data-card-title="Quick folders" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:16px;">
-            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);margin-bottom:10px;">Quick folders</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+  <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.62);">Quick folders</div>
+  <button onClick="{{ addFolder }}" title="Add a folder to NOVA" style="border:1px solid rgba(46,230,214,.3);background:rgba(46,230,214,.08);color:#2ee6d6;border-radius:9px;padding:5px 9px;font-size:11px;cursor:pointer;">+ Add folder</button>
+</div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
               <sc-for list="{{ folders }}" as="f" hint-placeholder-count="6">
-                <button onClick="{{ f.open }}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:7px 11px;color:#eaf0f6;font-size:12px;cursor:pointer;" style-hover="border-color:rgba(46,230,214,.4);">
-                  <span style="color:#f5c97b;">▣</span>{{ f.name }}
-                </button>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <button onClick="{{ f.open }}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:7px 11px;color:#eaf0f6;font-size:12px;cursor:pointer;" style-hover="border-color:rgba(46,230,214,.4);">
+                    <span style="color:#f5c97b;">?</span>{{ f.name }}
+                  </button>
+                  <sc-if value="{{ f.custom }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ f.remove }}" title="Remove from NOVA only" style="width:25px;height:25px;border-radius:8px;border:1px solid rgba(224,95,138,.3);background:rgba(224,95,138,.08);color:#e88aaa;font-size:14px;line-height:1;cursor:pointer;">?</button>
+                  </sc-if>
+                </div>
               </sc-for>
             </div>
           </div>
@@ -377,8 +387,139 @@
         </div>
       </div></div>
 
-      <!-- PAGE 4: CALENDAR -->
-      <div data-page-shell="3" style="{{ pg3 }}"><div data-page-canvas="3" data-screen-label="Calendar" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 320px;gap:16px;">
+      <!-- PAGE 4: WORKSPACE -->
+      <div data-page-shell="3" style="{{ pg3 }}"><div data-page-canvas="3" data-screen-label="Workspace" style="width:100%;height:100%;padding:76px 34px 98px;display:grid;grid-template-columns:178px minmax(0,1fr) 250px;gap:14px;">
+
+        <!-- Workspace navigation rail -->
+        <aside data-card-surface="true" style="background:rgba(7,12,24,.72);backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:16px 12px;display:flex;flex-direction:column;min-height:0;box-shadow:inset 0 1px rgba(255,255,255,.07),0 12px 30px rgba(0,0,0,.3);">
+          <div style="display:flex;align-items:center;gap:9px;padding:3px 7px 16px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:12px;">
+            <div style="width:31px;height:31px;border-radius:10px;background:linear-gradient(135deg,#2ee6d6,#5578ff);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:6px;">
+              <span style="background:#06131a;border-radius:2px;"></span>
+              <span style="background:#06131a;border-radius:2px;"></span>
+              <span style="background:#06131a;border-radius:2px;"></span>
+              <span style="background:#06131a;border-radius:2px;"></span>
+            </div>
+            <div>
+              <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;">Workspace</div>
+              <div style="font-size:10px;color:rgba(234,240,246,.48);">Personal launcher</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <sc-for list="{{ workspaceNav }}" as="n" hint-placeholder-count="4">
+              <button onClick="{{ n.go }}" style="{{ n.style }}">{{ n.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:auto;padding:12px 8px 5px;border-top:1px solid rgba(255,255,255,.07);">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.42);margin-bottom:7px;">Workspace mode</div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:#2ee6d6;">
+              <span style="width:7px;height:7px;border-radius:50%;background:#2ee6d6;box-shadow:0 0 9px rgba(46,230,214,.8);"></span>
+              Shortcuts only
+            </div>
+            <div style="font-size:10px;color:rgba(234,240,246,.43);margin-top:6px;line-height:1.4;">Removing an item from NOVA never deletes the real file or folder.</div>
+          </div>
+        </aside>
+
+        <!-- Main workspace -->
+        <main style="min-width:0;min-height:0;display:flex;flex-direction:column;background:rgba(6,11,22,.48);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;box-shadow:inset 0 1px rgba(255,255,255,.06),0 12px 32px rgba(0,0,0,.28);">
+
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px;position:relative;">
+            <div>
+              <div style="font-family:'Space Grotesk';font-size:23px;font-weight:700;">Workspace</div>
+              <div style="font-size:12px;color:rgba(234,240,246,.52);margin-top:3px;">Organize your tools, files, folders, and notes in one place.</div>
+            </div>
+
+            <div data-pop="1" style="display:flex;align-items:center;gap:8px;position:relative;">
+              <button onClick="{{ toggleWorkspaceAdd }}" style="border:1px solid rgba(46,230,214,.45);background:linear-gradient(135deg,rgba(46,230,214,.2),rgba(85,120,255,.22));color:#eaf0f6;border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 0 18px rgba(46,230,214,.12);">+ Add</button>
+
+              <button onClick="{{ toggleWorkspaceEdit }}" style="border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(234,240,246,.78);border-radius:10px;padding:8px 13px;font-size:12px;cursor:pointer;">{{ workspaceEditLabel }}</button>
+
+              <sc-if value="{{ workspaceAddOpen }}" hint-placeholder-val="{{ false }}">
+                <div data-pop="1" style="position:absolute;top:42px;right:67px;width:205px;background:rgba(9,14,27,.97);backdrop-filter:blur(26px);border:1px solid rgba(255,255,255,.13);border-radius:15px;padding:8px;z-index:55;box-shadow:0 16px 40px rgba(0,0,0,.45);animation:fadeUp .16s ease;">
+                  <sc-for list="{{ workspaceAddItems }}" as="a" hint-placeholder-count="6">
+                    <button onClick="{{ a.run }}" style="width:100%;display:flex;align-items:center;gap:10px;background:none;border:none;border-radius:10px;padding:9px;color:#eaf0f6;text-align:left;cursor:pointer;" style-hover="background:rgba(255,255,255,.07);">
+                      <span style="width:27px;height:27px;border-radius:8px;background:rgba(46,230,214,.09);border:1px solid rgba(46,230,214,.18);display:flex;align-items:center;justify-content:center;color:#2ee6d6;font-size:11px;font-weight:700;">{{ a.icon }}</span>
+                      <span>
+                        <span style="display:block;font-size:12px;font-weight:600;">{{ a.label }}</span>
+                        <span style="display:block;font-size:10px;color:rgba(234,240,246,.45);margin-top:1px;">{{ a.note }}</span>
+                      </span>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <sc-if value="{{ workspaceEdit }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:12px;padding:8px 11px;border-radius:10px;background:rgba(124,134,248,.1);border:1px solid rgba(124,134,248,.22);font-size:11px;color:#b9bfff;">Edit mode is active. Moving, renaming, and custom groups are the next Workspace connection step.</div>
+          </sc-if>
+
+          <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px;">
+            <sc-for list="{{ workspaceGroups }}" as="g" hint-placeholder-count="4">
+              <section style="margin-bottom:15px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                  <span style="color:#2ee6d6;font-family:Consolas,monospace;font-size:12px;">{{ g.icon }}</span>
+                  <span style="font-family:'Space Grotesk';font-size:13px;font-weight:600;">{{ g.title }}</span>
+                  <span style="height:1px;background:rgba(255,255,255,.06);flex:1;"></span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px;">
+                  <sc-for list="{{ g.items }}" as="item" hint-placeholder-count="5">
+                    <button onClick="{{ item.open }}" style="{{ item.cardStyle }}" style-hover="transform:translateY(-3px);border-color:rgba(46,230,214,.34);background:rgba(255,255,255,.065);">
+                      <sc-if value="{{ item.editing }}" hint-placeholder-val="{{ false }}">
+                        <span style="position:absolute;top:7px;right:8px;font-size:9px;color:#b9bfff;letter-spacing:.08em;">MOVE</span>
+                      </sc-if>
+                      <span style="{{ item.tileStyle }}">{{ item.glyph }}</span>
+                      <span style="display:block;font-size:11px;font-weight:600;color:#eaf0f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ item.name }}</span>
+                      <span style="display:block;font-size:9px;color:rgba(234,240,246,.43);margin-top:2px;">{{ item.kind }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-for>
+          </div>
+        </main>
+
+        <!-- Workspace widgets -->
+        <aside style="min-height:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+
+          <div data-card-surface="true" style="background:rgba(8,13,25,.68);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:16px;box-shadow:inset 0 1px rgba(255,255,255,.06),0 10px 28px rgba(0,0,0,.25);">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.5);">Time and date</div>
+            <div style="font-family:'Space Grotesk';font-size:29px;font-weight:700;margin-top:8px;">{{ clockTime }}</div>
+            <div style="font-size:11px;color:rgba(234,240,246,.55);margin-top:3px;">{{ clockDate }}</div>
+          </div>
+
+          <div data-card-surface="true" style="background:rgba(8,13,25,.68);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:16px;">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.5);margin-bottom:13px;">System status</div>
+
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;"><span>CPU</span><span>{{ cpu }}%</span></div>
+            <div style="height:5px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:12px;"><span style="{{ workspaceCpuBar }}"></span></div>
+
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;"><span>Memory</span><span>{{ ram }}%</span></div>
+            <div style="height:5px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;"><span style="{{ workspaceRamBar }}"></span></div>
+          </div>
+
+          <div data-card-surface="true" style="background:rgba(8,13,25,.68);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.5);">NOVA status</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#2ee6d6;"><span style="width:6px;height:6px;border-radius:50%;background:#2ee6d6;box-shadow:0 0 8px rgba(46,230,214,.8);"></span>{{ phaseLabel }}</div>
+            </div>
+            <div style="height:75px;display:flex;align-items:center;justify-content:center;margin-top:7px;">{{ orbLg }}</div>
+            <div style="font-size:10px;text-align:center;color:rgba(234,240,246,.48);">Route: {{ route }}</div>
+          </div>
+
+          <div data-card-surface="true" style="background:rgba(8,13,25,.68);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:16px;min-height:112px;">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,240,246,.5);margin-bottom:10px;">Quick note</div>
+            <div style="font-size:12px;line-height:1.5;color:rgba(234,240,246,.8);">Use this Workspace for school, coding, and NOVA project shortcuts.</div>
+            <div style="font-size:9px;color:rgba(234,240,246,.38);margin-top:12px;">Stored locally by NOVA</div>
+          </div>
+
+        </aside>
+      </div></div>
+
+      <!-- PAGE 5: CALENDAR -->
+      <div data-page-shell="4" style="{{ pg4 }}"><div data-page-canvas="4" data-screen-label="Calendar" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 320px;gap:16px;">
         <div data-layout-card="calendar-month" data-card-title="Calendar month" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:22px;display:flex;flex-direction:column;min-height:0;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;">{{ calendarMonthTitle }}</div>
@@ -416,8 +557,8 @@
         </div>
       </div></div>
 
-      <!-- PAGE 5: AGENT -->
-      <div data-page-shell="4" style="{{ pg4 }}"><div data-page-canvas="4" data-screen-label="Agent Control" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 340px;gap:16px;">
+      <!-- PAGE 6: AGENT -->
+      <div data-page-shell="5" style="{{ pg5 }}"><div data-page-canvas="5" data-screen-label="Agent Control" style="width:100%;height:100%;padding:84px 46px 110px;display:grid;grid-template-columns:1fr 340px;gap:16px;">
         <div data-layout-card="agent-activity" data-card-title="Agent activity" data-card-surface="true" style="background:rgba(10,14,24,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px rgba(0,0,0,.28);padding:18px;display:flex;flex-direction:column;min-height:0;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
             <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;">Agent activity</div>
@@ -523,7 +664,7 @@
       <div style="font-size:11px;color:rgba(234,240,246,.65);font-family:'Space Grotesk';letter-spacing:.1em;animation:fadeUp .2s ease;">{{ pageLabel }}</div>
     </sc-if>
     <div style="display:flex;gap:6px;align-items:center;">
-      <sc-for list="{{ pages }}" as="p" hint-placeholder-count="4">
+      <sc-for list="{{ pages }}" as="p" hint-placeholder-count="6">
         <button onClick="{{ p.go }}" title="{{ p.label }}" style="{{ p.dotStyle }}"></button>
       </sc-for>
     </div>
@@ -604,10 +745,13 @@
   <!-- dock -->
   <div data-nova-chrome="dock" style="{{ dockStyle }}">
     <sc-for list="{{ dock }}" as="d" hint-placeholder-count="8">
-      <button onClick="{{ d.launch }}" title="{{ d.name }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0;transition:transform .15s ease;" style-hover="transform:translateY(-6px) scale(1.12);">
-        <span style="{{ d.tileStyle }}"><sc-if value="{{ d.isOrb }}" hint-placeholder-val="{{ false }}">{{ orbDock }}</sc-if>{{ d.glyph }}</span>
-        <span style="{{ d.runStyle }}"></span>
-      </button>
+      <div onMouseEnter="{{ d.previewEnter }}" onMouseLeave="{{ d.previewLeave }}" style="position:relative;display:flex;flex-direction:column;align-items:center;">
+        <button onClick="{{ d.launch }}" title="{{ d.name }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0;transition:transform .15s ease;" style-hover="transform:translateY(-6px) scale(1.12);">
+          <span style="{{ d.tileStyle }}"><sc-if value="{{ d.isOrb }}" hint-placeholder-val="{{ false }}">{{ orbDock }}</sc-if>{{ d.glyph }}<sc-if value="{{ d.hasCount }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#2ee6d6;color:#06131a;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;">{{ d.count }}</span></sc-if></span>
+          <span style="{{ d.runStyle }}"></span>
+        </button>
+        <sc-if value="{{ d.previewOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:260px;max-height:220px;overflow:auto;padding:10px;background:rgba(8,12,22,.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.14);border-radius:13px;box-shadow:0 18px 45px rgba(0,0,0,.5);z-index:90;"><div style="font-size:11px;font-weight:700;margin-bottom:7px;">{{ d.name }} · {{ d.count }} window(s)</div><sc-for list="{{ d.previews }}" as="p" hint-placeholder-count="3"><div style="font-size:11px;color:rgba(234,240,246,.72);padding:7px 8px;border-radius:8px;background:rgba(255,255,255,.04);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.title }}</div></sc-for></div></sc-if>
+      </div>
     </sc-for>
   </div>
   <div data-nova-chrome="dock-peek" onMouseEnter="{{ peekDock }}" style="position:absolute;bottom:0;left:0;right:0;height:14px;z-index:29;"></div>
@@ -616,41 +760,26 @@
 <script type="text/x-dc" data-dc-script data-props="{&quot;wallpaperDim&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.35,&quot;min&quot;:0,&quot;max&quot;:0.8,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Desktop&quot;},&quot;dockAutoHide&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Dock&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Motion&quot;}}">
 class Component extends DCLogic {
   state = {
-    page: 0, vPrev: 0, pickerOpen: false, settingsOpen: false, hoverId: null, menuId: null,
+    page: 0, vPrev: 0, pickerOpen: false, settingsOpen: false, workspaceAddOpen: false, workspaceEdit: false, hoverId: null, menuId: null,
     dragging: false, dragX: 0, navFlash: true, notifs: [], toasts: [], notifOpen: false,
     now: new Date(), lock: false, dockHide: false, privacy: false, dockPeek: false,
-    cpu: 34, ram: 61, playing: true, prog: 38, phase: 'listening', route: 'Gemini Flash',
+    cpu: 0, ram: 0, playing: false, prog: 0, phase: 'offline', route: null,
     appQuery: '', memQuery: '', cmdOpen: false, actFilter: 'All',
-    wins: [], wz: 5, trackIdx: 0, dimLocal: null, reduceLocal: false, justDoneId: null,
+    wins: [], wz: 5, trackIdx: 0, dimLocal: null, reduceLocal: false, justDoneId: null, dockPreviewKey: null,
     focusMode: null, wallpaper: 'photo', sound: false, locked: false, notifsMuted: false,
     autoAllow: { 'File writes': false, 'Screen capture': false, 'Shell commands': false, 'Web purchases': false },
     transcript: '', transcriptHide: false,
-    live: false,
-    weatherTemp: '84°', weatherDesc: 'Partly cloudy · H 91° L 76°', weatherBrief: '84° Partly cloudy',
-    spTitle: null, spArtist: null, spProg: null,
-    notesList: null, brainNotes: null, pinnedNames: null, allAppNames: null, appRecords: null,
-    folderNames: null, recentList: null, usageLabels: null, usageTotalLabel: null, briefSubLive: null,
+    live: false, agentOnline: false, agentStatus: 'offline',
+    weatherTemp: '—', weatherDesc: 'Weather unavailable', weatherBrief: 'Unavailable',
+    spTitle: null, spArtist: null, spAlbum: null, spArtwork: null, spDevice: null, spStatus: 'closed', spAvailable: false, spProg: null,
+    notesList: [], brainNotes: 0, obsidianAvailable: false, tasksAvailable: false, pinnedNames: [], allAppNames: [], appRecords: [],
+    folderNames: null, customFolderNames: null, recentList: null, usageLabels: null, usageTotalLabel: null, briefSubLive: null,
     integrationStatus: 'not_configured', integrationAccounts: [], mailUnreadTotal: 0, mailItems: [],
     calendarPayload: null, calendarSyncing: false,
-    usage: { 'Gemini Flash': { tok: 41200, cost: 0.42 }, 'Groq Llama': { tok: 12800, cost: 0.09 }, 'Ollama': { tok: 8400, cost: 0 }, 'GPT-5.6': { tok: 9600, cost: 0.88 }, 'Obsidian Brain': { tok: 5200, cost: 0.04 } },
-    approvals: [
-      { id: 51, action: 'Screen capture', detail: 'screen_capture \u2192 gpt-5.6 vision' },
-      { id: 52, action: 'File write', detail: 'obsidian.write("NOVA/memory/2026-07-19.md")' }
-    ],
-    memories: [
-      { id: 61, title: 'agent-notes.md', snippet: 'LiveKit agent \u2014 barge-in handled via VAD interrupt; latency budget 300ms.', when: '2h' },
-      { id: 62, title: 'preferences.md', snippet: 'Prefers Deep Focus playlist while coding; quiz sessions after 8 PM.', when: '5h' },
-      { id: 63, title: 'build-week-plan.md', snippet: 'Submission Tue 5 PM PT \u2014 demo video under 3 min, README, architecture diagram.', when: '1d' },
-      { id: 64, title: 'lecture-07.md', snippet: 'Key topics: process scheduling, context switches, priority inversion.', when: '1d' },
-      { id: 65, title: 'people/roommate.md', snippet: 'Quiet hours after 11 PM on weekdays.', when: '3d' }
-    ],
-    activity: [
-      { id: 71, time: '2:41 PM', tag: 'Tool', text: 'get_weather("local")', status: 'ok' },
-      { id: 72, time: '2:44 PM', tag: 'Memory', text: 'obsidian.search("agent notes")', status: 'ok' },
-      { id: 73, time: '2:52 PM', tag: 'Route', text: 'router \u2192 groq/llama-3.3', status: 'ok' },
-      { id: 74, time: '3:05 PM', tag: 'Tool', text: 'spotify.play("Deep Focus")', status: 'ok' },
-      { id: 75, time: '3:18 PM', tag: 'Vision', text: 'screen_capture \u2192 gpt-5.6', status: 'approved' }
-    ],
+    usage: { 'Gemini Flash': { tok: 0, cost: 0 }, 'Groq Llama': { tok: 0, cost: 0 }, 'Ollama': { tok: 0, cost: 0 }, 'GPT-5.6': { tok: 0, cost: 0 }, 'Obsidian Brain': { tok: 0, cost: 0 } },
+    approvals: [],
+    memories: [],
+    activity: [],
     widgets: [
       { id: 8, type: 'briefing', pinned: false },
       { id: 1, type: 'clock', pinned: true }, { id: 2, type: 'weather', pinned: false },
@@ -658,23 +787,9 @@ class Component extends DCLogic {
       { id: 5, type: 'spotify', pinned: false }, { id: 6, type: 'system', pinned: false },
       { id: 7, type: 'notes', pinned: false }
     ],
-    tasks: [
-      { id: 1, label: 'Record Build Week demo video', done: false },
-      { id: 2, label: 'Finish HACKATHON_SUBMISSION.md', done: true },
-      { id: 3, label: 'Test Obsidian memory write path', done: false },
-      { id: 4, label: 'CS 201 problem set', done: false }
-    ],
-    talk: [
-      { who: 'user', text: 'Nova, what\u2019s on my schedule today?' },
-      { who: 'nova', text: 'Build Week submission prep at 4 PM, study session at 8.' }
-    ],
-    timeline: [
-      { time: '2:41 PM', tag: 'Tool', text: 'get_weather("local")' },
-      { time: '2:44 PM', tag: 'Memory', text: 'obsidian.search("agent notes")' },
-      { time: '2:52 PM', tag: 'Route', text: 'router \u2192 groq/llama-3.3' },
-      { time: '3:05 PM', tag: 'Tool', text: 'spotify.play("Deep Focus")' },
-      { time: '3:18 PM', tag: 'Vision', text: 'screen_capture \u2192 gpt-5.6 (approved)' }
-    ]
+    tasks: [],
+    talk: [],
+    timeline: []
   };
   WMETA = {
     briefing: { title: 'Daily briefing', cw: 4, ch: 1 },
@@ -716,12 +831,8 @@ class Component extends DCLogic {
     this.connectLive();
     this.clockT = setInterval(() => {
       const s = { now: new Date() };
-      if (!this.state.live) {
-        s.cpu = Math.max(8, Math.min(96, this.state.cpu + (Math.random() * 14 - 7)));
-        s.ram = Math.max(30, Math.min(92, this.state.ram + (Math.random() * 6 - 3)));
-        if (this.state.playing) s.prog = (this.state.prog + 0.6) % 100;
-      } else if (this.state.playing && this.state.spProg === null) {
-        s.prog = (this.state.prog + 0.6) % 100;
+      if (this.state.live && this.state.playing && this.state.spProg !== null) {
+        s.prog = Math.min(100, this.state.prog + 0.02);
       }
       this.setState(s);
       this.persistMaybe();
@@ -732,13 +843,13 @@ class Component extends DCLogic {
       if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       if (e.key === 'ArrowRight') this.go(1);
       if (e.key === 'ArrowLeft') this.go(-1);
-      if (e.key === 'Escape') this.setState({ pickerOpen: false, settingsOpen: false, menuId: null, cmdOpen: false, wins: this.state.wins.slice(0, -1) });
+      if (e.key === 'Escape') this.setState({ pickerOpen: false, settingsOpen: false, workspaceAddOpen: false, menuId: null, cmdOpen: false, wins: this.state.wins.slice(0, -1) });
     };
     window.addEventListener('keydown', this.keyH);
     this.docH = (e) => {
       if (e.target.closest && e.target.closest('[data-pop]')) return;
       const s = this.state;
-      if (s.menuId !== null || s.notifOpen || s.settingsOpen) this.setState({ menuId: null, notifOpen: false, settingsOpen: false });
+      if (s.menuId !== null || s.notifOpen || s.settingsOpen || s.workspaceAddOpen) this.setState({ menuId: null, notifOpen: false, settingsOpen: false, workspaceAddOpen: false });
     };
     window.addEventListener('mousedown', this.docH);
     this.integrationActionH = (event) => {
@@ -748,7 +859,6 @@ class Component extends DCLogic {
       this.sendLive({ ...payload, type: detail.type });
     };
     window.addEventListener('nova:integration-action', this.integrationActionH);
-    this.simT = setTimeout(() => { if (!this.state.live) { this.startTalkLoop(); this.startNotifs(); } }, 2500);
     this.flashNav();
     setTimeout(() => this.initBrain(), 150);
     window.addEventListener('resize', this.sizeBrain = () => this.fitBrain());
@@ -765,9 +875,7 @@ class Component extends DCLogic {
     window.removeEventListener('resize', this.sizeBrain);
     window.removeEventListener('nova:integration-action', this.integrationActionH);
   }
-  // ---- NOVA live bridge: real data pushed by Dashboard/server.py over WebSocket.
-  // When no server is reachable the prototype's simulated loops keep running,
-  // so the same file still works as an offline demo.
+  // ---- NOVA live bridge: real data only. Offline states remain empty.
   restorePersisted() {
     try {
       const patch = {};
@@ -796,10 +904,17 @@ class Component extends DCLogic {
     } catch (e) {}
   }
   connectLive() {
-    var backend = window.NOVA_BACKEND || ((/^https?:$/.test(location.protocol) && location.host) ? location.host : null);
-    if (!backend) return; // opened from disk with no server: pure demo mode
+    if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return;
+
+    // Tauri's module script can finish after this component mounts.
+    // Use NOVA's localhost bridge immediately instead of getting stuck in Demo Data.
+    var backend = window.NOVA_BACKEND ||
+      ((/^https?:$/.test(location.protocol) && location.host)
+        ? location.host
+        : '127.0.0.1:8787');
+
     let ws;
-    try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + backend + '/ws'); } catch (e) { return; }
+    try { ws = new WebSocket('ws://' + backend + '/ws'); } catch (e) { return; }
     this.ws = ws;
     ws.onopen = () => {
       this.stopSims();
@@ -815,8 +930,8 @@ class Component extends DCLogic {
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
-      if (this.state.live) this.setState({ live: false });
-      window.dispatchEvent(new CustomEvent('nova:integration-connection', { detail: { connected: false, mode: 'demo' } }));
+      this.setState({ live: false, agentOnline: false, agentStatus: 'offline', phase: 'offline', route: null, playing: false, spAvailable: false, spStatus: 'closed' });
+      window.dispatchEvent(new CustomEvent('nova:integration-connection', { detail: { connected: false, mode: 'offline' } }));
       this.reconT = setTimeout(() => this.connectLive(), 3000);
     };
     ws.onerror = () => { try { ws.close(); } catch (e) {} };
@@ -835,14 +950,29 @@ class Component extends DCLogic {
       case 'snapshot': (m.parts || []).forEach(p => this.onLive(p)); break;
       case 'stats': this.setState({ cpu: m.cpu, ram: m.ram }); break;
       case 'spotify': {
-        const s = { spTitle: m.title || null, spArtist: m.artist || null, playing: !!m.playing };
-        s.spProg = (typeof m.progress === 'number') ? m.progress : null;
-        if (s.spProg !== null) s.prog = s.spProg;
-        this.setState(s); break;
+        const update = {
+          spTitle: m.title || null, spArtist: m.artist || null, spAlbum: m.album || null,
+          spArtwork: m.artwork || null, spDevice: m.device || null, spStatus: m.status || 'closed',
+          spAvailable: !!m.available, playing: !!m.playing,
+          spProg: (typeof m.progress === 'number') ? m.progress : null
+        };
+        update.prog = update.spProg === null ? 0 : update.spProg;
+        this.setState(update); break;
+      }
+      case 'agent_status': {
+        const online = !!m.online;
+        const phase = online ? (m.phase || m.status || 'idle') : 'offline';
+        this.setState({
+          agentOnline: online,
+          agentStatus: m.status || phase,
+          phase,
+          route: online ? (m.route || st.route) : null
+        });
+        break;
       }
       case 'weather': this.setState({ weatherTemp: m.temp, weatherDesc: m.desc, weatherBrief: m.brief || (m.temp + ' ' + m.desc) }); break;
       case 'phase': {
-        const s = {};
+        const s = { agentOnline: true, agentStatus: 'active' };
         if (m.phase) s.phase = m.phase;
         if (m.route) s.route = m.route;
         this.setState(s); break;
@@ -860,11 +990,12 @@ class Component extends DCLogic {
         this.setState({ activity: rows.slice(-40), timeline: rows.slice(-8).map(x => ({ time: x.time, tag: x.tag, text: x.text })) });
         break;
       }
-      case 'tasks': this.setState({ tasks: m.items || [] }); break;
+      case 'tasks': this.setState({ tasks: m.items || [], tasksAvailable: m.available !== false }); break;
       case 'talk': this.setState({ talk: (m.items || []).slice(-4) }); break;
       case 'transcript': if (m.text) this.typeTranscript(m.text); break;
       case 'obsidian': {
         const s = {};
+        s.obsidianAvailable = m.available !== false;
         if (typeof m.count === 'number') s.brainNotes = m.count;
         if (m.recent) s.notesList = m.recent;
         if (m.memories) s.memories = m.memories;
@@ -878,6 +1009,7 @@ class Component extends DCLogic {
         if (m.pinned) s.pinnedNames = m.pinned;
         if (m.all) s.allAppNames = m.all;
         if (m.folders) s.folderNames = m.folders;
+        if (m.custom_folders) s.customFolderNames = m.custom_folders;
         if (m.recent) s.recentList = m.recent;
         if (m.icons) s.appIcons = m.icons;
         this.setState(s); break;
@@ -892,7 +1024,11 @@ class Component extends DCLogic {
             return current ? {
               ...record,
               running: !!current.running,
-              active: !!current.active
+              active: !!current.active,
+              group: current.group || record.group,
+              groupName: current.groupName || record.groupName,
+              windowCount: current.windowCount || 0,
+              windows: Array.isArray(current.windows) ? current.windows : []
             } : record;
           })
         });
@@ -912,39 +1048,6 @@ class Component extends DCLogic {
       case 'calendar': this.setState({ calendarPayload: m, calendarSyncing: false }); break;
       case 'notify': this.pushNotif({ icon: m.icon || '◉', title: m.title || 'NOVA', text: m.text || '' }); break;
     }
-  }
-  startTalkLoop() {
-    const script = [
-      { phase: 'listening', route: 'Gemini Flash' },
-      { user: 'Summarize my agent notes from Obsidian.' },
-      { phase: 'thinking', route: 'Obsidian Brain' },
-      { nova: 'Found 3 notes on the LiveKit agent \u2014 the latest covers barge-in handling.', phase: 'speaking', ev: { tag: 'Memory', text: 'obsidian.read("NOVA/agent-notes.md")' } },
-      { phase: 'listening', route: 'Gemini Flash' },
-      { user: 'Quiz me on lecture 7 after dinner.' },
-      { phase: 'thinking', route: 'GPT-5.6' },
-      { nova: 'Done \u2014 Quiz Mode scheduled at 8 PM over lecture 7.', phase: 'speaking', ev: { tag: 'Tool', text: 'study.schedule_quiz("lec7", "20:00")' } },
-      { phase: 'listening', route: 'Gemini Flash' },
-      { user: 'How\u2019s the build going?' },
-      { phase: 'thinking', route: 'Groq Llama' },
-      { nova: 'Dashboard shell is stable; submission deadline is Tuesday 5 PM PT.', phase: 'speaking', ev: { tag: 'Route', text: 'router \u2192 groq/llama-3.3' } }
-    ];
-    let i = 0;
-    this.talkT = setInterval(() => {
-      const s = script[i % script.length]; i++;
-      const st = {};
-      if (s.phase) st.phase = s.phase;
-      if (s.route) st.route = s.route;
-      if (s.user) { st.talk = [...this.state.talk, { who: 'user', text: s.user }].slice(-4); this.typeTranscript(s.user); }
-      if (s.nova) st.talk = [...this.state.talk, { who: 'nova', text: s.nova }].slice(-4);
-      if (s.ev) {
-        const t = this.state.now;
-        st.timeline = [...this.state.timeline, { time: t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), tag: s.ev.tag, text: s.ev.text }].slice(-8);
-        st.activity = [...this.state.activity, { id: ++this.nid, time: this.nowStr(), tag: s.ev.tag, text: s.ev.text, status: 'ok' }].slice(-40);
-        const rt = st.route || this.state.route, u = { ...this.state.usage };
-        if (u[rt]) { u[rt] = { tok: u[rt].tok + 600 + Math.floor(Math.random() * 900), cost: +(u[rt].cost + 0.02).toFixed(2) }; st.usage = u; }
-      }
-      this.setState(st);
-    }, 3200);
   }
   fitBrain() {
     const cv = this.brainRef.current; if (!cv) return;
@@ -988,7 +1091,7 @@ class Component extends DCLogic {
     draw();
   }
   setPage(n) {
-    this.setState({ vPrev: this.state.page, page: (n + 5) % 5, menuId: null, pickerOpen: false, settingsOpen: false, notifOpen: false });
+    this.setState({ vPrev: this.state.page, page: (n + 6) % 6, menuId: null, pickerOpen: false, settingsOpen: false, notifOpen: false, workspaceAddOpen: false });
     this.flashNav();
   }
   go(d) { this.setPage(this.state.page + d); }
@@ -996,20 +1099,6 @@ class Component extends DCLogic {
     this.setState({ navFlash: true });
     clearTimeout(this.flashT);
     this.flashT = setTimeout(() => this.setState({ navFlash: false }), 1800);
-  }
-  startNotifs() {
-    const q = [
-      { icon: '◷', title: 'Reminder', text: 'Build Week demo prep at 4:00 PM' },
-      { icon: '▤', title: 'Tasks', text: '3 tasks left today' },
-      { icon: '◈', title: 'Obsidian', text: 'NOVA saved a memory note' },
-      { icon: '◉', title: 'NOVA', text: 'Quiz Mode ready \u2014 lecture 7' },
-      { icon: '♪', title: 'Spotify', text: 'Deep Focus playlist resumed' },
-      { icon: '◷', title: 'Reminder', text: 'Submission deadline Tue 5 PM PT' }
-    ];
-    let i = 0;
-    const push = () => this.pushNotif(q[i++ % q.length]);
-    this.firstNotifT = setTimeout(push, 3500);
-    this.notifT = setInterval(push, 16000);
   }
   pushNotif(n) {
     const id = ++this.nid;
@@ -1039,6 +1128,59 @@ class Component extends DCLogic {
     this.setState({ wins: [...st.wins, { id: ++this.nid, name, i: i || 0, label: label || name, x: null, y: null, min: false, snap: null, z: st.wz + 1 }], wz: st.wz + 1, pickerOpen: false, settingsOpen: false, notifOpen: false, menuId: null });
     this.pushActivity('Tool', 'apps.launch("' + name + '")');
   }
+
+  openWorkspaceApp(name, index, record) {
+    if (this.state.live) {
+      if (
+        record?.id &&
+        this.sendLive({
+          type: 'app_action',
+          id: record.id,
+          action: 'activate'
+        })
+      ) {
+        return;
+      }
+
+      if (this.sendLive({ type: 'launch', app: name })) {
+        return;
+      }
+    }
+
+    this.workspaceNotice(
+      'The NOVA bridge is offline, so ' + name + ' was not launched.'
+    );
+  }
+
+  openWorkspaceFolder(name) {
+    if (
+      this.state.live &&
+      name &&
+      this.sendLive({ type: 'open_folder', name })
+    ) {
+      return;
+    }
+
+    this.workspaceNotice(
+      name
+        ? 'The NOVA bridge is offline, so ' + name + ' was not opened.'
+        : 'That folder is not registered in NOVA yet.'
+    );
+  }
+
+  openWorkspaceWebsite(site, label) {
+    if (
+      this.state.live &&
+      this.sendLive({ type: 'open_website', site })
+    ) {
+      return;
+    }
+
+    this.workspaceNotice(
+      'The NOVA bridge is offline, so ' + label + ' was not opened.'
+    );
+  }
+
   setFocus(name) {
     if (this.state.focusMode === name) { this.setState({ focusMode: null, notifsMuted: false }); return; }
     const f = this.FOCUS[name];
@@ -1068,21 +1210,13 @@ class Component extends DCLogic {
   }
   delegate(text) {
     if (!text || !text.trim()) return;
-    if (this.state.live) {
+    if (!this.state.live || !this.state.agentOnline) {
       this.setState({ cmdOpen: false });
-      this.sendLive({ type: 'delegate', text: text.trim() });
+      this.pushNotif({ icon: '◉', title: 'NOVA agent offline', text: 'Start agent.py before sending a request.' });
       return;
     }
-    this.setState({ cmdOpen: false, phase: 'thinking', route: 'GPT-5.6' });
-    this.pushActivity('Task', 'delegate("' + text + '")', 'running');
-    const u = { ...this.state.usage };
-    u['GPT-5.6'] = { tok: u['GPT-5.6'].tok + 900, cost: +(u['GPT-5.6'].cost + 0.06).toFixed(2) };
-    this.setState({ usage: u });
-    this.delT1 = setTimeout(() => { this.pushActivity('Tool', 'plan \u2192 3 steps queued'); this.setState({ phase: 'speaking' }); }, 2200);
-    this.delT2 = setTimeout(() => {
-      this.setState({ phase: 'listening', route: 'Gemini Flash', activity: this.state.activity.map(a => a.status === 'running' ? { ...a, status: 'ok' } : a) });
-      this.pushNotif({ icon: '\u25c9', title: 'NOVA', text: 'Done \u2014 ' + text });
-    }, 4800);
+    this.setState({ cmdOpen: false });
+    this.sendLive({ type: 'delegate', text: text.trim() });
   }
   typeTranscript(text) {
     clearInterval(this.typeT); clearTimeout(this.fadeT);
@@ -1098,30 +1232,48 @@ class Component extends DCLogic {
     const e = React.createElement;
     const reduce = (this.props.reduceMotion ?? false) || this.state.reduceLocal;
     const ph = this.state.phase;
+    const online = this.state.agentOnline;
     const spin = ph === 'thinking' ? 2.4 : ph === 'speaking' ? 3.6 : 7;
     const abs = { position: 'absolute', inset: 0, borderRadius: '50%' };
     const b = (n) => Math.max(1, Math.round(size * n)) + 'px';
-    return e('div', { key: 'orb' + size, style: { position: 'relative', width: size + 'px', height: size + 'px', borderRadius: '50%', flexShrink: 0, background: 'radial-gradient(circle at 33% 28%, #2c3468 0%, #171d44 52%, #070a1c 100%)', boxShadow: '0 0 ' + b(0.5) + ' rgba(46,230,214,.35), 0 0 ' + b(1.2) + ' rgba(124,134,248,.22)', animation: reduce ? 'none' : 'orbPulse 3.2s ease-in-out infinite' } },
+    return e('div', { key: 'orb' + size, style: { position: 'relative', width: size + 'px', height: size + 'px', borderRadius: '50%', flexShrink: 0, background: 'radial-gradient(circle at 33% 28%, #2c3468 0%, #171d44 52%, #070a1c 100%)', boxShadow: '0 0 ' + b(0.5) + ' rgba(46,230,214,.35), 0 0 ' + b(1.2) + ' rgba(124,134,248,.22)', opacity: online ? 1 : .42, animation: (reduce || !online) ? 'none' : 'orbPulse 3.2s ease-in-out infinite' } },
       e('div', { style: Object.assign({}, abs, { overflow: 'hidden' }) },
-        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 0deg, transparent 0deg, rgba(46,230,214,.55) 80deg, rgba(124,134,248,.45) 140deg, transparent 220deg, rgba(46,230,214,.28) 300deg, transparent 360deg)', filter: 'blur(' + b(0.09) + ')', animation: reduce ? 'none' : 'orbSpin ' + spin + 's linear infinite' }) }),
-        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 180deg, transparent 0deg, rgba(124,134,248,.5) 70deg, transparent 150deg, rgba(46,230,214,.35) 240deg, transparent 320deg)', filter: 'blur(' + b(0.12) + ')', opacity: .85, animation: reduce ? 'none' : 'orbSpinRev ' + (spin * 1.7).toFixed(1) + 's linear infinite' }) }),
+        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 0deg, transparent 0deg, rgba(46,230,214,.55) 80deg, rgba(124,134,248,.45) 140deg, transparent 220deg, rgba(46,230,214,.28) 300deg, transparent 360deg)', filter: 'blur(' + b(0.09) + ')', animation: (reduce || !online) ? 'none' : 'orbSpin ' + spin + 's linear infinite' }) }),
+        e('div', { style: Object.assign({}, abs, { background: 'conic-gradient(from 180deg, transparent 0deg, rgba(124,134,248,.5) 70deg, transparent 150deg, rgba(46,230,214,.35) 240deg, transparent 320deg)', filter: 'blur(' + b(0.12) + ')', opacity: .85, animation: (reduce || !online) ? 'none' : 'orbSpinRev ' + (spin * 1.7).toFixed(1) + 's linear infinite' }) }),
         e('div', { style: Object.assign({}, abs, { background: 'radial-gradient(circle at 50% 72%, rgba(46,230,214,.45) 0%, transparent 55%)' }) }),
         e('div', { style: { position: 'absolute', left: '16%', top: '8%', width: '42%', height: '30%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,.7), rgba(255,255,255,0) 70%)', filter: 'blur(' + b(0.05) + ')' } }),
         e('div', { style: Object.assign({}, abs, { boxShadow: 'inset 0 ' + b(0.04) + ' ' + b(0.12) + ' rgba(255,255,255,.2), inset 0 -' + b(0.06) + ' ' + b(0.2) + ' rgba(46,230,214,.3)' }) })
       )
     );
   }
+
+  workspaceNotice(text) {
+    const id = ++this.nid;
+    const toast = { id, icon: '+', title: 'Workspace', text };
+
+    this.setState({
+      toasts: [...this.state.toasts, toast],
+      workspaceAddOpen: false
+    });
+
+    window.setTimeout(() => {
+      this.setState({
+        toasts: this.state.toasts.filter(item => item.id !== id)
+      });
+    }, 2600);
+  }
+
   renderVals() {
     const st = this.state, now = st.now;
     const dim = st.dimLocal ?? (this.props.wallpaperDim ?? 0.35);
     const reduce = (this.props.reduceMotion ?? false) || this.state.reduceLocal;
     const dockHide = (this.props.dockAutoHide ?? false) || st.dockHide;
-    const pageNames = ['Dashboard', 'NOVA', 'Apps & Files', 'Calendar', 'Agent'];
+    const pageNames = ['Dashboard', 'NOVA', 'Apps & Files', 'Workspace', 'Calendar', 'Agent'];
     const pages = pageNames.map((label, i) => ({
       label, go: () => this.setPage(i),
       dotStyle: { width: i === st.page ? '16px' : '5px', height: '5px', borderRadius: '999px', border: 'none', padding: 0, cursor: 'pointer', background: i === st.page ? 'linear-gradient(90deg,#2ee6d6,#7c86f8)' : 'rgba(234,240,246,.25)', transition: 'all .3s ease' }
     }));
-    const offAt = (i, ref) => { const o = (i - ref + 5) % 5; return o === 4 ? -1 : o; };
+    const offAt = (i, ref) => { const o = (i - ref + 6) % 6; return o === 5 ? -1 : o; };
     const pg = (i) => {
       const o = offAt(i, st.page), po = offAt(i, st.vPrev);
       const jump = Math.abs(o - po) > 1;
@@ -1163,12 +1315,12 @@ class Component extends DCLogic {
     const doneTasks = st.tasks.filter(t => t.done && t.id !== st.justDoneId).map(t => ({ ...t,
       toggle: () => { if (st.live) this.sendLive({ type: 'task', id: t.id, done: false }); this.setState({ tasks: st.tasks.map(x => x.id === t.id ? { ...x, done: false } : x) }); } }));
     const taskDone = st.tasks.filter(t => t.done).length;
-    const phaseLabel = st.phase === 'listening' ? 'Listening…' : st.phase === 'thinking' ? 'Thinking' : 'Speaking';
+    const phaseLabel = !st.agentOnline ? 'Agent offline' : st.phase === 'starting' ? 'Starting…' : st.phase === 'idle' ? 'Idle' : st.phase === 'listening' ? 'Listening…' : st.phase === 'thinking' ? 'Thinking' : st.phase === 'speaking' ? 'Speaking' : st.phase === 'tool_running' ? 'Using a tool' : st.phase === 'error' ? 'Agent error' : 'Online';
     const models = [
       { name: 'Gemini Flash', key: 'Gemini Flash', ok: true }, { name: 'Groq Llama', key: 'Groq Llama', ok: true },
       { name: 'Ollama', key: 'Ollama', ok: true }, { name: 'GPT-5.6', key: 'GPT-5.6', ok: true }, { name: 'Obsidian Brain', key: 'Obsidian Brain', ok: true }
     ].map(m => {
-      const active = st.route === m.key && st.phase !== 'listening';
+      const active = st.agentOnline && st.route === m.key && !['offline', 'idle', 'listening'].includes(st.phase);
       return { ...m, usage: (st.usageLabels && st.usageLabels[m.key]) || ((st.usage[m.key].tok / 1000).toFixed(1) + 'k \u00b7 $' + st.usage[m.key].cost.toFixed(2)),
         chipStyle: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '5px 11px', borderRadius: '999px', whiteSpace: 'nowrap', flexShrink: 0, border: active ? '1px solid rgba(46,230,214,.6)' : '1px solid rgba(255,255,255,.1)', background: active ? 'rgba(46,230,214,.12)' : 'rgba(255,255,255,.03)', color: active ? '#2ee6d6' : 'rgba(234,240,246,.7)' },
         dotStyle: { width: '6px', height: '6px', borderRadius: '50%', background: active ? '#2ee6d6' : 'rgba(234,240,246,.3)' } };
@@ -1179,7 +1331,7 @@ class Component extends DCLogic {
       bubbleStyle: { maxWidth: '85%', fontSize: '12px', lineHeight: 1.45, padding: '8px 12px', borderRadius: b.who === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: b.who === 'user' ? 'rgba(124,134,248,.18)' : 'rgba(46,230,214,.1)', border: b.who === 'user' ? '1px solid rgba(124,134,248,.3)' : '1px solid rgba(46,230,214,.25)' }
     }));
     const bars = Array.from({ length: 22 }, (_, i) => ({
-      style: { width: '3px', borderRadius: '2px', background: 'linear-gradient(180deg,#2ee6d6,#7c86f8)', height: (8 + Math.abs(Math.sin(i * 1.3)) * 16) + 'px', transformOrigin: 'bottom', animation: reduce || st.phase === 'thinking' ? 'none' : `wave ${0.7 + (i % 5) * 0.13}s ease-in-out ${i * 0.05}s infinite`, opacity: st.phase === 'thinking' ? 0.3 : 1 }
+      style: { width: '3px', borderRadius: '2px', background: 'linear-gradient(180deg,#2ee6d6,#7c86f8)', height: (8 + Math.abs(Math.sin(i * 1.3)) * 16) + 'px', transformOrigin: 'bottom', animation: reduce || !st.agentOnline || !['listening', 'speaking'].includes(st.phase) ? 'none' : `wave ${0.7 + (i % 5) * 0.13}s ease-in-out ${i * 0.05}s infinite`, opacity: st.phase === 'thinking' ? 0.3 : 1 }
     }));
     const timeline = [...st.timeline].reverse().map(ev => ({
       ...ev,
@@ -1208,26 +1360,17 @@ class Component extends DCLogic {
         togglePin: (event) => { event.preventDefault(); if (record?.id && st.live) this.sendLive({ type: 'pin_app', id: record.id, pinned: !record.pinned }); },
       };
     };
-    const pinnedApps = (st.pinnedNames || ['Chrome', 'VS Code', 'Claude', 'ChatGPT', 'Obsidian', 'Terminal', 'Spotify', 'File Explorer']).map(mkApp);
-    const allApps = (st.allAppNames || ['Access', 'Alexa', 'Amazon', 'Bixby', 'Calculator', 'Calendar', 'Camera', 'ChatGPT', 'Chrome', 'Claude', 'Clock', 'Copilot', 'Excel', 'Feedback Hub', 'File Explorer', 'Files', 'Gallery', 'Game Bar', 'Git', 'Google Duo', 'iCloud', 'LinkedIn', 'Mail', 'Maps', 'Media Player', 'Messenger', 'Microsoft Edge', 'Microsoft Store', 'Movies & TV', 'News', 'Node.js', 'Notepad', 'Obsidian', 'Ollama', 'OneDrive', 'OneNote', 'Outlook', 'Paint', 'PENUP', 'People', 'Phone Link', 'Photos', 'Power BI', 'PowerPoint', 'Publisher', 'Python 3.14', 'Samsung Notes', 'Screen recorder', 'Settings', 'SmartThings', 'Snipping Tool', 'Solitaire', 'Sound Recorder', 'Spotify', 'Sticky Notes', 'Teams', 'Terminal', 'To Do', 'Ubuntu', 'Visual Studio 2022', 'VS Code', 'Weather', 'Whiteboard', 'Word', 'Xbox']).filter(a => a.toLowerCase().includes(st.appQuery));
+    const pinnedApps = (st.pinnedNames || []).map(mkApp);
+    const allApps = (st.allAppNames || []).filter(a => a.toLowerCase().includes(st.appQuery));
     const groups = {};
     allApps.forEach((a, i) => { const L = a[0].toUpperCase(); (groups[L] = groups[L] || []).push(mkApp(a, i)); });
     const appGroups = Object.keys(groups).sort().map(letter => ({ letter, apps: groups[letter] }));
-    const recentFiles = (st.recentList || [
-      { name: 'HACKATHON_SUBMISSION.md', ext: 'MD', when: '2h', c: '#7c86f8' },
-      { name: 'agent.py', ext: 'PY', when: '4h', c: '#2ee6d6' },
-      { name: 'orchestrator.py', ext: 'PY', when: '5h', c: '#2ee6d6' },
-      { name: 'lecture-07-notes.pdf', ext: 'PDF', when: '1d', c: '#e05f8a' },
-      { name: 'demo-script.md', ext: 'MD', when: '1d', c: '#7c86f8' },
-      { name: 'build-week-checklist.md', ext: 'MD', when: '2d', c: '#7c86f8' }
-    ]).map(f => {
+    const recentFiles = (st.recentList || []).map(f => {
       const col = f.c || ({ MD: '#7c86f8', PY: '#2ee6d6', PDF: '#e05f8a' }[f.ext] || '#9aa2ff');
       return { ...f,
         open: () => { if (st.live && f.id && this.sendLive({ type: 'open_recent', id: f.id })) return; this.openApp({ MD: 'Obsidian', PY: 'VS Code', PDF: 'Microsoft Edge' }[f.ext] || 'File Explorer', 0, f.name); },
         iconStyle: { width: '32px', height: '32px', borderRadius: '9px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: col, flexShrink: 0 } };
     });
-    const events = { 19: 'Demo prep', 20: 'Record video', 21: 'Submit 5PM PT', 23: 'CS 201 exam', 25: 'Usage resets', 28: 'Study group' };
-    const demoEvents = { 19: 'Demo prep · 4 PM', 20: 'Study · 8 PM', 21: 'Submit · 5 PM', 24: 'CS exam · 10 AM' };
     const liveCalendar = st.calendarPayload && st.calendarPayload.available !== false ? st.calendarPayload : null;
     const monthEventMap = {};
     if (liveCalendar && Array.isArray(liveCalendar.events)) {
@@ -1247,7 +1390,7 @@ class Component extends DCLogic {
       const today = d === todayNumber;
       const liveItems = monthEventMap[d] || [];
       const firstLive = liveItems[0];
-      const ev = firstLive ? firstLive.title + (liveItems.length > 1 ? ' +' + (liveItems.length - 1) : '') : (!liveCalendar ? demoEvents[d] : '');
+      const ev = firstLive ? firstLive.title + (liveItems.length > 1 ? ' +' + (liveItems.length - 1) : '') : '';
       const color = firstLive?.color || (d === 21 ? '#e05f8a' : '#7c86f8');
       calCells.push({
         num: String(d), hasEvent: !!ev, event: ev || '',
@@ -1256,39 +1399,291 @@ class Component extends DCLogic {
         evStyle: { fontSize: '11px', marginTop: '3px', padding: '2px 6px', borderRadius: '6px', background: color + '22', color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
       });
     }
-    const demoAgenda = [
-      { title: 'Build Week demo prep', when: 'Today · 4:00 PM', color: '#2ee6d6' },
-      { title: 'Study session — lecture 7', when: 'Today · 8:00 PM', color: '#7c86f8' },
-      { title: 'Record YouTube demo (< 3 min)', when: 'Mon · 2:00 PM', color: '#7c86f8' },
-      { title: 'Build Week submission deadline', when: 'Tue · 5:00 PM PT', color: '#e05f8a' },
-      { title: 'CS 201 exam', when: 'Thu · 10:00 AM', color: '#f5a97b' }
-    ];
-    const agendaSource = liveCalendar ? (liveCalendar.upcoming || []) : demoAgenda;
+    const agendaSource = liveCalendar ? (liveCalendar.upcoming || []) : [];
     const agenda = agendaSource.slice(0, 12).map(e => {
       const c = e.color || '#7c86f8';
       return { ...e, c, title: e.title || 'Calendar event', when: e.when || '', barStyle: { width: '3px', borderRadius: '2px', background: c, flexShrink: 0 } };
     });
     const nextEvents = agenda.slice(0, 3).map(e => ({ ...e, dotStyle: { width: '7px', height: '7px', borderRadius: '50%', background: e.c, flexShrink: 0 } }));
-    const dockRecords = (st.appRecords || [])
-      .filter(record => record && (record.pinned || record.running))
-      .filter((record, index, records) =>
-        records.findIndex(item => item.id === record.id) === index
-      )
+
+    const workspaceCard = (name, kind, open, iconName, glyph, index) => ({
+      name,
+      kind,
+      open,
+      glyph: glyph || glyphOf(iconName || name),
+      editing: st.workspaceEdit,
+      tileStyle: {
+        ...tile(iconName || name, index || 0),
+        width: '48px',
+        height: '48px',
+        borderRadius: '14px',
+        fontSize: '14px',
+        marginBottom: '8px',
+        flexShrink: 0
+      },
+      cardStyle: {
+        minWidth: 0,
+        minHeight: '102px',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: st.workspaceEdit
+          ? 'rgba(124,134,248,.08)'
+          : 'rgba(255,255,255,.035)',
+        border: st.workspaceEdit
+          ? '1px dashed rgba(124,134,248,.5)'
+          : '1px solid rgba(255,255,255,.08)',
+        borderRadius: '15px',
+        padding: '10px 8px',
+        color: '#eaf0f6',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        transition: 'transform .18s ease, border-color .18s ease, background .18s ease'
+      }
+    });
+
+    const workspaceApp = (name, index, kind = 'App') => {
+      const record = recordByName.get(name);
+      return workspaceCard(
+        name,
+        kind,
+        () => this.openWorkspaceApp(name, index, record),
+        name,
+        glyphOf(name),
+        index
+      );
+    };
+
+    const workspaceFolderNames = st.folderNames || [];
+
+    const workspaceFolder = (hint, label, index) => {
+      const actual = workspaceFolderNames.find(
+        name => name.toLowerCase().includes(hint.toLowerCase())
+      );
+
+      return workspaceCard(
+        label || actual || hint,
+        'Folder',
+        () => this.openWorkspaceFolder(actual),
+        'File Explorer',
+        'DIR',
+        index
+      );
+    };
+
+    const workspaceWebsite = (site, name, glyph, index) => workspaceCard(
+      name,
+      'Website',
+      () => this.openWorkspaceWebsite(site, name),
+      'Chrome',
+      glyph,
+      index
+    );
+
+    const workspaceNote = (name, index) => {
+      const record = recordByName.get('Obsidian');
+
+      return workspaceCard(
+        name,
+        'Obsidian Note',
+        () => this.openWorkspaceApp('Obsidian', index, record),
+        'Obsidian',
+        glyphOf('Obsidian'),
+        index
+      );
+    };
+
+    const workspaceGroups = [
+      {
+        title: 'Coding',
+        icon: '</>',
+        items: [
+          workspaceApp('VS Code', 1),
+          workspaceApp('Terminal', 2),
+          workspaceWebsite('github', 'GitHub', 'GH', 3),
+          workspaceFolder('AI Agent', 'NOVA Project', 4),
+          workspaceNote('Dev Notes', 5)
+        ]
+      },
+      {
+        title: 'School',
+        icon: 'EDU',
+        items: [
+          workspaceWebsite('canvas', 'Canvas', 'CV', 6),
+          workspaceFolder('Documents', 'Documents', 7),
+          workspaceApp('Word', 8, 'Word Document'),
+          workspaceNote('Obsidian Class', 9),
+          workspaceApp('OneNote', 10)
+        ]
+      },
+      {
+        title: 'Projects',
+        icon: 'PRJ',
+        items: [
+          workspaceFolder('AI Agent', 'AI Agent', 11),
+          workspaceApp('VS Code', 12),
+          workspaceApp('Git', 13),
+          workspaceApp('File Explorer', 14),
+          workspaceNote('Project Notes', 15)
+        ]
+      },
+      {
+        title: 'Quick Access',
+        icon: 'FAST',
+        items: [
+          workspaceFolder('Downloads', 'Downloads', 16),
+          workspaceApp('Chrome', 17),
+          workspaceApp('Spotify', 18),
+          workspaceApp('Obsidian', 19),
+          workspaceApp('File Explorer', 20)
+        ]
+      }
+    ];
+
+    const workspaceNav = [
+      { label: 'Dashboard', page: 0 },
+      { label: 'NOVA Activity', page: 1 },
+      { label: 'Apps & Files', page: 2 },
+      { label: 'Workspace', page: 3 }
+    ].map(item => ({
+      ...item,
+      go: () => this.setPage(item.page),
+      style: {
+        width: '100%',
+        border: item.page === 3
+          ? '1px solid rgba(46,230,214,.3)'
+          : '1px solid transparent',
+        background: item.page === 3
+          ? 'linear-gradient(90deg,rgba(46,230,214,.16),rgba(85,120,255,.15))'
+          : 'transparent',
+        color: item.page === 3 ? '#eaf0f6' : 'rgba(234,240,246,.62)',
+        borderRadius: '10px',
+        padding: '9px 10px',
+        textAlign: 'left',
+        fontSize: '11px',
+        cursor: 'pointer'
+      }
+    }));
+
+    const workspaceAddItems = [
+      {
+        icon: 'APP',
+        label: 'App',
+        note: 'Choose from Apps & Files',
+        run: () => this.setPage(2)
+      },
+      {
+        icon: 'DIR',
+        label: 'Folder',
+        note: 'Choose a Windows folder',
+        run: async () => {
+          this.setState({ workspaceAddOpen: false });
+
+          const picker = window.NOVANative?.pickCustomFolder;
+          if (!picker) {
+            this.workspaceNotice('The native folder picker is unavailable.');
+            return;
+          }
+
+          try {
+            const added = await picker();
+            if (added && st.live) {
+              this.sendLive({ type: 'refresh_apps' });
+            }
+          } catch (error) {
+            console.error('Workspace folder picker failed', error);
+            this.workspaceNotice('NOVA could not add that folder.');
+          }
+        }
+      },
+      {
+        icon: 'FILE',
+        label: 'File',
+        note: 'Native file picker comes next',
+        run: () => this.workspaceNotice('The Workspace file picker is the next connection step.')
+      },
+      {
+        icon: 'WEB',
+        label: 'Website',
+        note: 'Custom website shortcut',
+        run: () => this.workspaceNotice('The NOVA website-shortcut form comes next.')
+      },
+      {
+        icon: 'OBS',
+        label: 'Obsidian Note',
+        note: 'Choose a vault note',
+        run: () => {
+          this.setState({ workspaceAddOpen: false });
+          const record = recordByName.get('Obsidian');
+          this.openWorkspaceApp('Obsidian', 0, record);
+        }
+      },
+      {
+        icon: 'GRP',
+        label: 'New Group',
+        note: 'Create a custom section',
+        run: () => this.workspaceNotice('Custom Workspace groups come in the persistence step.')
+      }
+    ];
+
+    const hiddenDockProcess = /powershell|python|node\.js|runtime broker|application frame host|searchhost|start menu experience|shell experience|text input|webview2|widget service|background task/i;
+
+    const dockKey = name => String(name || '')
+      .toLowerCase()
+      .replace(/microsoft|windows|\(x64\)|\(x86\)|64-bit|32-bit/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+
+    const dockCandidates = (st.appRecords || []).filter(record => record && (record.pinned || record.active || record.running));
+    const dockGroups = new Map();
+    dockCandidates.forEach(record => {
+      const key = record.group || dockKey(record.name);
+      if (!key) return;
+      const existing = dockGroups.get(key);
+      if (!existing) {
+        dockGroups.set(key, { ...record, name: record.groupName || record.name, windows: [...(record.windows || [])], members: [record] });
+        return;
+      }
+      const preferRecord = (record.active && !existing.active) || (record.running && !existing.running);
+      const members = [...existing.members, record];
+      const windows = [...existing.windows];
+      for (const win of (record.windows || [])) if (!windows.some(item => item.title === win.title)) windows.push(win);
+      if (preferRecord) {
+        Object.assign(existing, record, { members, windows, name: record.groupName || record.name });
+      } else {
+        existing.members = members;
+        existing.windows = windows;
+      }
+      existing.pinned = existing.pinned || record.pinned;
+      existing.running = existing.running || record.running;
+      existing.active = existing.active || record.active;
+    });
+    const dockRecords = [...dockGroups.values()]
+      .filter(record => !hiddenDockProcess.test(record.name || '') || record.group === 'terminal')
       .sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         if (a.active !== b.active) return a.active ? -1 : 1;
+        if (a.running !== b.running) return a.running ? -1 : 1;
         return a.name.localeCompare(b.name);
-      });
+      })
+      .slice(0, 12);
 
     const dock = [{
       name: 'Search',
       glyph: '⌕',
       tileStyle: { ...tile('Search', 0), width: '44px', height: '44px', fontSize: '15px' },
       runStyle: { width: '4px', height: '4px', borderRadius: '50%', background: 'transparent' },
-      launch: () => this.toggleCmd()
+      launch: () => this.toggleCmd(), previewEnter: () => {}, previewLeave: () => {}, previewOpen: false, hasCount: false, count: 0, previews: []
     }].concat(dockRecords.map((record, i) => ({
       name: record.name,
       glyph: glyphOf(record.name),
+      count: Math.max(record.windows?.length || 0, record.windowCount || 0, record.running ? 1 : 0),
+      hasCount: Math.max(record.windows?.length || 0, record.windowCount || 0, record.running ? 1 : 0) > 1,
+      previews: (record.windows || []).length ? record.windows : [{ title: record.running ? 'Running window' : 'Not running' }],
+      previewOpen: st.dockPreviewKey === (record.group || record.id),
+      previewEnter: () => { if (record.running) this.setState({ dockPreviewKey: record.group || record.id }); },
+      previewLeave: () => this.setState({ dockPreviewKey: null }),
       tileStyle: {
         ...tile(record.name, i + 1),
         width: '44px',
@@ -1333,9 +1728,9 @@ class Component extends DCLogic {
         width: '5px',
         height: '4px',
         borderRadius: '999px',
-        background: '#2ee6d6'
+        background: st.agentOnline ? '#2ee6d6' : 'rgba(240,140,171,.65)'
       },
-      launch: () => this.setState({ page: 1 })
+      launch: () => this.setState({ page: 1 }), previewEnter: () => {}, previewLeave: () => {}, previewOpen: false, hasCount: false, count: 0, previews: []
     }]);
     const settings = [
       { label: 'Lock canvas', on: st.lock, k: 'lock' },
@@ -1374,11 +1769,9 @@ class Component extends DCLogic {
     const cmdSuggestions = [
       { icon: '\u25a4', label: 'Add "review PR feedback" to my tasks' },
       { icon: '\u25c8', label: 'Summarize today\u2019s agent notes' },
-      { icon: '\u266a', label: 'Play Deep Focus and mute notifications' },
+      { icon: '\u266a', label: 'Pause or resume Spotify' },
       { icon: '\u25f7', label: 'Remind me 30 min before the deadline' }
     ].map(s => ({ ...s, run: () => this.delegate(s.label) }));
-    const uTot = Object.values(st.usage).reduce((a, u) => ({ tok: a.tok + u.tok, cost: a.cost + u.cost }), { tok: 0, cost: 0 });
-    const tracks = [{ t: 'Deep Focus', a: 'Ambient Mix \u00b7 Spotify' }, { t: 'Lo-Fi Beats', a: 'Chill Mix \u00b7 Spotify' }, { t: 'Night Drive', a: 'Synthwave \u00b7 Spotify' }];
     const winVis = st.wins.some(w => !w.min);
     const hr = now.getHours();
     const greeting = (hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening') + ', Ahmed';
@@ -1386,8 +1779,8 @@ class Component extends DCLogic {
     const briefStats = [
       { k: 'Weather', v: st.weatherBrief },
       { k: 'Tasks', v: openCount + ' open' },
-      { k: 'Next', v: 'Demo prep \u00b7 4 PM' },
-      st.live ? { k: 'Memories', v: st.memories.length + ' in vault' } : { k: 'Overnight', v: '2 memories saved' }
+      { k: 'Next', v: agenda[0]?.when ? ((agenda[0].title || 'Event') + ' · ' + agenda[0].when) : (liveCalendar ? 'No upcoming event' : 'Calendar not connected') },
+      { k: 'Memories', v: st.obsidianAvailable ? (st.memories.length + ' in vault') : 'Not connected' }
     ];
     const pillS = (on) => ({ width: '34px', height: '19px', borderRadius: '999px', background: on ? 'rgba(46,230,214,.4)' : 'rgba(255,255,255,.12)', display: 'inline-flex', alignItems: 'center', padding: '2px', transition: 'background .2s', flexShrink: 0 });
     const knobS = (on) => ({ width: '15px', height: '15px', borderRadius: '50%', background: on ? '#2ee6d6' : 'rgba(234,240,246,.6)', transform: on ? 'translateX(15px)' : 'translateX(0)', transition: 'transform .2s' });
@@ -1425,7 +1818,7 @@ class Component extends DCLogic {
           }
         };
       }),
-      greeting, briefSub: st.briefSubLive || 'NOVA indexed 2 new notes and queued your demo checklist while you were away.', briefStats,
+      greeting, briefSub: st.briefSubLive || (st.agentOnline ? 'No new NOVA briefing yet.' : 'NOVA agent is offline.'), briefStats,
       locked: st.locked,
       unlock: () => this.setState({ locked: false }),
       lockNow: () => this.setState({ locked: true, settingsOpen: false }),
@@ -1437,9 +1830,15 @@ class Component extends DCLogic {
         sw: { width: '48px', height: '30px', borderRadius: '8px', cursor: 'pointer', padding: 0, border: st.wallpaper === k ? '2px solid #2ee6d6' : '1px solid rgba(255,255,255,.15)', background: k === 'photo' ? 'center/cover url(wallpaper-clean.png)' : WPS[k] } })),
       wpStyle: { position: 'absolute', inset: 0, background: WPS[st.wallpaper] || 'none', opacity: st.wallpaper === 'photo' ? 0 : 1, transition: 'opacity .5s ease' },
       permList: Object.keys(st.autoAllow).map(k => ({ label: k, toggle: () => this.setState({ autoAllow: { ...st.autoAllow, [k]: !st.autoAllow[k] } }), pillStyle: pillS(st.autoAllow[k]), knobStyle: knobS(st.autoAllow[k]) })),
-      trackTitle: st.spTitle || tracks[st.trackIdx].t, trackArtist: st.spArtist || tracks[st.trackIdx].a,
-      prevTrack: () => { if (st.live) { this.sendLive({ type: 'media', action: 'previous' }); return; } this.setState({ trackIdx: (st.trackIdx + 2) % 3, prog: 0 }); },
-      nextTrack: () => { if (st.live) { this.sendLive({ type: 'media', action: 'next' }); return; } this.setState({ trackIdx: (st.trackIdx + 1) % 3, prog: 0 }); },
+      trackTitle: st.spTitle || (st.spStatus === 'idle' ? 'Nothing playing' : st.spStatus === 'closed' ? 'Spotify is closed' : 'Spotify unavailable'),
+      trackArtist: st.spTitle ? ([st.spArtist, st.spAlbum].filter(Boolean).join(' · ')) : 'Open Spotify to begin playback',
+      spotifyStatusLabel: st.spStatus === 'playing' ? ('Playing' + (st.spDevice ? ' on ' + st.spDevice : '')) : st.spStatus === 'paused' ? 'Paused' : st.spStatus === 'idle' ? 'No active track' : 'Offline',
+      spotifyControlsOpacity: st.spAvailable ? 1 : .35,
+      spotifyArtGlyph: st.spArtwork ? '' : '♪',
+      spotifyArtStyle: { width: '62px', height: '62px', borderRadius: '12px', flexShrink: 0, background: st.spArtwork ? 'center/cover url("' + st.spArtwork + '")' : 'linear-gradient(135deg,#173a3a,#0e2130)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2ee6d6', fontFamily: "'Space Grotesk'", fontSize: '18px', boxShadow: '0 8px 24px rgba(0,0,0,.3)' },
+      spotifyPanelStyle: { position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '8px', borderRadius: '14px', overflow: 'hidden', background: st.spArtwork ? 'linear-gradient(rgba(5,9,17,.63),rgba(5,9,17,.88)), center/cover url("' + st.spArtwork + '")' : 'rgba(255,255,255,.015)' },
+      prevTrack: () => { if (st.live && st.spAvailable) this.sendLive({ type: 'media', action: 'previous' }); },
+      nextTrack: () => { if (st.live && st.spAvailable) this.sendLive({ type: 'media', action: 'next' }); },
       dimPct: Math.round(dim * 100) + '%', dimVal: Math.round(dim * 100),
       onDim: (e) => this.setState({ dimLocal: +e.target.value / 100 }),
       actFilters, activityList, approvals: approvalsList, memList, cmdSuggestions,
@@ -1450,20 +1849,52 @@ class Component extends DCLogic {
       hasApprovals: st.approvals.length > 0, noApprovals: st.approvals.length === 0, approvalCount: st.approvals.length,
       onMemSearch: (e) => this.setState({ memQuery: e.target.value.toLowerCase() }),
       cmdOpen: st.cmdOpen, cmdRef: this.cmdRef,
-      openCmd: () => this.toggleCmd(), closeCmd: () => this.setState({ cmdOpen: false }),
+      openCmd: () => { if (st.agentOnline) this.toggleCmd(); else this.pushNotif({ icon: '◉', title: 'NOVA agent offline', text: 'Start agent.py to ask NOVA.' }); }, closeCmd: () => this.setState({ cmdOpen: false }),
       onCmdKey: (e) => { if (e.key === 'Enter') this.delegate(e.target.value); },
-      usageTotal: st.usageTotalLabel || ('Today \u00b7 ' + (uTot.tok / 1000).toFixed(1) + 'k tok \u00b7 $' + uTot.cost.toFixed(2)),
+      usageTotal: st.usageTotalLabel || 'Today · 0 cloud requests',
+      noTalk: talk.length === 0, conversationEmpty: st.agentOnline ? 'No conversation yet today' : 'Start NOVA to begin a conversation',
+      noTimeline: timeline.length === 0,
       transcriptShow: !!st.transcript && !st.transcriptHide,
       transcript: st.transcript,
       hideTranscript: () => this.setState({ transcriptHide: true }),
       pages, wlist, tasks, models, talk, bars, timeline, pinnedApps, appGroups, recentFiles, calCells, agenda, nextEvents, dock, settings, pickerItems, layouts,
-      folders: (st.folderNames || ['Desktop', 'Downloads', 'ML_project', 'AI Agent', 'Projects for nova', 'zonta', 'Obsidian Vault']).map((n, i) => ({ name: n, open: () => { if (st.live && this.sendLive({ type: 'open_folder', name: n })) return; this.openApp('File Explorer', i, 'Explorer · ' + n); } })),
-      notes: st.notesList || [{ title: 'agent-notes.md', when: '2h' }, { title: 'build-week-plan.md', when: '5h' }, { title: 'lecture-07.md', when: '1d' }],
+      folders: (st.folderNames || []).map((n, i) => {
+        const custom = new Set(st.customFolderNames || []).has(n);
+        return {
+          name: n,
+          custom,
+          open: () => {
+            if (st.live && this.sendLive({ type: 'open_folder', name: n })) return;
+            this.openApp('File Explorer', i, 'Explorer ? ' + n);
+          },
+          remove: () => {
+            if (custom && st.live) {
+              this.sendLive({ type: 'remove_custom_folder', name: n });
+            }
+          }
+        };
+      }),
+      addFolder: async () => {
+        const picker = window.NOVANative?.pickCustomFolder;
+        if (!picker) return;
+        try {
+          const added = await picker();
+          if (added && st.live) {
+            this.sendLive({ type: 'refresh_apps' });
+          }
+        } catch (error) {
+          console.error('NOVA folder picker failed', error);
+        }
+      },      notes: st.notesList || [],
       clockTime: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
       clockShort: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' + now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
       clockDate: now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }),
-      phaseLabel, route: st.route, brainCount: st.brainNotes == null ? 290 : st.brainNotes,
-      isLive: st.live, isDemo: !st.live, weatherTemp: st.weatherTemp, weatherDesc: st.weatherDesc,
+      phaseLabel, route: st.route, routeLabel: st.agentOnline && st.route ? ('route · ' + st.route) : (st.agentOnline ? 'Waiting for activity' : 'Start agent.py to connect'), brainCount: st.obsidianAvailable ? st.brainNotes : '—',
+      isLive: st.live, isDemo: false,
+      agentBadgeLabel: st.agentOnline ? (st.phase === 'starting' ? 'STARTING' : st.phase === 'thinking' ? 'THINKING' : st.phase === 'speaking' ? 'SPEAKING' : st.phase === 'listening' ? 'LISTENING' : st.phase === 'tool_running' ? 'USING TOOL' : st.phase === 'error' ? 'AGENT ERROR' : 'AGENT IDLE') : 'AGENT OFFLINE',
+      agentBadgeColor: st.agentOnline ? '#2ee6d6' : '#f08cab',
+      agentBadgeBg: st.agentOnline ? 'rgba(46,230,214,.1)' : 'rgba(240,140,171,.08)',
+      agentBadgeBorder: st.agentOnline ? 'rgba(46,230,214,.35)' : 'rgba(240,140,171,.3)', weatherTemp: st.weatherTemp, weatherDesc: st.weatherDesc,
       cpu: Math.round(st.cpu), ram: Math.round(st.ram),
       cpuDash: (st.cpu / 100 * 131.9).toFixed(1) + ' 132',
       ramDash: (st.ram / 100 * 131.9).toFixed(1) + ' 132',
@@ -1472,9 +1903,42 @@ class Component extends DCLogic {
       ramBar: { height: '100%', width: Math.round(st.ram) + '%', borderRadius: '3px', background: 'linear-gradient(90deg,#7c86f8,#9aa2ff)', transition: 'width .8s' },
       progBar: { height: '100%', width: st.prog + '%', borderRadius: '2px', background: '#2ee6d6' },
       playGlyph: st.playing ? '❚❚' : '▶',
-      togglePlay: () => { if (st.live) this.sendLive({ type: 'media', action: 'playpause' }); this.setState({ playing: !st.playing }); },
+      togglePlay: () => { if (st.live && st.spAvailable) this.sendLive({ type: 'media', action: 'playpause' }); },
       dimStyle: { position: 'absolute', inset: 0, background: `rgba(3,6,14,${dim})` },
-      pg0: pg(0), pg1: pg(1), pg2: pg(2), pg3: pg(3), pg4: pg(4),
+      pg0: pg(0), pg1: pg(1), pg2: pg(2), pg3: pg(3), pg4: pg(4), pg5: pg(5),
+
+      workspaceGroups,
+      workspaceNav,
+      workspaceAddItems,
+      workspaceAddOpen: st.workspaceAddOpen,
+      workspaceEdit: st.workspaceEdit,
+      workspaceEditLabel: st.workspaceEdit ? 'Done' : 'Edit',
+      toggleWorkspaceAdd: () => this.setState({
+        workspaceAddOpen: !st.workspaceAddOpen,
+        settingsOpen: false,
+        notifOpen: false,
+        menuId: null
+      }),
+      toggleWorkspaceEdit: () => this.setState({
+        workspaceEdit: !st.workspaceEdit,
+        workspaceAddOpen: false
+      }),
+      workspaceCpuBar: {
+        display: 'block',
+        width: Math.round(st.cpu) + '%',
+        height: '100%',
+        borderRadius: '999px',
+        background: 'linear-gradient(90deg,#2ee6d6,#3f8cff)',
+        transition: 'width .7s ease'
+      },
+      workspaceRamBar: {
+        display: 'block',
+        width: Math.round(st.ram) + '%',
+        height: '100%',
+        borderRadius: '999px',
+        background: 'linear-gradient(90deg,#7c86f8,#b486ff)',
+        transition: 'width .7s ease'
+      },
       navFlash: st.navFlash, pageLabel: pageNames[st.page],
       toasts: st.toasts.map(t => ({ ...t, dismiss: () => this.setState({ toasts: this.state.toasts.filter(x => x.id !== t.id) }) })),
       notifList: [...st.notifs].reverse().concat((st.mailItems || []).map(m => ({
@@ -1491,8 +1955,8 @@ class Component extends DCLogic {
         this.setState({ notifOpen: open, settingsOpen: false, pickerOpen: false, menuId: null, notifs: open ? st.notifs.map(n => ({ ...n, read: true })) : st.notifs });
       },
       clearNotifs: () => this.setState({ notifs: [] }),
-      calendarMonthTitle: liveCalendar?.monthTitle || 'July 2026',
-      calendarTodayLabel: liveCalendar?.todayLabel || 'Demo calendar',
+      calendarMonthTitle: liveCalendar?.monthTitle || now.toLocaleDateString([], { month: 'long', year: 'numeric' }),
+      calendarTodayLabel: liveCalendar?.todayLabel || 'Calendar not connected',
       calendarStatusLabel: st.integrationStatus === 'connected' ? ((st.integrationAccounts || []).length + ' account' + ((st.integrationAccounts || []).length === 1 ? '' : 's') + ' live') : st.integrationStatus === 'needs_attention' ? 'Needs attention' : st.integrationStatus === 'error' ? 'Error' : 'Not connected',
       calendarStatusTitle: st.integrationStatus === 'connected' ? 'Read-only synchronized calendar data' : 'Connect Gmail or Outlook using NOVA integrations',
       syncLabel: st.calendarSyncing ? 'Syncing…' : 'Sync now',

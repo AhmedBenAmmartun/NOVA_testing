@@ -23,9 +23,11 @@ MAX_RESULT_TEXT = 500
 MAX_PENDING_COMMANDS = 100
 DEFAULT_COMMAND_TTL_SECONDS = 120
 ACTIVE_HEARTBEAT_SECONDS = 8
+AGENT_STATUS_HEARTBEAT_SECONDS = 5
 STALE_CLAIM_SECONDS = 5 * 60
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_AGENT_PHASES = frozenset({"starting", "idle", "listening", "thinking", "speaking", "tool_running", "error"})
 
 
 class BridgeValidationError(ValueError):
@@ -84,6 +86,7 @@ class CommandStore:
         return destination
 
     def active_session(self) -> dict[str, Any]:
+        """Backward-compatible command-routing heartbeat state."""
         state = self._read_json(self.state_path) or {}
         session_id = state.get("session_id")
         heartbeat_at = state.get("heartbeat_at")
@@ -99,22 +102,107 @@ class CommandStore:
             "heartbeat_at": heartbeat_at if active else None,
         }
 
-    def heartbeat(self, session_id: str) -> None:
+    def agent_status(self) -> dict[str, Any]:
+        """Detailed short-timeout status used only by the dashboard display."""
+        state = self._read_json(self.state_path) or {}
+        session_id = state.get("session_id")
+        heartbeat_at = state.get("heartbeat_at")
+        heartbeat_age = (
+            max(0.0, time.time() - float(heartbeat_at))
+            if isinstance(heartbeat_at, (int, float))
+            else None
+        )
+        active = (
+            isinstance(session_id, str)
+            and bool(_SAFE_ID.fullmatch(session_id))
+            and heartbeat_age is not None
+            and heartbeat_age <= AGENT_STATUS_HEARTBEAT_SECONDS
+        )
+        phase = state.get("phase") if state.get("phase") in _AGENT_PHASES else "idle"
+        if not active:
+            phase = "offline"
+        return {
+            "active": active,
+            "session_id": session_id if active else None,
+            "heartbeat_at": heartbeat_at if active else None,
+            "heartbeat_age": heartbeat_age if active else None,
+            "started_at": state.get("started_at") if active else None,
+            "last_transition_at": state.get("last_transition_at") if active else None,
+            "pid": state.get("pid") if active else None,
+            "phase": phase,
+            "status": phase,
+            "route": state.get("route") if active else None,
+            "model": state.get("model") if active else None,
+            "detail": state.get("detail") if active else None,
+        }
+
+    @staticmethod
+    def _normalize_phase(phase: str | None) -> str:
+        cleaned = _clean_text(phase, limit=32).lower()
+        if cleaned not in _AGENT_PHASES:
+            raise BridgeValidationError("Invalid NOVA agent phase")
+        return cleaned
+
+    def heartbeat(
+        self,
+        session_id: str,
+        *,
+        phase: str | None = None,
+        route: str | None = None,
+        model: str | None = None,
+        detail: str | None = None,
+    ) -> None:
         if not _SAFE_ID.fullmatch(session_id):
             raise BridgeValidationError("Invalid bridge session ID")
         now = time.time()
         existing = self._read_json(self.state_path) or {}
-        started_at = existing.get("started_at") if existing.get("session_id") == session_id else now
-        self._write_atomic(
-            self.root,
-            self.state_path.name,
-            {
-                "contract": CONTRACT,
-                "session_id": session_id,
-                "started_at": started_at,
-                "heartbeat_at": now,
-                "pid": os.getpid(),
-            },
+        same_session = existing.get("session_id") == session_id
+        started_at = existing.get("started_at") if same_session else now
+        previous_phase = existing.get("phase") if same_session else None
+        selected_phase = self._normalize_phase(phase or previous_phase or "starting")
+        last_transition_at = (
+            existing.get("last_transition_at")
+            if same_session and previous_phase == selected_phase
+            else now
+        )
+        payload: dict[str, Any] = {
+            "contract": CONTRACT,
+            "session_id": session_id,
+            "started_at": started_at,
+            "heartbeat_at": now,
+            "pid": os.getpid(),
+        }
+        has_status = phase is not None or (same_session and "phase" in existing)
+        if has_status:
+            payload.update(
+                {
+                    "last_transition_at": last_transition_at,
+                    "phase": selected_phase,
+                    "route": _clean_text(route, limit=80)
+                    or (existing.get("route") if same_session else None),
+                    "model": _clean_text(model, limit=160)
+                    or (existing.get("model") if same_session else None),
+                    "detail": _clean_text(detail, limit=200) or None,
+                }
+            )
+        self._write_atomic(self.root, self.state_path.name, payload)
+
+    def update_agent_status(
+        self,
+        session_id: str,
+        phase: str,
+        *,
+        route: str | None = None,
+        model: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        """Publish an immediate phase transition and refresh the heartbeat."""
+        self.heartbeat(
+            session_id,
+            phase=phase,
+            route=route,
+            model=model,
+            detail=detail,
         )
 
     def clear_heartbeat(self, session_id: str) -> None:

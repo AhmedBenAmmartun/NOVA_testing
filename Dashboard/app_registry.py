@@ -11,6 +11,7 @@ import ctypes
 import hashlib
 import json
 import os
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,13 +20,24 @@ from typing import Iterable
 import psutil
 
 try:
-    from app_icons import icon_data_uri, save_cache as save_icon_cache
+    from app_icons import (
+        icon_data_uri as _icon_data_uri,
+        save_cache as _save_icon_cache,
+    )
 except Exception:  # pragma: no cover - optional on non-Windows hosts
-    def icon_data_uri(*_args, **_kwargs):
+    def _icon_data_uri(
+        source: str,
+        out_size: int = 32,
+    ) -> str | None:
+        del source, out_size
         return None
 
-    def save_icon_cache():
+    def _save_icon_cache() -> None:
         return None
+
+
+icon_data_uri = _icon_data_uri
+save_icon_cache = _save_icon_cache
 
 from security import is_sensitive_name, is_sensitive_path, resolve_shortcut_targets
 
@@ -64,6 +76,7 @@ class ApplicationRecord:
     running: bool = False
     active: bool = False
     pinned: bool = False
+    window_titles: tuple[str, ...] = field(default_factory=tuple)
 
     def public(self) -> dict:
         return {
@@ -74,7 +87,46 @@ class ApplicationRecord:
             "running": self.running,
             "active": self.active,
             "pinned": self.pinned,
+            "group": dock_group(self),
+            "groupName": dock_group_name(self),
+            "windowCount": len(self.window_titles),
+            "windows": [{"title": title} for title in self.window_titles],
         }
+
+
+def dock_group(record: ApplicationRecord) -> str:
+    """Stable dock family so related shortcuts/windows stack together."""
+    processes = set(record.process_names)
+    name = record.name.casefold()
+    families = (
+        ("terminal", {"windowsterminal.exe", "wt.exe", "powershell.exe", "powershell_ise.exe", "pwsh.exe", "cmd.exe"}, r"powershell|terminal|command prompt|native tools"),
+        ("vscode", {"code.exe"}, r"visual studio code|^vs code$"),
+        ("explorer", {"explorer.exe"}, r"file explorer"),
+        ("chrome", {"chrome.exe"}, r"chrome"),
+        ("edge", {"msedge.exe"}, r"microsoft edge"),
+        ("spotify", {"spotify.exe"}, r"spotify"),
+        ("obsidian", {"obsidian.exe"}, r"obsidian"),
+        ("claude", {"claude.exe"}, r"claude"),
+        ("chatgpt", {"chatgpt.exe"}, r"chatgpt"),
+    )
+    for key, executables, pattern in families:
+        if processes & executables or re.search(pattern, name):
+            return key
+    return "app:" + re.sub(r"[^a-z0-9]+", "", name)
+
+
+def dock_group_name(record: ApplicationRecord) -> str:
+    return {
+        "terminal": "Terminal",
+        "vscode": "VS Code",
+        "explorer": "File Explorer",
+        "chrome": "Chrome",
+        "edge": "Microsoft Edge",
+        "spotify": "Spotify",
+        "obsidian": "Obsidian",
+        "claude": "Claude",
+        "chatgpt": "ChatGPT",
+    }.get(dock_group(record), record.name)
 
 
 def stable_app_id(app_type: str, launch_target: str) -> str:
@@ -270,15 +322,56 @@ def _foreground_pid() -> int | None:
         return None
 
 
+def _visible_windows_by_process() -> dict[str, list[str]]:
+    """Visible top-level window titles grouped by executable name."""
+    if os.name != "nt":
+        return {}
+    user32 = ctypes.windll.user32
+    windows: dict[str, list[str]] = {}
+    enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def callback(hwnd, _lparam):  # pragma: no cover - Windows dependent
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        title_buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, title_buffer, length + 1)
+        title = " ".join(title_buffer.value.split()).strip()
+        if not title:
+            return True
+        pid = ctypes.c_ulong()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        try:
+            process_name = psutil.Process(pid.value).name().casefold()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return True
+        bucket = windows.setdefault(process_name, [])
+        if title not in bucket and len(bucket) < 12:
+            bucket.append(title[:180])
+        return True
+
+    user32.EnumWindows(enum_proc(callback), 0)
+    return windows
+
+
 def _annotate_runtime(records: list[ApplicationRecord]) -> None:
     process_map: dict[str, set[int]] = {}
     for process in psutil.process_iter(["pid", "name"]):
         name = (process.info.get("name") or "").casefold()
         if name:
             process_map.setdefault(name, set()).add(int(process.info["pid"]))
+    visible_windows = _visible_windows_by_process()
     foreground = _foreground_pid()
     for record in records:
         pids = set().union(*(process_map.get(name, set()) for name in record.process_names)) if record.process_names else set()
+        titles: list[str] = []
+        for process_name in record.process_names:
+            for title in visible_windows.get(process_name, []):
+                if title not in titles:
+                    titles.append(title)
+        record.window_titles = tuple(titles[:8])
         record.running = bool(pids)
         record.active = foreground in pids if foreground else False
 
@@ -381,7 +474,7 @@ def _window_action(record: ApplicationRecord, action: str) -> bool:
         return False
     user32 = ctypes.windll.user32
     hwnd = windows[0]
-    commands = {"minimize": 6, "maximize": 3, "restore": 9, "focus": 9, "activate": 3}
+    commands = {"minimize": 6, "maximize": 3, "restore": 9, "focus": 9, "activate": 9}
     if action == "close":
         user32.PostMessageW(hwnd, 0x0010, 0, 0)
         return True
@@ -398,20 +491,21 @@ def perform_action(registry: dict[str, ApplicationRecord], app_id: str, action: 
     if record is None:
         return False, "invalid_app_id"
     if action == "launch":
-        return (_start(record), "launched")
+        started = _start(record)
+        return started, "launched" if started else "launch_failed"
     if action == "activate":
         if _window_action(record, "activate"):
             return True, "focused"
 
         started = _start(record)
         if not started:
-            return False, "launched"
+            return False, "launch_failed"
 
         if record.process_names:
             deadline = time.monotonic() + 4.0
             while time.monotonic() < deadline:
                 time.sleep(0.15)
-                if _window_action(record, "maximize"):
+                if _window_action(record, "activate"):
                     break
 
         return True, "launched"

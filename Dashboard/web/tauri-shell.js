@@ -9,6 +9,10 @@ import { createDesktopState, reduceDesktopState } from './desktop-mode-state.js'
   const T = window.__TAURI__ || {}
   const invoke = T.core?.invoke ? T.core.invoke.bind(T.core) : () => Promise.resolve()
   const listen = T.event?.listen ? T.event.listen.bind(T.event) : () => Promise.resolve(() => {})
+
+  window.NOVANative = Object.freeze({
+    pickCustomFolder: () => invoke('pick_custom_folder')
+  })
   let shellState = createDesktopState()
 
   function injectStyles() {

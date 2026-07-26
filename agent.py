@@ -9,7 +9,7 @@ from livekit.agents import AgentServer, AgentSession, Agent, TurnHandlingOptions
 from livekit.plugins import ai_coustics, google
 
 from prompts import SYSTEM_PROMPT
-from nova_agent_bridge import dashboard_bridge_loop, stop_dashboard_bridge
+from nova_agent_bridge import AgentStatusReporter, dashboard_bridge_loop, stop_dashboard_bridge
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools import (
@@ -97,7 +97,10 @@ CONVERSATION_MODE_TURN_HANDLING: TurnHandlingOptions = {
 CONVERSATION_MODE_AEC_WARMUP_SECONDS = 0.8
 
 
-def _install_conversation_mode_logging(session: AgentSession) -> None:
+def _install_conversation_mode_logging(
+    session: AgentSession,
+    status: AgentStatusReporter,
+) -> None:
     """Record voice state transitions without storing private transcript text."""
 
     @session.on("agent_state_changed")
@@ -107,6 +110,16 @@ def _install_conversation_mode_logging(session: AgentSession) -> None:
             event.old_state,
             event.new_state,
         )
+        new_state = str(event.new_state).split(".")[-1].lower()
+        phase = {
+            "initializing": "starting",
+            "idle": "idle",
+            "listening": "listening",
+            "thinking": "thinking",
+            "speaking": "speaking",
+        }.get(new_state)
+        if phase:
+            status.set_phase(phase)
 
     @session.on("user_state_changed")
     def _log_user_state(event) -> None:
@@ -115,6 +128,28 @@ def _install_conversation_mode_logging(session: AgentSession) -> None:
             event.old_state,
             event.new_state,
         )
+        new_state = str(event.new_state).split(".")[-1].lower()
+        if new_state == "speaking":
+            status.set_phase("listening")
+
+    @session.on("function_tools_executed")
+    def _log_tools_executed(event) -> None:
+        tool_count = len(getattr(event, "function_calls", ()) or ())
+        nova_logger.info("conversation function_tools_executed count=%s", tool_count)
+        status.set_phase("thinking", detail=f"Completed {tool_count} tool call(s)")
+
+    @session.on("error")
+    def _log_session_error(event) -> None:
+        error = getattr(event, "error", None)
+        recoverable = bool(getattr(error, "recoverable", False))
+        nova_logger.warning(
+            "conversation session_error source=%s recoverable=%s error=%s",
+            type(getattr(event, "source", None)).__name__,
+            recoverable,
+            type(error).__name__,
+        )
+        if not recoverable:
+            status.set_phase("error", detail=f"Session error: {type(error).__name__}")
 
     @session.on("speech_created")
     def _log_speech_created(event) -> None:
@@ -247,28 +282,44 @@ async def my_agent(ctx: agents.JobContext):
         ), # <--- Closes RealtimeModel
     ) # <--- Closes AgentSession
 
-    _install_conversation_mode_logging(session)
+    bridge_session_id = f"job_{secrets.token_hex(8)}"
+    bridge_status = AgentStatusReporter(session_id=bridge_session_id)
+    _install_conversation_mode_logging(session, bridge_status)
     SessionConversationRecorder().attach(session)
 
-    await session.start(
-        room=ctx.room,
-        agent=Assistant(),
-        room_options=room_io.RoomOptions(
-            video_input=False,
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=ai_coustics.audio_enhancement(
-                    model=ai_coustics.EnhancerModel.QUAIL_VF_S
-                ),
-            ),
-        ),
-    )
-
-    bridge_session_id = f"job_{secrets.token_hex(8)}"
     bridge_task = asyncio.create_task(
-        dashboard_bridge_loop(session, bridge_session_id),
+        dashboard_bridge_loop(
+            session,
+            bridge_session_id,
+            status=bridge_status,
+        ),
         name="nova_dashboard_bridge",
     )
     ctx.add_shutdown_callback(lambda: stop_dashboard_bridge(bridge_task))
+
+    try:
+        await session.start(
+            room=ctx.room,
+            agent=Assistant(),
+            room_options=room_io.RoomOptions(
+                video_input=False,
+                audio_input=room_io.AudioInputOptions(
+                    noise_cancellation=ai_coustics.audio_enhancement(
+                        model=ai_coustics.EnhancerModel.QUAIL_VF_S
+                    ),
+                ),
+            ),
+        )
+    except Exception as error:
+        bridge_status.set_phase(
+            "error",
+            detail=f"Agent startup failed: {type(error).__name__}",
+        )
+        await bridge_status.publish_now()
+        raise
+
+    bridge_status.set_phase("idle")
+    await bridge_status.publish_now()
 
     await session.generate_reply(
         instructions="Greet Ahmed briefly and naturally. Tell him NOVA is ready.",

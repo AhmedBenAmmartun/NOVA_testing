@@ -44,6 +44,13 @@ def _notify(title: str, text: str, icon: str = "◉") -> dict:
     return {"type": "notify", "icon": icon, "title": title, "text": text}
 
 
+
+WORKSPACE_WEBSITES = {
+    "canvas": "https://www.fgcu.edu/canvas/",
+    "github": "https://github.com/",
+}
+
+
 def _start(target: str) -> bool:
     try:
         os.startfile(target)  # noqa: S606 - launching user-chosen local apps
@@ -102,7 +109,11 @@ def handle(
         if not isinstance(app_id, str) or not set_pinned(targets.get("apps", {}), app_id.strip(), pinned):
             return [_notify("Apps", "That application is no longer registered.", "▣")]
         update = public_message(targets.get("apps", {}))
-        update.update({"folders": list(targets.get("folders", {})), "recent": []})
+        update.update({
+            "folders": list(targets.get("folders", {})),
+            "custom_folders": list(targets.get("custom_folders", {})),
+            "recent": [],
+        })
         return [update, _activity("Tool", f'apps.pin("{app_id[:12]}", {str(pinned).lower()})')]
 
     if kind == "refresh_apps":
@@ -111,6 +122,44 @@ def handle(
             targets.setdefault(key, {}).clear()
             targets[key].update(value)
         return [update, _activity("Tool", "apps.refresh()")]
+
+    if kind == "remove_custom_folder":
+        name = str(message.get("name", "")).strip()
+        target = targets.get("custom_folders", {}).get(name)
+        if not name or target is None:
+            return [_notify("Folders", "That custom folder is no longer registered.", "?")]
+        if not feeds.remove_custom_folder(target):
+            return [_notify("Folders", f"NOVA could not remove {name}.", "?")]
+
+        update, refreshed = feeds.scan_apps()
+        for key, value in refreshed.items():
+            targets.setdefault(key, {}).clear()
+            targets[key].update(value)
+        return [
+            update,
+            _notify("Folders", f"Removed {name} from NOVA. The real folder was not deleted.", "?"),
+            _activity("Tool", f'folders.remove("{name}")'),
+        ]
+
+    if kind == "open_website":
+        site = str(message.get("site", "")).strip().lower()
+        target = WORKSPACE_WEBSITES.get(site)
+
+        if target is None:
+            return [_notify(
+                "Websites",
+                "That Workspace website is not registered.",
+                "???",
+            )]
+
+        if not _start(target):
+            return [_notify(
+                "Websites",
+                "Windows could not open that website.",
+                "???",
+            )]
+
+        return [_activity("Tool", f'web.open("{site}")')]
 
     if kind == "open_folder":
         name = str(message.get("name", "")).strip()

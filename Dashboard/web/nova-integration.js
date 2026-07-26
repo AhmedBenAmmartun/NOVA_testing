@@ -3,7 +3,7 @@
 
   var CONTRACT_VERSION = '1.1.0';
   var DATA_TYPES = Object.freeze([
-    'snapshot', 'stats', 'spotify', 'weather', 'phase', 'activity',
+    'snapshot', 'stats', 'spotify', 'weather', 'agent_status', 'phase', 'activity',
     'activity_seed', 'tasks', 'talk', 'transcript', 'obsidian',
     'approvals', 'usage', 'apps', 'briefing', 'notify',
     'integrations', 'mail', 'calendar'

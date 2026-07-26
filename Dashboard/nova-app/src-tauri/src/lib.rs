@@ -11,6 +11,7 @@
 //! the Tauri frontend; it talks to the Python server over the same WebSocket
 //! (`ws://127.0.0.1:8787/ws`) it already uses in the browser.
 
+use std::fs;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -66,7 +67,7 @@ fn project_root() -> Option<PathBuf> {
             }
         }
     }
-    let fallback = PathBuf::from(r"C:\Users\ahmed\OneDrive\Desktop\AI Agent");
+    let fallback = PathBuf::from(r"C:\Projects\AI Agent");
     if is_project_root(&fallback) {
         return Some(fallback);
     }
@@ -212,6 +213,90 @@ fn get_autostart(app: AppHandle) -> bool {
     autostart_enabled(&app)
 }
 
+
+fn custom_folders_file() -> Result<PathBuf, String> {
+    let root = project_root()
+        .ok_or_else(|| "Could not locate the NOVA project folder.".to_string())?;
+    Ok(root.join("Dashboard").join("runtime").join("custom_folders.json"))
+}
+
+fn read_custom_folders(path: &Path) -> Result<Vec<String>, String> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let text = fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str::<Vec<String>>(&text).map_err(|error| error.to_string())
+}
+
+fn write_custom_folders(path: &Path, folders: &[String]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    let text = serde_json::to_string_pretty(folders)
+        .map_err(|error| error.to_string())?;
+    fs::write(path, text).map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+#[tauri::command]
+fn pick_custom_folder() -> Result<bool, String> {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Choose a folder to add to NOVA'
+$dialog.ShowNewFolderButton = $false
+$result = $dialog.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    Write-Output $dialog.SelectedPath
+}
+"#;
+
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-STA", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if error.is_empty() {
+            "Windows could not open the folder picker.".to_string()
+        } else {
+            error
+        });
+    }
+
+    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if selected.is_empty() {
+        return Ok(false);
+    }
+
+    if !Path::new(&selected).is_dir() {
+        return Err("The selected folder is no longer available.".to_string());
+    }
+
+    let file = custom_folders_file()?;
+    let mut folders = read_custom_folders(&file).unwrap_or_default();
+    if folders.iter().any(|item| item.eq_ignore_ascii_case(&selected)) {
+        return Ok(false);
+    }
+
+    folders.push(selected);
+    write_custom_folders(&file, &folders)?;
+    Ok(true)
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+fn pick_custom_folder() -> Result<bool, String> {
+    Err("The NOVA folder picker currently requires Windows.".to_string())
+}
 #[tauri::command]
 fn restart_backend(app: AppHandle) {
     let state = app.state::<AppState>();
@@ -379,6 +464,7 @@ pub fn run() {
             set_click_through,
             set_autostart,
             get_autostart,
+            pick_custom_folder,
             restart_backend,
             quit_app
         ])

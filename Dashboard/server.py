@@ -86,15 +86,20 @@ class Hub:
 
 
 def _origin_allowed(request: web.Request) -> bool:
-    """Allow the bundled UI and this server's own page, not arbitrary sites."""
-    origin = request.headers.get("Origin")
-    if not origin:
+    """Allow only NOVA's bundled UI and local loopback origins."""
+    origin = (request.headers.get("Origin") or "").strip()
+
+    if not origin or origin == "null":
         return True
-    local_origins = {
-        f"http://{request.host}",
-        f"https://{request.host}",
-    }
-    return origin in local_origins or origin in TAURI_ORIGINS
+
+    from urllib.parse import urlsplit
+
+    try:
+        hostname = (urlsplit(origin).hostname or "").casefold()
+    except ValueError:
+        return False
+
+    return hostname in {"127.0.0.1", "localhost", "tauri.localhost"}
 
 
 async def websocket_handler(request: web.Request) -> web.WebSocketResponse:
@@ -163,6 +168,38 @@ async def health_handler(request: web.Request) -> web.Response:
 # ---------------------------------------------------------
 # Background collectors
 # ---------------------------------------------------------
+
+def agent_status_message(bridge: CommandStore) -> dict:
+    """Report the voice agent separately from the dashboard server."""
+    try:
+        status_reader = getattr(bridge, "agent_status", bridge.active_session)
+        session = status_reader() or {}
+    except Exception:
+        session = {}
+    active = bool(session.get("active"))
+    phase = str(session.get("phase") or ("idle" if active else "offline"))
+    return {
+        "type": "agent_status",
+        "online": active,
+        "status": phase,
+        "phase": phase,
+        "route": session.get("route") if active else None,
+        "model": session.get("model") if active else None,
+        "detail": session.get("detail") if active else None,
+        "sessionId": session.get("session_id") if active else None,
+        "startedAt": session.get("started_at") if active else None,
+        "heartbeatAt": session.get("heartbeat_at") if active else None,
+        "heartbeatAge": session.get("heartbeat_age") if active else None,
+    }
+
+
+async def agent_status_loop(app: web.Application) -> None:
+    while True:
+        await app["hub"].publish(
+            await asyncio.to_thread(agent_status_message, app["bridge"])
+        )
+        await asyncio.sleep(1)
+
 
 async def stats_loop(app: web.Application) -> None:
     while True:
@@ -314,6 +351,7 @@ async def integration_events_loop(app: web.Application) -> None:
 
 
 BACKGROUND_LOOPS = (
+    agent_status_loop,
     stats_loop,
     spotify_loop,
     weather_loop,
@@ -340,7 +378,12 @@ async def start_background(app: web.Application):
 def build_app() -> web.Application:
     app = web.Application()
     app["hub"] = Hub()
-    app["targets"] = {"apps": {}, "folders": {}, "recent": {}}
+    app["targets"] = {
+        "apps": {},
+        "folders": {},
+        "custom_folders": {},
+        "recent": {},
+    }
     app["approvals"] = feeds.ApprovalsTracker()
     app["bridge"] = command_store
     app.router.add_get("/ws", websocket_handler)

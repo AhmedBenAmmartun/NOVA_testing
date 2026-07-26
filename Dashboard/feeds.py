@@ -22,13 +22,14 @@ from pathlib import Path
 import psutil
 
 from app_registry import build_registry, public_message, refresh_runtime
-from security import resolve_shortcut_targets, safe_recent_target
+from security import is_sensitive_path, resolve_shortcut_targets, safe_recent_target
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RUNTIME_DIR = Path(__file__).resolve().parent / "runtime"
 NOVA_TOOLS_LOG = PROJECT_ROOT / "nova_tools.log"
 AUDIT_LOG = PROJECT_ROOT / "audit_logs" / "nova_actions.jsonl"
 CONVERSATION_LOGS = PROJECT_ROOT / "conversation_logs"
+CUSTOM_FOLDERS_FILE = RUNTIME_DIR / "custom_folders.json"
 
 TASKS_NOTE_RELATIVE = Path("NOVA") / "Tasks.md"
 MEMORY_TRASH_RELATIVE = Path("NOVA") / ".trash"
@@ -184,44 +185,72 @@ def _spotify_api_client():
 
 
 def spotify_message() -> dict:
-    """Now-playing state; safe to call even when Spotify is closed."""
+    """Real now-playing state. Never invents a track when Spotify is idle."""
     title: str | None = None
     artist: str | None = None
+    album: str | None = None
+    artwork: str | None = None
+    device: str | None = None
     playing = False
     progress: int | None = None
+    progress_ms: int | None = None
+    duration_ms: int | None = None
+    configured = False
 
     client = _spotify_api_client()
     if client is not None:
+        configured = True
         try:
             playback = client.current_playback()
-            if playback and playback.get("item"):
-                item = playback["item"]
-                title = item.get("name")
-                artist = ", ".join(
-                    a.get("name", "") for a in item.get("artists", []) if a.get("name")
-                )
-                playing = bool(playback.get("is_playing"))
-                duration = item.get("duration_ms") or 0
-                position = playback.get("progress_ms") or 0
-                if duration:
-                    progress = round(position / duration * 100)
+            if playback:
+                device_info = playback.get("device") or {}
+                device = device_info.get("name")
+                item = playback.get("item")
+                if item:
+                    title = item.get("name")
+                    artist = ", ".join(
+                        a.get("name", "") for a in item.get("artists", []) if a.get("name")
+                    ) or None
+                    album_info = item.get("album") or {}
+                    album = album_info.get("name")
+                    images = album_info.get("images") or []
+                    artwork = images[0].get("url") if images else None
+                    playing = bool(playback.get("is_playing"))
+                    duration_ms = item.get("duration_ms") or None
+                    progress_ms = playback.get("progress_ms")
+                    if duration_ms and progress_ms is not None:
+                        progress = max(0, min(100, round(progress_ms / duration_ms * 100)))
         except Exception:
             pass
 
-    if title is None:
-        window_title = spotify_window_title()
-        if window_title and " - " in window_title:
-            artist, title = window_title.split(" - ", 1)
-            playing = True
-        elif window_title:
-            title, artist, playing = None, None, False
+    window_title = spotify_window_title()
+    spotify_open = window_title is not None
+    if title is None and window_title and " - " in window_title:
+        artist, title = window_title.split(" - ", 1)
+        playing = True
+
+    if title:
+        status = "playing" if playing else "paused"
+    elif spotify_open:
+        status = "idle"
+    else:
+        status = "closed"
 
     return {
         "type": "spotify",
+        "available": bool(title or spotify_open or configured),
+        "configured": configured,
+        "open": spotify_open,
+        "status": status,
         "title": title,
-        "artist": (artist + " · Spotify") if artist else ("Spotify" if title else None),
+        "artist": artist,
+        "album": album,
+        "artwork": artwork,
+        "device": device,
         "playing": playing,
         "progress": progress,
+        "progressMs": progress_ms,
+        "durationMs": duration_ms,
     }
 
 
@@ -288,10 +317,16 @@ def _note_snippet(note: Path) -> str:
     return snippet
 
 
-def obsidian_message() -> dict | None:
+def obsidian_message() -> dict:
     vault = vault_path()
     if vault is None:
-        return None
+        return {
+            "type": "obsidian",
+            "available": False,
+            "count": 0,
+            "recent": [],
+            "memories": [],
+        }
 
     notes = list(_iter_vault_notes(vault))
     recent = sorted(notes, key=lambda n: n.stat().st_mtime, reverse=True)[:3]
@@ -319,6 +354,7 @@ def obsidian_message() -> dict | None:
 
     return {
         "type": "obsidian",
+        "available": True,
         "count": len(notes),
         "recent": [
             {"title": note.name, "when": age_label(note.stat().st_mtime)}
@@ -328,32 +364,21 @@ def obsidian_message() -> dict | None:
     }
 
 
-DEFAULT_TASKS = [
-    "Record Build Week demo video",
-    "Try the new NOVA dashboard",
-    "Review Obsidian memory notes",
-]
-
-
 def _tasks_note() -> Path | None:
     vault = vault_path()
     if vault is None:
         return None
     note = vault / TASKS_NOTE_RELATIVE
-    if not note.is_file():
-        note.parent.mkdir(parents=True, exist_ok=True)
-        body = "# NOVA Tasks\n\n" + "".join(f"- [ ] {t}\n" for t in DEFAULT_TASKS)
-        note.write_text(body, encoding="utf-8")
-    return note
+    return note if note.is_file() else None
 
 
 _TASK_LINE = re.compile(r"^\s*[-*] \[( |x|X)\] (.+)$")
 
 
-def tasks_message() -> dict | None:
+def tasks_message() -> dict:
     note = _tasks_note()
     if note is None:
-        return None
+        return {"type": "tasks", "available": False, "items": []}
     items = []
     try:
         for line in note.read_text(encoding="utf-8").splitlines():
@@ -368,7 +393,7 @@ def tasks_message() -> dict | None:
                 )
     except OSError:
         return None
-    return {"type": "tasks", "items": items}
+    return {"type": "tasks", "available": True, "items": items}
 
 
 def set_task_done(task_id: int, done: bool) -> bool:
@@ -471,10 +496,59 @@ def apps_runtime_message(registry: dict) -> dict:
                 "id": record.app_id,
                 "running": record.running,
                 "active": record.active,
+                "group": record.public().get("group"),
+                "groupName": record.public().get("groupName"),
+                "windowCount": len(record.window_titles),
+                "windows": [{"title": title} for title in record.window_titles],
             }
             for record in registry.values()
         ],
     }
+
+def _load_custom_folder_paths() -> list[str]:
+    if not CUSTOM_FOLDERS_FILE.is_file():
+        return []
+    try:
+        value = json.loads(CUSTOM_FOLDERS_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _save_custom_folder_paths(paths: list[str]) -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    temporary = CUSTOM_FOLDERS_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(paths, indent=2), encoding="utf-8")
+    temporary.replace(CUSTOM_FOLDERS_FILE)
+
+
+def remove_custom_folder(target: str) -> bool:
+    wanted = os.path.normcase(os.path.abspath(target))
+    current = _load_custom_folder_paths()
+    remaining = [
+        item
+        for item in current
+        if os.path.normcase(os.path.abspath(item)) != wanted
+    ]
+    if len(remaining) == len(current):
+        return False
+    try:
+        _save_custom_folder_paths(remaining)
+    except OSError:
+        return False
+    return True
+
+
+def _unique_folder_label(name: str, existing: dict[str, str]) -> str:
+    base = name.strip() or "Folder"
+    label = base
+    number = 2
+    while label.casefold() in {item.casefold() for item in existing}:
+        label = f"{base} ({number})"
+        number += 1
+    return label
 
 def scan_apps() -> tuple[dict, dict]:
     """Return the normalized app catalog plus trusted backend targets."""
@@ -503,6 +577,23 @@ def scan_apps() -> tuple[dict, dict]:
             folder_targets.setdefault(sub.name, str(sub))
     except OSError:
         pass
+
+    custom_folder_targets: dict[str, str] = {}
+    existing_paths = {
+        os.path.normcase(os.path.abspath(path))
+        for path in folder_targets.values()
+    }
+    for raw_path in _load_custom_folder_paths():
+        path = Path(raw_path).expanduser()
+        if not path.is_dir() or is_sensitive_path(path):
+            continue
+        normalized = os.path.normcase(os.path.abspath(str(path)))
+        if normalized in existing_paths:
+            continue
+        label = _unique_folder_label(path.name, folder_targets)
+        folder_targets[label] = str(path)
+        custom_folder_targets[label] = str(path)
+        existing_paths.add(normalized)
 
     recent_targets: dict[str, str] = {}
     recent_items: list[dict] = []
@@ -538,8 +629,17 @@ def scan_apps() -> tuple[dict, dict]:
                 break
 
     message = public_message(registry)
-    message.update({"folders": list(folder_targets.keys()), "recent": recent_items})
-    targets = {"apps": registry, "folders": folder_targets, "recent": recent_targets}
+    message.update({
+        "folders": list(folder_targets.keys()),
+        "custom_folders": list(custom_folder_targets.keys()),
+        "recent": recent_items,
+    })
+    targets = {
+        "apps": registry,
+        "folders": folder_targets,
+        "custom_folders": custom_folder_targets,
+        "recent": recent_targets,
+    }
     return message, targets
 
 
@@ -550,7 +650,7 @@ def scan_apps() -> tuple[dict, dict]:
 _LOG_LINE = re.compile(r"^\S+ \S+ (?:INFO|WARNING|ERROR) (.*)$")
 _STATE_LINE = re.compile(r"conversation agent_state .*-> *(\S+)")
 
-PHASES = {"listening", "thinking", "speaking"}
+PHASES = {"idle", "listening", "thinking", "speaking"}
 
 
 def tag_for(message: str) -> str:
@@ -579,7 +679,7 @@ def parse_log_line(line: str) -> dict | None:
             return None
         phase = state_match.group(1).lower().rsplit(".", 1)[-1].strip()
         if phase in ("initializing", "idle"):
-            phase = "listening"
+            phase = "idle"
         if phase not in PHASES:
             return None
         return {"type": "phase", "phase": phase}
@@ -775,6 +875,8 @@ class ConversationWatch:
         except OSError:
             return []
         if time.time() - mtime > CONVERSATION_FRESH_SECONDS:
+            return []
+        if datetime.fromtimestamp(mtime).date() != datetime.now().date():
             return []
         if self.seeded and mtime <= self.last_mtime:
             return []
