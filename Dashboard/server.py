@@ -23,7 +23,14 @@ from aiohttp import web
 from dotenv import load_dotenv
 
 DASHBOARD_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = DASHBOARD_DIR.parent
+# Embedded in the NOVA repo: PROJECT_ROOT is the parent that has agent.py
+# (and the real nova_bridge.py agent.py itself imports). Running standalone
+# (e.g. the dashboard-only repo, no agent.py next door): Dashboard/ is the
+# project root, and Dashboard/nova_bridge.py (a vendored copy) is used
+# instead so the module still imports cleanly with no live agent behind it.
+PROJECT_ROOT = (
+    DASHBOARD_DIR.parent if (DASHBOARD_DIR.parent / "agent.py").is_file() else DASHBOARD_DIR
+)
 sys.path.insert(0, str(DASHBOARD_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -31,6 +38,7 @@ load_dotenv(PROJECT_ROOT / ".env.local")
 load_dotenv(PROJECT_ROOT / ".env")
 
 import actions  # noqa: E402
+import demo_data  # noqa: E402
 import feeds  # noqa: E402
 import integration_feeds  # noqa: E402
 from nova_bridge import CommandStore, command_store  # noqa: E402
@@ -80,7 +88,7 @@ class Hub:
         return {
             "type": "snapshot",
             "contractVersion": CONTRACT_VERSION,
-            "mode": "live",
+            "mode": "demo" if demo_data.DEMO_MODE else "live",
             "parts": parts,
         }
 
@@ -156,7 +164,7 @@ async def health_handler(request: web.Request) -> web.Response:
         {
             "service": "nova-dashboard",
             "status": "ok",
-            "mode": "live",
+            "mode": "demo" if demo_data.DEMO_MODE else "live",
             "contractVersion": CONTRACT_VERSION,
             "agentBridge": "active" if agent["active"] else "waiting",
             "integrations": integrations.get("status", "unknown"),
@@ -350,21 +358,41 @@ async def integration_events_loop(app: web.Application) -> None:
         await asyncio.sleep(1)
 
 
+# Demo mode (NOVA_DASHBOARD_DEMO=1) swaps out only the loops that read
+# Ahmed-personal state nobody else has (agent status, Obsidian vault,
+# Spotify, conversation logs, usage, activity/audit tails) for curated
+# sample data. System stats, weather, and the installed-app catalog stay
+# real either way — they work for whoever is actually running it.
 BACKGROUND_LOOPS = (
-    agent_status_loop,
-    stats_loop,
-    spotify_loop,
-    weather_loop,
-    obsidian_loop,
-    usage_loop,
-    apps_loop,
-    apps_runtime_loop,
-    tools_log_loop,
-    audit_loop,
-    conversation_loop,
-    bridge_results_loop,
-    integrations_loop,
-    integration_events_loop,
+    (
+        stats_loop,
+        weather_loop,
+        apps_loop,
+        apps_runtime_loop,
+        demo_data.agent_status_loop,
+        demo_data.spotify_loop,
+        demo_data.obsidian_loop,
+        demo_data.usage_loop,
+        demo_data.conversation_loop,
+        demo_data.activity_loop,
+    )
+    if demo_data.DEMO_MODE
+    else (
+        agent_status_loop,
+        stats_loop,
+        spotify_loop,
+        weather_loop,
+        obsidian_loop,
+        usage_loop,
+        apps_loop,
+        apps_runtime_loop,
+        tools_log_loop,
+        audit_loop,
+        conversation_loop,
+        bridge_results_loop,
+        integrations_loop,
+        integration_events_loop,
+    )
 )
 
 

@@ -24,8 +24,16 @@ import psutil
 from app_registry import build_registry, public_message, refresh_runtime
 from security import is_sensitive_path, resolve_shortcut_targets, safe_recent_target
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RUNTIME_DIR = Path(__file__).resolve().parent / "runtime"
+DASHBOARD_DIR = Path(__file__).resolve().parent
+# Embedded in the NOVA repo: nova_tools.log/audit_logs/conversation_logs
+# live one level up, next to agent.py. Running standalone (no agent.py
+# there): Dashboard/ is the project root itself, and those files just
+# won't exist, which every collector below already treats as "not
+# available" rather than an error.
+PROJECT_ROOT = (
+    DASHBOARD_DIR.parent if (DASHBOARD_DIR.parent / "agent.py").is_file() else DASHBOARD_DIR
+)
+RUNTIME_DIR = DASHBOARD_DIR / "runtime"
 NOVA_TOOLS_LOG = PROJECT_ROOT / "nova_tools.log"
 AUDIT_LOG = PROJECT_ROOT / "audit_logs" / "nova_actions.jsonl"
 CONVERSATION_LOGS = PROJECT_ROOT / "conversation_logs"

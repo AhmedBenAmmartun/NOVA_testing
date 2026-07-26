@@ -41,6 +41,7 @@
       <div style="font-family:'Space Grotesk';font-weight:700;letter-spacing:.14em;font-size:14px;">NOVA</div>
       <div style="font-size:12px;color:rgba(234,240,246,.55);margin-left:6px;">{{ clockShort }}</div>
       <sc-if value="{{ isLive }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(46,230,214,.1);border:1px solid rgba(46,230,214,.35);font-size:10px;letter-spacing:.08em;color:#2ee6d6;"><span style="width:5px;height:5px;border-radius:50%;background:#2ee6d6;"></span>DASHBOARD</div></sc-if>
+      <sc-if value="{{ isDemo }}" hint-placeholder-val="{{ false }}"><div title="Sample data — nothing real is connected" style="margin-left:8px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(240,190,90,.12);border:1px solid rgba(240,190,90,.4);font-size:10px;letter-spacing:.08em;color:#f0be5a;"><span style="width:5px;height:5px;border-radius:50%;background:#f0be5a;"></span>DEMO DATA</div></sc-if>
       <div style="margin-left:6px;display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{ agentBadgeBg }};border:1px solid {{ agentBadgeBorder }};font-size:10px;letter-spacing:.08em;color:{{ agentBadgeColor }};"><span style="width:5px;height:5px;border-radius:50%;background:{{ agentBadgeColor }};"></span>{{ agentBadgeLabel }}</div>
       <sc-if value="{{ focusOn }}" hint-placeholder-val="{{ false }}"><div style="margin-left:8px;padding:3px 10px;border-radius:999px;background:rgba(124,134,248,.14);border:1px solid rgba(124,134,248,.35);font-size:11px;color:#aab1ff;">{{ focusName }} mode</div></sc-if>
       <sc-if value="{{ showTopStats }}" hint-placeholder-val="{{ false }}">
@@ -769,7 +770,7 @@ class Component extends DCLogic {
     focusMode: null, wallpaper: 'photo', sound: false, locked: false, notifsMuted: false,
     autoAllow: { 'File writes': false, 'Screen capture': false, 'Shell commands': false, 'Web purchases': false },
     transcript: '', transcriptHide: false,
-    live: false, agentOnline: false, agentStatus: 'offline',
+    live: false, demo: false, agentOnline: false, agentStatus: 'offline',
     weatherTemp: '—', weatherDesc: 'Weather unavailable', weatherBrief: 'Unavailable',
     spTitle: null, spArtist: null, spAlbum: null, spArtwork: null, spDevice: null, spStatus: 'closed', spAvailable: false, spProg: null,
     notesList: [], brainNotes: 0, obsidianAvailable: false, tasksAvailable: false, pinnedNames: [], allAppNames: [], appRecords: [],
@@ -947,7 +948,10 @@ class Component extends DCLogic {
   onLive(m) {
     const st = this.state;
     switch (m.type) {
-      case 'snapshot': (m.parts || []).forEach(p => this.onLive(p)); break;
+      case 'snapshot':
+        if (m.mode) this.setState({ demo: m.mode === 'demo' });
+        (m.parts || []).forEach(p => this.onLive(p));
+        break;
       case 'stats': this.setState({ cpu: m.cpu, ram: m.ram }); break;
       case 'spotify': {
         const update = {
@@ -1890,7 +1894,7 @@ class Component extends DCLogic {
       clockShort: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · ' + now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
       clockDate: now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }),
       phaseLabel, route: st.route, routeLabel: st.agentOnline && st.route ? ('route · ' + st.route) : (st.agentOnline ? 'Waiting for activity' : 'Start agent.py to connect'), brainCount: st.obsidianAvailable ? st.brainNotes : '—',
-      isLive: st.live, isDemo: false,
+      isLive: st.live, isDemo: st.live && st.demo,
       agentBadgeLabel: st.agentOnline ? (st.phase === 'starting' ? 'STARTING' : st.phase === 'thinking' ? 'THINKING' : st.phase === 'speaking' ? 'SPEAKING' : st.phase === 'listening' ? 'LISTENING' : st.phase === 'tool_running' ? 'USING TOOL' : st.phase === 'error' ? 'AGENT ERROR' : 'AGENT IDLE') : 'AGENT OFFLINE',
       agentBadgeColor: st.agentOnline ? '#2ee6d6' : '#f08cab',
       agentBadgeBg: st.agentOnline ? 'rgba(46,230,214,.1)' : 'rgba(240,140,171,.08)',
