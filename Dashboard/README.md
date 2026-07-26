@@ -28,6 +28,25 @@ The server binds to 127.0.0.1 only. The Python side adds no new dependencies —
 it uses aiohttp/psutil/spotipy/python-dotenv already in the venv. The app shell
 adds a Rust/Tauri build toolchain (already installed on this machine).
 
+## Standalone use (no NOVA repo)
+
+`server.py`/`feeds.py` auto-detect whether they're embedded in the NOVA repo
+(an `agent.py` next door) or running on their own — if standalone, `Dashboard/`
+is treated as the project root itself, and `Dashboard/nova_bridge.py` (a
+vendored copy) is used so the module still imports with no live agent behind
+it. Run it anywhere with just this folder's own `requirements.txt`:
+
+```powershell
+pip install -r requirements.txt
+python server.py            # real mode: honest offline/empty states
+$env:NOVA_DASHBOARD_DEMO=1; python server.py   # demo mode: sample data, labeled
+```
+
+Demo mode (`NOVA_DASHBOARD_DEMO=1`) only fakes the pieces nobody else's machine
+has real data for — agent status, Obsidian notes/tasks, Spotify now-playing,
+model usage, and the conversation/activity feeds. System stats, weather, and
+the installed-app catalog stay real either way. See `demo_data.py`.
+
 ## The app: window modes, tray, autostart
 
 - **Dashboard mode** — a normal movable/resizable window with a custom NOVA
@@ -59,10 +78,12 @@ nova-app/         the Tauri 2 desktop wrapper (Rust + tauri.conf.json)
 ```
 
 The shell connects to `ws://127.0.0.1:8787/ws` (the app sets `window.NOVA_BACKEND`;
-a plain browser derives it from the URL). A teal **LIVE** pill shows when
-connected; before the backend is up — or when `web/index.html` is opened from
-disk — a **Demo Data** pill clearly identifies the simulated fallback. The shell
-shows instantly and upgrades to live data with no blank wait.
+a plain browser derives it from the URL). A teal **DASHBOARD** pill shows once
+connected; before that, or while the agent isn't running, cards show an honest
+"offline"/"not connected" state rather than inventing data. Set
+`NOVA_DASHBOARD_DEMO=1` when starting `server.py` to opt into a clearly-labeled
+**DEMO DATA** pill and curated sample data instead (see "Standalone use" below)
+— useful for showing the dashboard off with nothing real behind it.
 
 The browser/backend boundary is versioned as contract `1.1.0`. The frontend
 exposes `window.NOVAIntegration` for future NOVA adapters, and the server exposes
