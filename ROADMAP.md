@@ -11,6 +11,41 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (verified 2026-07-21)
 
+**Note (2026-07-27): this section predates real work from 2026-07-22
+through 2026-07-27** (the guardian/email-calendar/permission-engine
+commit, PRs #1-#5, real-data dashboard fixes, a standalone Dashboard repo
+extraction, demo mode, git-based staleness detection, and drag-input
+throttling) that hasn't been folded in yet — flagging the gap rather than
+silently leaving it stale. Summary of 2026-07-27's dashboard work:
+
+- [x] Dashboard build/version staleness detection (2026-07-27): `server.py`
+      reports its running git commit via `/health` and the WebSocket
+      snapshot; `nova-app/scripts/stamp-build.mjs` stamps the same commit
+      into the packaged Tauri app at build time; the frontend warns if the
+      installed app's UI predates the source it's talking to. Directly
+      motivated by the installed `NOVA.exe` being found 3 days stale with
+      no warning.
+- [x] Throttled two unbatched pointermove hot loops (2026-07-27): page-swipe
+      drag (`index.html`) and widget drag/resize
+      (`dashboard-enhancements.js`) now batch to one `requestAnimationFrame`
+      per drag instead of a full re-render per raw pointer event.
+- [x] Dashboard extracted to a standalone private repo,
+      `github.com/BEN-Ammar-Ahmed/dashboard` (2026-07-27, via
+      `git subtree split`): own `.gitignore`/README/`requirements.txt`,
+      opt-in `NOVA_DASHBOARD_DEMO=1` demo mode with curated sample data
+      (`demo_data.py`), CI (`.github/workflows/test.yml`), and
+      `run_demo.ps1`/`.sh` one-command launch. Verified from a clean clone.
+      Kept in sync with the main repo's `Dashboard/` via re-split + merge.
+- [x] Two local checkouts (`C:\Projects\AI Agent`,
+      `C:\Users\ahmed\OneDrive\Desktop\AI Agent`) reconciled onto the same
+      `feature-workspace` branch/commit; see the
+      `nova-dual-repo-and-shell-skill` memory for the sync workflow.
+- [x] `nova-desktop-shell-architecture` skill added (`.agents/skills/` +
+      `.claude/skills/`): distilled Seelen UI study + a broader
+      desktop-shell vision doc into adopt-now / build-later-in-order /
+      never-copy lists for future dock/widget/workspace/window-management
+      work.
+
 Done and working:
 
 - [x] **Dashboard v2 from design handoff (2026-07-20)** — the old React/Tauri
