@@ -1,6 +1,6 @@
 # NOVA Roadmap
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-07-27_
 
 ## Mission
 
@@ -9,14 +9,54 @@ tool-using — for coding, school, research, desktop control, media, email,
 calendar, files, and daily productivity. This LiveKit + Gemini Realtime repo
 is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
-## Current status (verified 2026-07-21)
+## Current status (reconciled 2026-07-27, originally verified 2026-07-21)
 
-**Note (2026-07-27): this section predates real work from 2026-07-22
-through 2026-07-27** (the guardian/email-calendar/permission-engine
-commit, PRs #1-#5, real-data dashboard fixes, a standalone Dashboard repo
-extraction, demo mode, git-based staleness detection, and drag-input
-throttling) that hasn't been folded in yet — flagging the gap rather than
-silently leaving it stale. Summary of 2026-07-27's dashboard work:
+- [x] **Guardian security/vision module** (2026-07-22, `nova_guardian/`:
+      `ambient_vision.py`, `security_monitor.py`, `window_monitor.py`,
+      `runtime.py`, `state.py`, `events.py`, `config.py`): wired into
+      `agent.py` via `tools/guardian.py`
+      (`check_guardian_security`, `get_guardian_alerts`,
+      `get_guardian_status`, `look_at_screen_locally`,
+      `start_guardian_vision`, `stop_guardian_vision`). Imports cleanly in
+      the venv. **Not covered by the driver or pytest suite** — no
+      automated regression protection for this surface yet.
+- [x] **Real email/calendar integrations** (2026-07-22, `nova_integrations/`:
+      working Google Calendar/Gmail OAuth connector
+      (`connectors/google_workspace.py`) and a Microsoft Graph connector
+      (`connectors/microsoft_graph.py`), local `IntegrationDatabase`
+      storage): wired into `agent.py` via `tools/email_calendar.py`
+      (`list_connected_accounts`, `sync_email_calendar`,
+      `get_unread_emails`, `read_email`, `get_calendar_agenda`,
+      `get_next_event`, `find_calendar_conflicts`, `get_daily_briefing`)
+      and into the Dashboard's real Calendar page
+      (`Dashboard/integration_feeds.py`). Confirmed 2026-07-27 this is
+      genuine wired infrastructure, not demo data — it shows "not
+      connected" only because nobody has run the OAuth setup yet. Also
+      **no automated test coverage.**
+- [x] **Permission/safe-mode engine** (2026-07-22, `nova_policy/engine.py`):
+      wired into `agent.py` via `tools/permissions.py`
+      (`list_pending_actions`, `approve_action`, `deny_action`,
+      `set_nova_safe_mode`).
+- [x] **Specialist routing tool** `ask_specialist` (2026-07-22,
+      `tools/specialist.py`, `nova_core/` provider routing).
+- [x] `agent.py` now wires **54 tools** total (was 38 before 2026-07-22;
+      `CLAUDE.md`'s old "38 tools" figure was stale and has been corrected
+      — see the `.claude`/`.agents` doc-reorg note below).
+- [x] **App launcher/dock fixes** (PRs #1-#5, merged into `main` by
+      2026-07-23): real Win32 executables preferred over duplicate UWP
+      shortcuts, ChatGPT/Codex entries un-confused, process detection added
+      for more apps, dashboard app launches open maximized, the dock
+      tracks pinned + running app state instead of static icons.
+- [x] **Doc reorg** (2026-07-22): `CLAUDE.md` renamed to `DEVELOPMENT.md`
+      (git-tracked, generic across Claude/Codex); skills moved to
+      `.agents/skills/` for git tracking, with `.claude/skills/` kept as
+      Claude Code's local (gitignored) mirror; `CODEX_PROMPTS.md` renamed
+      `PROJECT_TASKS.md`. A stray, untracked, stale `CLAUDE.md` from before
+      this rename lingered on disk and fed outdated context into a
+      2026-07-26 session — replaced 2026-07-27 with a thin pointer at
+      `DEVELOPMENT.md` so this can't recur.
+
+Summary of 2026-07-27's dashboard work:
 
 - [x] Dashboard build/version staleness detection (2026-07-27): `server.py`
       reports its running git commit via `/health` and the WebSocket
