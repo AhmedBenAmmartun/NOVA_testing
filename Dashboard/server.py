@@ -53,6 +53,27 @@ TAURI_ORIGINS = {
 }
 
 
+def _source_commit() -> str | None:
+    """Short git commit this server is running from, or None outside a repo."""
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        commit = result.stdout.strip()
+        return commit or None
+    except Exception:
+        return None
+
+
+SOURCE_COMMIT = _source_commit()
+
+
 class Hub:
     """Fan-out point: caches the latest message per type, broadcasts to all."""
 
@@ -89,6 +110,7 @@ class Hub:
             "type": "snapshot",
             "contractVersion": CONTRACT_VERSION,
             "mode": "demo" if demo_data.DEMO_MODE else "live",
+            "sourceCommit": SOURCE_COMMIT,
             "parts": parts,
         }
 
@@ -166,6 +188,7 @@ async def health_handler(request: web.Request) -> web.Response:
             "status": "ok",
             "mode": "demo" if demo_data.DEMO_MODE else "live",
             "contractVersion": CONTRACT_VERSION,
+            "sourceCommit": SOURCE_COMMIT,
             "agentBridge": "active" if agent["active"] else "waiting",
             "integrations": integrations.get("status", "unknown"),
             "integrationAccounts": len(integrations.get("accounts", [])),

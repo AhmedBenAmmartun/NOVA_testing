@@ -82,6 +82,7 @@ nova_status.json
 # Dashboard runtime artifacts
 Dashboard/runtime/
 Dashboard/__pycache__/
+Dashboard/web/build-info.js
 
 # NOVA temporary integration backups
 .nova-patch-backup/

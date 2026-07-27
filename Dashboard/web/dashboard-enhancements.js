@@ -460,16 +460,26 @@ class NovaDashboardEnhancements {
 
   onPointerMove(event) {
     if (this.pointerOperation) {
+      // Used to recompute layout + write DOM on every raw pointermove
+      // (can fire 100+/sec). Batch to once per animation frame instead.
       event.preventDefault()
-      const operation = this.pointerOperation
-      const deltaX = event.clientX - operation.startX
-      const deltaY = event.clientY - operation.startY
-      const candidate = operation.type === 'drag'
-        ? { ...operation.startRect, x: operation.startRect.x + deltaX, y: operation.startRect.y + deltaY }
-        : resizeRect(operation.startRect, operation.direction, deltaX, deltaY)
-      const rect = clampRect(candidate, operation.canvasRect)
-      this.updateCardRect(operation.page, operation.card.dataset.layoutCard, rect, operation.canvasRect)
-      this.applyCardPixels(operation.card, rect)
+      this._pendingPointerXY = { clientX: event.clientX, clientY: event.clientY }
+      if (!this._pointerRaf) {
+        this._pointerRaf = requestAnimationFrame(() => {
+          this._pointerRaf = null
+          const operation = this.pointerOperation
+          if (!operation || !this._pendingPointerXY) return
+          const { clientX, clientY } = this._pendingPointerXY
+          const deltaX = clientX - operation.startX
+          const deltaY = clientY - operation.startY
+          const candidate = operation.type === 'drag'
+            ? { ...operation.startRect, x: operation.startRect.x + deltaX, y: operation.startRect.y + deltaY }
+            : resizeRect(operation.startRect, operation.direction, deltaX, deltaY)
+          const rect = clampRect(candidate, operation.canvasRect)
+          this.updateCardRect(operation.page, operation.card.dataset.layoutCard, rect, operation.canvasRect)
+          this.applyCardPixels(operation.card, rect)
+        })
+      }
       return
     }
 
@@ -478,6 +488,8 @@ class NovaDashboardEnhancements {
 
   onPointerUp(event) {
     if (this.pointerOperation) {
+      if (this._pointerRaf) { cancelAnimationFrame(this._pointerRaf); this._pointerRaf = null }
+      this._pendingPointerXY = null
       const page = this.pointerOperation.page
       this.pointerOperation = null
       this.saveLayout(page)

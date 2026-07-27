@@ -5,7 +5,8 @@
     "version":  "1.0.0",
     "identifier":  "com.ahmed.nova.desktop",
     "build":  {
-                  "frontendDist":  "../../web"
+                  "frontendDist":  "../../web",
+                  "beforeBuildCommand":  "node scripts/stamp-build.mjs"
               },
     "app":  {
                 "withGlobalTauri":  true,

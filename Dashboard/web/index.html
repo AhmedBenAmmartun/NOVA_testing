@@ -6,6 +6,7 @@
 <script src="./vendor/react.production.min.js"></script>
 <script src="./vendor/react-dom.production.min.js"></script>
 <script src="./vendor/babel.min.js"></script>
+<script src="./build-info.js" onerror="void 0"></script>
 <script src="./nova-integration.js"></script>
 <script src="./support.js"></script>
 <script type="module" src="./tauri-shell.js"></script>
@@ -950,6 +951,7 @@ class Component extends DCLogic {
     switch (m.type) {
       case 'snapshot':
         if (m.mode) this.setState({ demo: m.mode === 'demo' });
+        this.checkBuildStaleness(m.sourceCommit);
         (m.parts || []).forEach(p => this.onLive(p));
         break;
       case 'stats': this.setState({ cpu: m.cpu, ram: m.ram }); break;
@@ -1111,7 +1113,33 @@ class Component extends DCLogic {
     if (!this.state.notifsMuted) this.beep(660, .04);
     setTimeout(() => this.setState({ toasts: this.state.toasts.filter(t => t.id !== id) }), 5200);
   }
+  checkBuildStaleness(sourceCommit) {
+    // window.NOVA_BUILD only exists in the packaged Tauri app (stamped at
+    // `tauri build` time, see nova-app/scripts/stamp-build.mjs). A plain
+    // browser tab always serves index.html live from disk, so there's
+    // nothing to compare there.
+    const build = window.NOVA_BUILD;
+    if (this.staleWarned || !build?.commit || !sourceCommit || build.commit === sourceCommit) return;
+    this.staleWarned = true;
+    this.pushNotif({
+      icon: '⚠',
+      title: 'App may be outdated',
+      text: `This app was built from ${build.commit}, but NOVA is running ${sourceCommit}. Rebuild the desktop app to see the latest dashboard.`,
+    });
+  }
+  scheduleDragX(dx) {
+    // Page-swipe drag used to call setState on every raw pointer event,
+    // forcing a full-app re-render per mousemove/touchmove. Batch to once
+    // per animation frame instead.
+    this._pendingDragX = dx;
+    if (this._dragRaf) return;
+    this._dragRaf = requestAnimationFrame(() => {
+      this._dragRaf = null;
+      this.setState({ dragX: this._pendingDragX });
+    });
+  }
   endDrag() {
+    if (this._dragRaf) { cancelAnimationFrame(this._dragRaf); this._dragRaf = null; }
     const dx = this.state.dragX;
     this.setState({ dragging: false, dragX: 0 });
     if (dx < -90) this.go(1); else if (dx > 90) this.go(-1);
@@ -1974,7 +2002,7 @@ class Component extends DCLogic {
         e.preventDefault();
         this.dragStartX = e.clientX;
         this.setState({ dragging: true, dragX: 0 });
-        this.mm = (ev) => this.setState({ dragX: ev.clientX - this.dragStartX });
+        this.mm = (ev) => this.scheduleDragX(ev.clientX - this.dragStartX);
         this.mu = () => { window.removeEventListener('mousemove', this.mm); window.removeEventListener('mouseup', this.mu); this.endDrag(); };
         window.addEventListener('mousemove', this.mm);
         window.addEventListener('mouseup', this.mu);
@@ -1988,7 +2016,7 @@ class Component extends DCLogic {
         if (!this.state.dragging) return;
         const dx = e.touches[0].clientX - this.dragStartX, dy = e.touches[0].clientY - this.dragStartY;
         if (Math.abs(dy) > Math.abs(dx) * 1.2 && Math.abs(dx) < 30) { this.setState({ dragging: false, dragX: 0 }); return; }
-        this.setState({ dragX: dx });
+        this.scheduleDragX(dx);
       },
       touchEnd: () => { if (this.state.dragging) this.endDrag(); },
       onWheel: (e) => {
