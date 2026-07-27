@@ -273,10 +273,16 @@ async def my_agent(ctx: agents.JobContext):
                 activity_handling=types.ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     disabled=False,
+                    # Keep start-of-speech HIGH so Ahmed can still barge in
+                    # quickly when NOVA is talking. End-of-speech was HIGH
+                    # with only 350ms of silence required, which read normal
+                    # mid-sentence pauses as "done talking" and cut Ahmed
+                    # off - lowered plus a longer silence window so NOVA
+                    # waits for an actual pause before responding.
                     start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
                     prefix_padding_ms=200,
-                    silence_duration_ms=350,
+                    silence_duration_ms=650,
                 ), # <--- Closes AutomaticActivityDetection
             ), # <--- Closes RealtimeInputConfig
         ), # <--- Closes RealtimeModel

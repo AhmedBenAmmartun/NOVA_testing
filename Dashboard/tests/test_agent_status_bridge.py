@@ -35,7 +35,9 @@ def test_agent_status_becomes_offline_after_timeout(tmp_path: Path) -> None:
     store = CommandStore(tmp_path / "bridge")
     with patch("nova_bridge.time.time", return_value=100.0):
         store.heartbeat("job_timeout_test", phase="idle")
-    with patch("nova_bridge.time.time", return_value=106.0):
+    # Threshold widened to 15s (2026-07-27) so a long NOVA response doesn't
+    # flicker the dashboard to "offline" mid-conversation; 16s exceeds it.
+    with patch("nova_bridge.time.time", return_value=116.0):
         status = store.agent_status()
     assert status["active"] is False
     assert status["phase"] == "offline"

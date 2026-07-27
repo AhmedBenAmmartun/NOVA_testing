@@ -32,8 +32,12 @@ MAX_COMMAND_TEXT = 1_000
 MAX_RESULT_TEXT = 500
 MAX_PENDING_COMMANDS = 100
 DEFAULT_COMMAND_TTL_SECONDS = 120
-ACTIVE_HEARTBEAT_SECONDS = 8
-AGENT_STATUS_HEARTBEAT_SECONDS = 5
+# The heartbeat loop reports every ~1s, but a single long NOVA response
+# (speaking for 8-10+ seconds) can outlast a tight threshold and made the
+# dashboard flash "Agent offline" mid-conversation even though nothing was
+# actually wrong - widened 2026-07-27 after observing exactly that.
+ACTIVE_HEARTBEAT_SECONDS = 15
+AGENT_STATUS_HEARTBEAT_SECONDS = 15
 STALE_CLAIM_SECONDS = 5 * 60
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
