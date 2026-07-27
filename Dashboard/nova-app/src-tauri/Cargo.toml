@@ -21,15 +21,6 @@ tauri-plugin-autostart = "2"
 tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Matched to the version Tauri itself already pulls in (confirmed via
-# `cargo tree -p windows`) so HWND values from WebviewWindow::hwnd() are
-# the same type here - used only for the Desktop Mode WorkerW reparenting
-# in lib.rs (attach_to_desktop/detach_from_desktop).
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
-# Tauri already pulls in tokio (confirmed v1.53.1 via `cargo tree -p tokio`);
-# declared directly here so lib.rs can use tokio::time::sleep in the Desktop
-# Mode health-check task.
-tokio = { version = "1", features = ["time"] }
 
 [profile.release]
 panic = "abort"

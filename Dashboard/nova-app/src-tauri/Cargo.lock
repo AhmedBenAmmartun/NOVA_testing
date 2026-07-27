@@ -2079,9 +2079,7 @@ dependencies = [
  "tauri-plugin-autostart",
  "tauri-plugin-single-instance",
  "tauri-plugin-window-state",
- "tokio",
  "window-vibrancy",
- "windows",
 ]
 
 [[package]]
