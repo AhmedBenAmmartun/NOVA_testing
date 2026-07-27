@@ -27,10 +27,13 @@ use tauri::{
 
 const BACKEND_ADDR: &str = "127.0.0.1:8787";
 
-/// Native-side app state: the backend child process and the always-on-top flag.
+/// Native-side app state: the backend child process, the always-on-top
+/// flag, and whether Desktop Mode should currently be attached to the
+/// desktop's WorkerW (checked by the periodic health check in `run()`).
 struct AppState {
     backend: Mutex<Option<Child>>,
     always_on_top: Mutex<bool>,
+    desktop_mode: Mutex<bool>,
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +132,104 @@ fn autostart_enabled(app: &AppHandle) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Desktop Mode: WorkerW/Progman reparenting (Rainmeter-style desktop widget)
+// ---------------------------------------------------------------------------
+//
+// Windows' "Show Desktop" / Win+D minimizes every ordinary top-level window.
+// The only way to be genuinely immune to that - not just visually similar -
+// is to become part of the desktop itself: reparent this window under
+// whichever window actually hosts the desktop icons (SHELLDLL_DefView) -
+// normally a WorkerW, but confirmed to be Progman itself on this machine,
+// hence the fallback in `find_desktop_workerw`. This is the same
+// undocumented technique Rainmeter and most wallpaper-engine-style apps
+// use. It can break if explorer.exe restarts (the target handle goes
+// stale), so the periodic task in `run()` just re-asserts this rather than
+// trying to precisely diagnose what broke.
+
+/// Find the WorkerW to reparent under. Rather than a single EnumWindows
+/// pass, this walks top-level `WorkerW` windows specifically (there are
+/// normally several - one per monitor plus leftovers), checking each for a
+/// `SHELLDLL_DefView` child: that one hosts the desktop icons, and the
+/// *next* WorkerW after it is the one that sits behind them - our target.
+/// This is the standard, widely-used technique (matches the canonical
+/// C++ version of this trick almost line for line); an earlier attempt at
+/// a single-EnumWindows-pass variant assumed WorkerW always comes after
+/// Progman in z-order, which does not hold on this machine.
+#[cfg(windows)]
+fn find_desktop_workerw() -> Option<windows::Win32::Foundation::HWND> {
+    use windows::core::w;
+    use windows::Win32::Foundation::WPARAM;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowExW, FindWindowW, SendMessageTimeoutW, SMTO_NORMAL,
+    };
+
+    unsafe {
+        let progman = FindWindowW(w!("Progman"), None).ok()?;
+        // Ask Progman to spawn a WorkerW behind the desktop icons. Result
+        // is intentionally ignored: this message's only effect we care
+        // about is the side effect of the WorkerW existing afterward.
+        let mut result: usize = 0;
+        let _ = SendMessageTimeoutW(
+            progman,
+            0x052C,
+            WPARAM(0),
+            windows::Win32::Foundation::LPARAM(0),
+            SMTO_NORMAL,
+            1000,
+            Some(&mut result),
+        );
+
+        // Common case on most systems: some WorkerW (not Progman itself)
+        // ends up hosting SHELLDLL_DefView after the message above, and the
+        // *next* WorkerW after that one is the empty one behind the icons.
+        let mut workerw = None;
+        loop {
+            let Ok(next) = FindWindowExW(None, workerw, w!("WorkerW"), None) else {
+                break;
+            };
+            if FindWindowExW(Some(next), None, w!("SHELLDLL_DefView"), None).is_ok() {
+                if let Ok(target) = FindWindowExW(None, Some(next), w!("WorkerW"), None) {
+                    return Some(target);
+                }
+                break;
+            }
+            workerw = Some(next);
+        }
+
+        // Fallback, confirmed to be this machine's actual case: Progman
+        // hosts SHELLDLL_DefView directly and there's no separate empty
+        // WorkerW behind it - Progman itself is already the bottom-most
+        // desktop window, so attach directly to it instead.
+        if FindWindowExW(Some(progman), None, w!("SHELLDLL_DefView"), None).is_ok() {
+            return Some(progman);
+        }
+
+        None
+    }
+}
+
+/// Reparent `hwnd` under the desktop's WorkerW so it becomes part of the
+/// desktop itself. Returns false (window stays a normal top-level window)
+/// if the WorkerW can't be found.
+#[cfg(windows)]
+fn attach_to_desktop(hwnd: windows::Win32::Foundation::HWND) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::SetParent;
+    match find_desktop_workerw() {
+        Some(worker) => unsafe { SetParent(hwnd, Some(worker)).is_ok() },
+        None => false,
+    }
+}
+
+/// Detach `hwnd` back to being a normal top-level window.
+#[cfg(windows)]
+fn detach_from_desktop(hwnd: windows::Win32::Foundation::HWND) {
+    use windows::Win32::UI::WindowsAndMessaging::SetParent;
+    unsafe {
+        let _ = SetParent(hwnd, None);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Commands invoked from the dashboard frontend
 // ---------------------------------------------------------------------------
 
@@ -163,8 +264,11 @@ fn win_show(win: WebviewWindow) {
 
 /// Rainmeter-like desktop mode: borderless, pinned to the bottom of the z-order,
 /// no taskbar button, sized to the work area (which excludes the taskbar).
+/// Also reparented under the desktop's WorkerW (see `attach_to_desktop`) so
+/// Show Desktop / Win+D can't hide it - the z-order/style tricks alone
+/// don't survive that.
 #[tauri::command]
-fn enter_desktop_mode(win: WebviewWindow, x: f64, y: f64, w: f64, h: f64) {
+fn enter_desktop_mode(win: WebviewWindow, state: State<'_, AppState>, x: f64, y: f64, w: f64, h: f64) {
     let _ = win.unmaximize();
     let _ = win.set_resizable(false);
     let _ = win.set_skip_taskbar(true);
@@ -173,10 +277,25 @@ fn enter_desktop_mode(win: WebviewWindow, x: f64, y: f64, w: f64, h: f64) {
     let _ = win.set_size(Size::Logical(LogicalSize::new(w, h)));
     let _ = win.set_position(Position::Logical(LogicalPosition::new(x, y)));
     let _ = win.show();
+
+    *state.desktop_mode.lock().unwrap() = true;
+    #[cfg(windows)]
+    match win.hwnd() {
+        Ok(hwnd) => {
+            attach_to_desktop(hwnd);
+        }
+        Err(e) => eprintln!("[nova-desktop] win.hwnd() failed: {e:?}"),
+    }
 }
 
 #[tauri::command]
-fn enter_dashboard_mode(win: WebviewWindow) {
+fn enter_dashboard_mode(win: WebviewWindow, state: State<'_, AppState>) {
+    *state.desktop_mode.lock().unwrap() = false;
+    #[cfg(windows)]
+    if let Ok(hwnd) = win.hwnd() {
+        detach_from_desktop(hwnd);
+    }
+
     let _ = win.set_always_on_bottom(false);
     let _ = win.set_skip_taskbar(false);
     let _ = win.set_ignore_cursor_events(false);
@@ -452,6 +571,7 @@ pub fn run() {
         .manage(AppState {
             backend: Mutex::new(None),
             always_on_top: Mutex::new(false),
+            desktop_mode: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![
             win_minimize,
@@ -472,6 +592,31 @@ pub fn run() {
             let state = app.state::<AppState>();
             ensure_backend(state.inner());
             build_tray(app.handle())?;
+
+            #[cfg(windows)]
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // Reparenting under WorkerW (see attach_to_desktop) breaks if
+                    // explorer.exe restarts. Rather than diagnosing exactly what
+                    // broke, just periodically re-assert it while Desktop Mode is
+                    // on - SetParent onto the same WorkerW is a harmless no-op.
+                    loop {
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        let state = handle.state::<AppState>();
+                        let in_desktop_mode = *state.desktop_mode.lock().unwrap();
+                        if !in_desktop_mode {
+                            continue;
+                        }
+                        if let Some(window) = handle.get_webview_window("main") {
+                            if let Ok(hwnd) = window.hwnd() {
+                                attach_to_desktop(hwnd);
+                            }
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
