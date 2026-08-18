@@ -1,11 +1,12 @@
 livekit-agents
+livekit-api==1.2.0
 livekit-plugins-openai
 livekit-plugins-silero
 livekit-plugins-google
 livekit-plugins-noise-cancellation
 livekit-plugins-ai-coustics
 
-duckduckgo-search
+ddgs>=9.10,<10
 openai
 spotipy
 psutil

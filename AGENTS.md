@@ -1,6 +1,13 @@
 # AGENTS.md — NOVA (LiveKit)
 
-_Last updated: 2026-07-21_
+> **Project boundary — 2026-08-15**
+>
+> The legacy NOVA Dashboard has been detached from this repository/runtime.
+> NOVA is the agent/AI operating layer. NOVA Vision remains part of NOVA.
+> Dashboard/Valo is a separate project and may integrate later only through a
+> defined external interface. Older dashboard references below may be historical.
+
+_Last updated: 2026-08-13_
 
 ## What this is
 
@@ -23,12 +30,12 @@ agent.py            LiveKit AgentServer wiring: session, Gemini Realtime
                     (model gemini-2.5-flash-native-audio-preview-12-2025,
                     voice "Puck", temp 0.5, high-sensitivity VAD — Ahmed's
                     tuning), ai_coustics noise cancellation,
-                    video_input=False (Ahmed turned it off), greeting
+                    video_input=True for explicit NOVA Vision live tracks, greeting
 prompts.py          SYSTEM_PROMPT (NOVA persona)
 nova_bridge.py      private atomic dashboard command inbox/outbox + heartbeat
 nova_agent_bridge.py  injects delegated user turns and resolves approvals
                     inside the active LiveKit agent process
-tools/              38 function tools split into modules: common.py
+tools/              function tools split into modules: common.py
                     (sandbox, logging), desktop.py (open/close/restart app,
                     website, is_app_running, window control, notifications,
                     quick settings, virtual desktops), files.py (notes +
@@ -38,8 +45,7 @@ tools/              38 function tools split into modules: common.py
                     information.py (weather, search, system info, time),
                     media.py (music/Spotify/YouTube), models.py (ask_gpt56
                     OpenAI + ask_groq cloud + ask_ollama local specialists),
-                    vision.py (capture_screen + confirmed GPT-5.6 screen
-                    analysis), obsidian.py (search_memory +
+                    vision.py (retired screenshot compatibility stub), obsidian.py (search_memory +
                     read_memory_note + save_memory_note over Ahmed's Obsidian vault,
                     vault-sandboxed); logging to nova_tools.log
 PROJECT_TASKS.md    the task board + ready-to-run prompts. When Ahmed says
@@ -56,8 +62,11 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     OPENAI_API_KEY, SPOTIFY_CLIENT_ID/SECRET, GROQ_API_KEY,
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
 .agents/skills/run-ai-agent/  run skill + driver.py test harness
-Dashboard/          final 5-page desktop shell, local aiohttp/WebSocket data
-                    server, editable layouts, and Tauri 2 Windows wrapper
+Dashboard/          legacy/separate dashboard surface (not part of NOVA Vision)
+vision-client/       standalone Tauri 2 trusted camera/mic control surface;
+                    LiveKit JS publishes explicit media tracks to NOVA
+vision_token.py      backend-only short-lived LiveKit token/agent-dispatch helper
+Start-NOVA-Vision.ps1  launches agent worker + Vision client for development
 ```
 
 ## Run & test (all verified)
@@ -126,9 +135,9 @@ See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
 ## Rules
 
 Do not break the working agent. Do not remove: Gemini Realtime, LiveKit,
-`SYSTEM_PROMPT`, existing working tools. Video input is currently OFF
-(`video_input=False`, Ahmed's choice 2026-07-11) — don't flip it either way
-without asking him.
+`SYSTEM_PROMPT`, existing working tools. Video input is ON only for explicit media tracks published by the trusted
+NOVA Vision client (`video_input=True`, approved 2026-08-13). Do not reintroduce
+screenshot capture or automatically enable camera/microphone.
 
 Before editing: read the relevant files, say what exists, make the smallest
 safe change, one feature at a time. Prefer small functions, clear names,
@@ -202,3 +211,14 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
 - `core/` (task.py, router.py, orchestrator.py — model routing scaffolding)
   is written but not imported anywhere yet. Don't delete; wire it up or ask
   Ahmed.
+
+
+## 2026-08-13 Vision architecture note
+
+NOVA Vision is a separate small Windows surface, not the Valo dashboard. For
+Phase 1 it uses Tauri 2 because the current machine snapshot has Node + Rust
+but no detected .NET SDK. The media/session contract is shell-independent so a
+future WinUI 3/Valo surface can reuse the same behavior. Camera and microphone
+must start OFF. Frontend code must never receive `LIVEKIT_API_SECRET`;
+`vision_token.py` generates a short-lived token in the trusted backend.
+Guardian screenshot/ambient pixel capture is retired.

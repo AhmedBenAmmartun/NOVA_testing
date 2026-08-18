@@ -113,161 +113,38 @@ async def get_guardian_status(
     )
 
 
-@function_tool()
 async def look_at_screen_locally(
     context: RunContext,
-    question: str = (
-        "Briefly describe the visible application and anything "
-        "that appears to require the user's attention."
-    ),
+    question: str = "",
 ) -> str:
-    """
-    Analyze the foreground window with local Ollama vision.
-
-    The screenshot remains in memory, is not saved to disk, and is
-    not uploaded to a cloud provider. Sensitive windows are blocked.
-    """
-
-    _ = context
-
-    cleaned_question = question.strip()
-
-    if not cleaned_question:
-        cleaned_question = (
-            "Briefly describe what is visible "
-            "in the active application."
-        )
-
-    runtime = get_guardian_runtime()
-
-    try:
-        result = await runtime.look_once(
-            cleaned_question
-        )
-
-    except Exception as error:
-        return (
-            "NOVA could not complete the local screen analysis. "
-            f"Error type: {type(error).__name__}."
-        )
-
-    if result.analyzed:
-        return (
-            "Local screen analysis completed.\n\n"
-            f"{result.text}\n\n"
-            f"Local model: {result.model}"
-        )
-
-    reason = (
-        result.reason
-        or "analysis_not_completed"
-    )
-
+    """Compatibility-only stub for retired screenshot vision."""
+    del context, question
     return (
-        "Local screen analysis was not completed.\n\n"
-        f"Reason: {reason}\n"
-        f"Details: {result.text}"
+        "Guardian screenshot vision is retired. Open NOVA Vision and "
+        "explicitly enable a live visual source instead."
     )
 
 
-@function_tool()
 async def start_guardian_vision(
     context: RunContext,
     minutes: float = 5.0,
 ) -> str:
-    """
-    Start a temporary local-only ambient-vision session.
-
-    Use only after the user explicitly asks NOVA to start watching
-    or monitoring their screen. The session automatically expires.
-    """
-
-    _ = context
-
-    try:
-        requested_minutes = float(
-            minutes
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
-        requested_minutes = 5.0
-
-    safe_minutes = max(
-        0.25,
-        min(requested_minutes, 30.0),
-    )
-
-    runtime = get_guardian_runtime()
-
-    try:
-        started = await runtime.start_vision(
-            minutes=safe_minutes
-        )
-
-    except Exception as error:
-        return (
-            "Guardian vision could not be started. "
-            f"Error type: {type(error).__name__}."
-        )
-
-    if not started:
-        status = runtime.safe_summary()
-
-        if status.get("vision_active"):
-            return (
-                "Local Guardian vision is already active. "
-                "No additional session was started."
-            )
-
-        return (
-            "Guardian vision could not be started. "
-            "Check the Guardian configuration and "
-            "the local Ollama vision model."
-        )
-
+    """Compatibility-only stub; it never starts pixel capture."""
+    del context, minutes
     return (
-        "Local Guardian vision started for approximately "
-        f"{safe_minutes:g} minute(s). "
-        "Screenshots remain local and are not stored."
+        "Guardian screenshot vision is retired. Open NOVA Vision and "
+        "choose the visual source yourself."
     )
 
 
-@function_tool()
 async def stop_guardian_vision(
     context: RunContext,
 ) -> str:
-    """
-    Stop NOVA Guardian's current local-vision session.
-
-    Window monitoring and defensive security monitoring remain
-    available after local vision is stopped.
-    """
-
-    _ = context
-
+    """Compatibility-only stop operation for the retired vision path."""
+    del context
     runtime = get_guardian_runtime()
-
-    try:
-        stopped = await runtime.stop_vision()
-
-    except Exception as error:
-        return (
-            "Guardian vision could not be stopped normally. "
-            f"Error type: {type(error).__name__}."
-        )
-
-    if stopped:
-        return (
-            "Local Guardian vision has been stopped. "
-            "No further screenshots will be analyzed."
-        )
-
-    return (
-        "Local Guardian vision was not active."
-    )
+    await runtime.stop_vision()
+    return "Guardian screenshot vision is inactive."
 
 
 @function_tool()

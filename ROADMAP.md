@@ -1,6 +1,13 @@
 # NOVA Roadmap
 
-_Last updated: 2026-07-27_
+> **Project boundary — 2026-08-15**
+>
+> The legacy NOVA Dashboard has been detached from this repository/runtime.
+> NOVA is the agent/AI operating layer. NOVA Vision remains part of NOVA.
+> Dashboard/Valo is a separate project and may integrate later only through a
+> defined external interface. Older dashboard references below may be historical.
+
+_Last updated: 2026-08-13_
 
 ## Mission
 
@@ -9,8 +16,28 @@ tool-using — for coding, school, research, desktop control, media, email,
 calendar, files, and daily productivity. This LiveKit + Gemini Realtime repo
 is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
-## Current status (reconciled 2026-07-27, originally verified 2026-07-21)
+## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **NOVA Vision Phase 1 — camera + mic client** (2026-08-13): added a
+      standalone Tauri 2 Windows control surface under `vision-client/`. It
+      joins a unique LiveKit room with a short-lived backend-generated token,
+      starts camera and microphone OFF, lets the user enable either explicitly,
+      previews the exact published camera track, supports pin/minimize/compact
+      controls, and releases media before disconnect/close. `agent.py` now
+      enables LiveKit realtime `video_input=True`. Window/display/browser-tab
+      source pickers remain Phase 2. Guardian's old `ImageGrab` ambient-vision
+      backend is retired so there is no screenshot fallback. Added a focused
+      Phase 1 regression contract; next acceptance step is a live Windows run
+      proving camera preview, mic, remote NOVA audio, and clean device release.
+- [x] **Dashboard cleanup slice** (2026-08-05): Escape now closes the Ctrl+K
+      command palette even while its search input is focused, preventing the
+      modal overlay from trapping dashboard clicks. Windows `user32` loading
+      in `tools/desktop.py` is now lazy and platform-guarded so non-Windows
+      test collection and code review can import the module safely without
+      changing Windows behavior. Dashboard docs now list all six pages,
+      including Workspace. Focused regression checks passed. Next: connect
+      the dashboard to the already-authorized Gmail account and replace stale
+      placeholder connection/status data with the shared integration feed.
 - [x] **Guardian security/vision module** (2026-07-22, `nova_guardian/`:
       `ambient_vision.py`, `security_monitor.py`, `window_monitor.py`,
       `runtime.py`, `state.py`, `events.py`, `config.py`): wired into
@@ -35,11 +62,59 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       **no automated test coverage.**
 - [x] **Permission/safe-mode engine** (2026-07-22, `nova_policy/engine.py`):
       wired into `agent.py` via `tools/permissions.py`
-      (`list_pending_actions`, `approve_action`, `deny_action`,
-      `set_nova_safe_mode`).
+      (`list_pending_actions`, `deny_action`, `enable_nova_safe_mode`).
+      Model self-approval was removed in Phase 0; disabling Safe Mode requires
+      a trusted UI action.
 - [x] **Specialist routing tool** `ask_specialist` (2026-07-22,
-      `tools/specialist.py`, `nova_core/` provider routing).
-- [x] `agent.py` now wires **54 tools** total (was 38 before 2026-07-22;
+      `tools/specialist.py`, `nova_core/` provider routing; live-agent tool
+      exposure fixed 2026-08-03 in `agent.py`): the Gemini realtime assistant
+      now exposes the unified specialist/coordinator tool instead of only
+      documenting it. `prompts.py` now routes reasoning, coding, and
+      private/offline specialist work through `ask_specialist` rather than
+      naming direct tools that are not in the live LiveKit tool list. Groq in
+      the new `nova_core` provider registry remains a follow-up because
+      `providers/groq_provider.py` is still empty.
+- [x] **Hermes-style toolset registry and finder** (2026-08-03,
+      `nova_core/toolsets.py`, `tools/toolsets.py`): NOVA now has a stable
+      grouped map of its live tools and exposes `describe_nova_toolsets` plus
+      `find_nova_tools` so the assistant can answer what it can do, recommend
+      which current toolset/tools should handle a task, and explain which
+      tools are sensitive. This is the first foundation slice for later
+      Hermes-inspired skills, dynamic tool loading, and subagent delegation.
+      It is read-only and does not change any existing tool behavior.
+- [x] **Hermes-style browser slice 1** (2026-08-03, `tools/browser.py`):
+      NOVA now exposes `open_browser_page` and `get_browser_status` for an
+      isolated controlled Chrome/Edge session using DevTools HTTP endpoints.
+      The slice launches a separate browser profile instead of Ahmed's normal
+      cookies/profile and rejects unsafe schemes such as `file:`,
+      `javascript:`, `data:`, and credential-bearing URLs. This deliberately
+      does not add click/type/snapshot/DOM control yet; page content remains
+      untrusted and needs a separate hardened follow-up.
+- [x] **Exact Hermes browser names, safe read-only pass** (2026-08-03,
+      `tools/browser.py`): NOVA now registers the exact Hermes browser tool
+      names: `browser_navigate`, `browser_snapshot`, `browser_click`,
+      `browser_type`, `browser_scroll`, `browser_press`, `browser_back`,
+      `browser_get_images`, `browser_console`, `browser_vision`,
+      `browser_cdp`, and `browser_dialog`. The safe subset enabled now is
+      isolated http/https navigation plus text accessibility snapshots with
+      `@e` refs. High-agency browser actions and raw CDP are intentionally
+      blocked until Ahmed explicitly approves that risk boundary.
+- [x] **Read-only real-browser attach** (2026-08-03, `tools/browser.py`):
+      NOVA now exposes `browser_attach_user_browser`, which attaches only to
+      a local `127.0.0.1:<port>` Chrome/Edge DevTools endpoint that Ahmed
+      intentionally started. It enables status and snapshot reads of existing
+      user-browser tabs without launching the real browser profile, clicking,
+      typing, keypresses, raw CDP, screenshots, console, or image extraction.
+      `browser_navigate` remains isolated and should not open pages in
+      Ahmed's real browser profile.
+- [x] **Isolated browser action tools** (2026-08-03, `tools/browser.py`):
+      after Ahmed's explicit approval, NOVA now enables `browser_click`,
+      `browser_type`, `browser_scroll`, `browser_press`, and `browser_back`
+      only inside NOVA's isolated browser profile. These tools refuse to act
+      on the attached real browser. Raw CDP, console inspection, image
+      extraction, screenshots, and dialog control remain blocked for separate
+      approval.
+- [x] `agent.py` now wires **71 tools** total (was 38 before 2026-07-22;
       `CLAUDE.md`'s old "38 tools" figure was stale and has been corrected
       — see the `.claude`/`.agents` doc-reorg note below).
 - [x] **App launcher/dock fixes** (PRs #1-#5, merged into `main` by
@@ -55,6 +130,76 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       this rename lingered on disk and fed outdated context into a
       2026-07-26 session — replaced 2026-07-27 with a thin pointer at
       `DEVELOPMENT.md` so this can't recur.
+- [x] **Conversation idle observability** (2026-08-02,
+      `agent.py`, `nova_bridge.py`, `Dashboard/web/index.html`): Claude
+      verified LiveKit `AgentSession.user_away_timeout` is a status-only
+      signal, not an automatic disconnect, mic mute, or billing cutoff.
+      NOVA now maps LiveKit `user_state=away` to bridge phase `away`,
+      preserves that phase through both bridge copies, labels it as
+      `Away` / `AGENT AWAY` in the dashboard instead of falling through to
+      generic Online, and clears stale `away` state when LiveKit reports the
+      user is present again or activity resumes. This is deliberately
+      observability-only: deciding
+      whether NOVA should mute, disconnect, or switch to standby after idle
+      remains part of the Phase 6 always-on/standby decision.
+- [x] **Dashboard interruption phase vocabulary** (2026-08-02,
+      `nova_bridge.py`, `Dashboard/nova_bridge.py`,
+      `Dashboard/web/index.html`): the bridge and dashboard now accept and
+      label `stopping`, `waiting`, `paused`, `cancelled`, and `working` as
+      first-class display phases. This prepares the UI for the approved
+      stop/wait/never-mind/pause/continue behavior without implementing
+      those voice commands yet. No Gemini, LiveKit, VAD, voice, microphone,
+      or room lifecycle settings changed. Next recommended step: verify
+      real barge-in/queued-speech cancellation, then implement explicit
+      interruption commands in small tested slices.
+- [x] **Explicit `stop` interruption handler** (2026-08-02,
+      `agent.py`): final transcripts that are simple stop commands now set
+      dashboard phase `stopping`, call LiveKit's existing
+      `AgentSession.interrupt(force=True)` path to cancel current and queued
+      speech/realtime generation, and return to `listening` when the
+      interruption future completes unless newer activity already changed the
+      phase. Non-final transcripts do not fire the command. This does not
+      cancel running tools yet, and it does not change Gemini, LiveKit model
+      settings, VAD, voice, turn detection, microphone state, or room
+      lifecycle. Next recommended step: run the manual live voice acceptance
+      test by saying "stop" while NOVA is speaking, then implement `wait` /
+      `never mind` as separate slices.
+- [x] **Explicit `never mind` cancellation handler** (2026-08-02,
+      `agent.py`): final transcripts that are simple never-mind commands now
+      set dashboard phase `cancelled`, call LiveKit's existing
+      `AgentSession.clear_user_turn()` path for any local turn state LiveKit
+      can still clear, then call `AgentSession.interrupt(force=True)` to
+      cancel current and queued speech/realtime generation. Claude verified
+      `clear_user_turn()` is currently near-no-op for Gemini Realtime's
+      already-sent audio, so `interrupt(force=True)` is the real cancellation
+      mechanism in this stack. NOVA returns to `listening` when the
+      interruption future completes unless newer activity already changed the
+      phase. Non-final transcripts and longer non-command phrases do not fire
+      the command. This does not cancel already-running tools yet, and it does
+      not change Gemini, LiveKit model settings, VAD, voice, turn detection,
+      microphone state, or room lifecycle.
+- [x] **Explicit `wait` interruption handler** (2026-08-02, `agent.py`):
+      final transcripts that are simple wait commands now set dashboard phase
+      `waiting`, call LiveKit's existing `AgentSession.interrupt(force=True)`
+      path to stop current/queued speech, and return to `listening` when the
+      interruption future completes unless newer activity already changed the
+      phase. Unlike `never mind`, `wait` does not call `clear_user_turn()`, so
+      the current request/context is left in place for the user's correction
+      or added information. Non-final transcripts and longer non-command
+      phrases do not fire the command. This does not change Gemini, LiveKit
+      model settings, VAD, voice, turn detection, microphone state, or room
+      lifecycle. Next recommended step: run manual live voice acceptance for
+      `stop`, `never mind`, and `wait`; then either implement `pause` /
+      `continue` as a larger separate slice or do Claude's TTL-cache follow-up.
+- [x] **Dashboard integration snapshot TTL cache** (2026-08-02,
+      `Dashboard/integration_feeds.py`): `snapshot_messages()` now reuses a
+      defensive-copy 5-second in-process cache so repeated dashboard snapshot
+      requests do not immediately re-open and re-query the local
+      email/calendar database. Tests cover single-compute behavior, cache
+      reuse, cache isolation, and expiry recomputation after Claude's
+      read-only review. No OAuth tokens, provider APIs, dashboard UI,
+      Gemini/LiveKit, voice, microphone, VAD, turn detection, or room
+      lifecycle code changed.
 
 Summary of 2026-07-27's dashboard work:
 
@@ -85,6 +230,183 @@ Summary of 2026-07-27's dashboard work:
       desktop-shell vision doc into adopt-now / build-later-in-order /
       never-copy lists for future dock/widget/workspace/window-management
       work.
+- [x] **Dashboard windowed page mounting + sound cues** (2026-08-01,
+      `Dashboard/web/index.html`, spec at
+      `docs/superpowers/specs/2026-07-31-dashboard-performance-and-sound-design.md`,
+      plan at
+      `docs/superpowers/plans/2026-07-31-dashboard-performance-and-sound-design.md`):
+      root cause of the "laggy everywhere" complaint was a single monolithic
+      component re-rendering all 6 pages on every ~1s state tick (clock,
+      CPU/RAM, Spotify progress) even though only one page is ever visible.
+      Fixed using the dc-runtime template engine's own `<sc-if>` primitive
+      (confirmed via reading `support.js`: a false branch returns `null` and
+      never evaluates its children) to mount only the current page and its
+      immediate left/right neighbor — the only pages the swipe-drag
+      interaction can ever reveal — cutting mounted pages from 6 to at most
+      3. Verified live against the real running instance:
+      `document.querySelectorAll('[data-page-canvas]').length` is 3, not 6,
+      on every page. Also fixed a regression this surfaced: the "brain"
+      canvas animation on the NOVA/Second Brain page used to capture its
+      canvas DOM node in a closure once and run forever regardless of
+      visibility — after windowed mounting that would have permanently
+      frozen the graphic the first time a user navigated away and back.
+      Now reads the canvas ref fresh every frame and only animates while
+      that page is actually active. A related edge case the reviewer caught
+      (unclamped drag distance could reveal blank unmounted pages during an
+      aggressive mouse drag) was fixed by clamping `dragX` to one page-width
+      in `scheduleDragX`. Added a synthesized (Web Audio, no asset files)
+      sound-cue system — `playSfx()` rate-limiter plus 9 named cues for page
+      switch, panel open/close, widget add/remove, notifications, NOVA
+      agent online/offline (on actual transition only), and a one-shot
+      ready chime on first live connect — wired into all the real
+      interaction handlers, entirely gated by the existing Settings "Sound
+      cues" toggle (no new UI). Live-verified against the real running
+      instance by instrumenting `AudioContext.prototype.createOscillator`:
+      real clicks produced the correct frequencies (520Hz page-switch,
+      640Hz panel-open, 420Hz panel-close), and a rapid double-click
+      correctly coalesced into one tone instead of two, confirming the
+      rate-limiter works end-to-end, not just in isolated code review. Built
+      via subagent-driven-development: 4 implementation tasks, each with an
+      independent code-review pass (3 approved on the first pass; 1 needed a
+      fix round for the drag-clamp edge case above — the brain-canvas fix
+      itself was planned as its own task from the start, not a review
+      finding). A final whole-plan review across all 4 tasks combined then
+      caught one cross-task regression neither task-scoped review could see
+      in isolation: `fitBrain()` (sets the canvas's pixel backing size) only
+      ran once, inside the same one-time guard as node/edge generation, so a
+      remounted canvas after navigating away and back would render at a
+      wrong-sized, blurry 300x150 until the window was resized — fixed by
+      moving `fitBrain()` outside that guard so it re-runs on every
+      remount. Test suite (`npm --prefix Dashboard test`, 16 JS + 34 Python)
+      stayed green throughout.
+      **Follow-up not done in this pass:** startup cost from the in-browser
+      Babel JSX/template transform (`vendor/babel.min.js`) was not
+      rigorously profiled — a real DevTools "reload and record" performance
+      trace is needed to know whether it's worth precompiling (would need a
+      build step this project doesn't currently have). If idle/switch/drag
+      smoothness still isn't "not laggy at all" after this change, the next
+      step is Approach B from the spec: true page unmount/remount instead of
+      the current current±1 mounting window (deferred, more invasive to the
+      swipe-drag mechanics).
+      **Still separate/deferred:** wiring Calendar and Tasks to support
+      *adding* new items (not just viewing) — Tasks currently only supports
+      toggling existing items done (`Dashboard/feeds.py`'s
+      `set_task_done`), and Calendar is read-only by design
+      (`nova_integrations`'s Google/Microsoft connectors request only
+      `*.readonly` scopes, and neither account is connected yet). Ahmed has
+      step-by-step instructions for the Google Cloud OAuth Desktop client
+      and Azure AD app registration needed before Calendar-add can be built.
+- [x] **Dashboard shell redesign — visionOS Glass + Cinematic & Deep**
+      (2026-08-02, `Dashboard/web/index.html`, spec at
+      `docs/superpowers/specs/2026-08-01-dashboard-visionos-shell-redesign.md`,
+      plan at
+      `docs/superpowers/plans/2026-08-01-dashboard-visionos-shell-redesign.md`):
+      reworked the dashboard shell's visual language from dark glass to
+      near-white glass panels floating over a new light gradient environment,
+      per Ahmed's "doesn't scream Apple and futuristic" feedback, with a
+      slower "Cinematic & Deep" motion personality (~420ms, no-overshoot
+      spring, blur-resolve entrances). Scoped to shell chrome only, not the
+      other 5 pages' content. 12 tasks, each independently reviewed:
+      new `THEME` design-token field (colors/motion values); the dark
+      Aurora/Deep-space wallpaper moods replaced by one light gradient
+      environment (the dark photo wallpaper stays as the second option, dim
+      slider dropped — dimming a light scene reads as grey, not moody); the 3
+      top-bar Unicode glyphs (search/notifications/settings) replaced with a
+      consistent stroke-based SVG set; top bar restyled as two floating glass
+      pills (wordmark, status); dock restyled as a glass pill with
+      cursor-distance-based hover magnify/lift (real app icons unchanged,
+      only the container and motion); Settings panel trimmed to Lock canvas/
+      Dock auto-hide/Reduce motion/Sound cues/Wallpaper and restyled to
+      glass, with the unused Focus Modes feature removed entirely (state,
+      `setFocus()`, preset table, UI — not just hidden) and the Demo privacy
+      toggle removed (a review-caught bug from this removal — stuck
+      `st.privacy` persisted state permanently masking chat transcripts —
+      was found and fixed in a follow-up commit, `16f08fa`); widget cards
+      restyled to light glass; ~140 sites of internal widget teal/violet
+      (`#2ee6d6`/`#7c86f8`) swept to the new blue/indigo palette
+      (`#0A84FF`/`#5E5CE6`) via a verified one-off script, preserving
+      meaningful color pairs (CPU vs RAM bars stayed two distinct colors);
+      toast notifications restyled to light glass with a blur-resolve
+      entrance; page-switch transitions adopted the Cinematic easing curve
+      (rubber-band edge resistance was in the original spec but dropped
+      after discovering — and confirming with Ahmed — that page navigation
+      is an intentional circular loop, not a bounded range, so there's no
+      edge to resist); the brain-canvas graphic recolored for light glass
+      plus its hosting card restyled to light glass (a second review-caught
+      contrast bug here — two child text elements broken by a color cascade
+      — found and fixed in a follow-up commit, `1c6e19c`); and an inline
+      "Connect" button added to the Daily Briefing widget and the Calendar
+      page's status pill, replacing passive "not connected" text — scoped
+      deliberately as a UI signpost only (shows the
+      `nova-integrations accounts connect ...` CLI command via a toast), not
+      real OAuth from the browser.
+
+      **Task 13 (this task) end-to-end verification** re-walked the whole
+      shell live against the running dashboard (state/DOM driven via the
+      React fiber, since the Browser pane wasn't compositing frames this
+      session — same workaround prior tasks in this plan used) and ran a
+      real WCAG contrast check rather than eyeballing it, given two
+      contrast bugs had already slipped through task-level review earlier
+      in this same plan. It found, and then fixed, two more things review
+      missed:
+      - **Toast blur-resolve entrance ignored `reduceMotion`/`reduceLocal`.**
+        The spec explicitly requires the new blur-resolve and dock-lift
+        motion to respect reduced motion "same as it already disables the
+        brain-canvas wobble and page-transition animation" — the dock got
+        this gate (Task 5), the toast did not (Task 9's brief never called
+        it out, and no review caught the gap). Live-confirmed broken (with
+        `reduceLocal: true`, the toast button still ran `animation: 600ms
+        cubic-bezier(...) toastIn`, unsuppressed), then fixed: the toast's
+        `animation` is now driven by a per-toast computed `t.animStyle`
+        (`reduce ? 'none' : '600ms cubic-bezier(0.16,1,0.3,1) toastIn'`),
+        mirroring the gate pattern used everywhere else in the file.
+        Live-reverified both states after the fix: `reduceLocal:false`
+        still plays the full curve (`animationName:"toastIn"`);
+        `reduceLocal:true` now resolves immediately (`animationName:"none"`,
+        `opacity:1`, `transform:none`, `filter:none` — the toast's static
+        end-state, no flash-then-freeze). Widget-card entrance (`fadeUp`)
+        is still unconditional, but that's a pre-existing,
+        explicitly-documented Task 7 scope decision (it reused the old
+        `fadeUp` keyframe rather than adding the new blur-enter treatment),
+        not a new regression, and was left as-is.
+      - **Two label styles measured below WCAG AA 4.5:1 for normal text, one
+        borderline — now fixed.** Computed with the real sRGB
+        relative-luminance formula against the actual composited background
+        (`rgba(255,255,255,.5)` glass over the light environment, not just
+        the glass color alone: `#dfe1e7` env base composited with 50% white
+        ≈ `rgb(239,240,243)`). Widget-card kicker labels and the Settings
+        panel's "Wallpaper" section label (`rgba(30,32,38,.5)` at
+        10-10.5px bold/uppercase) measured ≈3.11:1 — clearly under 4.5:1
+        (10-10.5px, even bold, doesn't qualify as WCAG "large text").
+        Toast subtitles and the brain-card's "Second Brain · Obsidian
+        vault" label (the same element the Task 11 contrast fix touched;
+        `rgba(30,32,38,.6)` at 11-11.5px) measured ≈4.15:1 — Task 11's fix
+        correctly resolved the glaring light-on-light bug it was catching,
+        but the result still landed under strict AA. Fixed by bumping both
+        to `rgba(30,32,38,.7)`: recomputed ≈5.65:1 against the env-base
+        composite and ≈6.02:1 against a pure-white extreme — clears 4.5:1
+        with real margin, not a bare pass. Applied consistently to all four
+        call sites (two `.5`, two `.6`), and live-reread each element's
+        `getComputedStyle(...).color` afterward to confirm the rendered
+        (not just declared) value is `rgba(30, 32, 38, 0.7)` everywhere.
+        Settings-row toggle labels and the top-bar status text
+        (`rgba(30,32,38,.65)` at 12px, ≈4.83:1) already passed and were
+        left unchanged; solid `#1e2026` text (≈14.29:1) was never at risk.
+
+      Everything else checked out live: all 6 pages render and the
+      page-switcher's circular wrap (0→1→2→3→4→5→0) still works exactly as
+      Task 10 verified; widget add/remove and glass styling work; the
+      Settings panel shows the exact trimmed list with no Focus Modes/Demo
+      privacy; both Connect buttons push the informational toast with the
+      real CLI command and make no network call; dock hover-magnify applies
+      correctly when not reduced; brain-canvas reduce-gating and recolor
+      logic read correctly (live pixel verification was blocked by the same
+      non-compositing Browser pane that affected Tasks 5 and 10 — canvas
+      layout collapses to 0-height when the pane isn't visually composited).
+      Test suite green throughout, both before and after the two fixes
+      (16 JS + 34 Python, 50/50). Fixes committed separately from the
+      ROADMAP update itself (`539c51e`, "Fix toast reduceMotion gate and
+      two contrast-failing text colors").
 
 Done and working:
 
@@ -330,6 +652,15 @@ Done and working:
 
 In progress / blocked:
 
+- [ ] Dashboard Calendar/Tasks "add" support (started 2026-08-01): Tasks
+      currently only supports toggling existing items done
+      (`Dashboard/feeds.py`'s `set_task_done`) — no add-a-task UI yet.
+      Calendar is read-only by design (`nova_integrations`'s Google/Microsoft
+      connectors request only `*.readonly` scopes), and neither account is
+      connected yet. Ahmed has step-by-step instructions for the Google
+      Cloud OAuth Desktop client and Azure AD app registration needed before
+      Calendar-add can be built; add-a-task (local, no OAuth) can proceed
+      independently.
 - [ ] Study Mode & Quiz Mode prompt choreography (2026-07-16): `SYSTEM_PROMPT`
       now tells NOVA how to enter study mode, read course material, generate
       quiz questions through `ask_gpt56`, ask one question at a time, explain

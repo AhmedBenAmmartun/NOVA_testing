@@ -16,4 +16,4 @@
 - Provider links are restricted to approved HTTPS Outlook or Gmail domains.
 - Logs and audit records never include OAuth tokens, email bodies, attachments, calendar descriptions, attendee lists, or raw provider error responses.
 - Provider-controlled sender names, subjects, event titles, locations, and message bodies are treated as untrusted data. Tool output labels them accordingly; bodies are bounded and attachments are never fetched.
-- `Dashboard/` is not modified. A safe local JSONL event stream is emitted for later dashboard wiring.
+- External dashboard/Valo projects are outside NOVA. A safe local event stream may be consumed through a future explicit interface.

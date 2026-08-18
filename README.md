@@ -1,5 +1,12 @@
 # NOVA
 
+> **Project boundary — 2026-08-15**
+>
+> The legacy NOVA Dashboard has been detached from this repository/runtime.
+> NOVA is the agent/AI operating layer. NOVA Vision remains part of NOVA.
+> Dashboard/Valo is a separate project and may integrate later only through a
+> defined external interface. Older dashboard references below may be historical.
+
 NOVA is Ahmed's personal AI operating assistant: a voice-first, tool-using
 desktop agent built on LiveKit Agents with Gemini Realtime audio. It can use
 local tools for desktop control, files, notes, media, search, weather, system
@@ -24,8 +31,8 @@ extraction, prompt-driven Study Mode / Quiz Mode, saved conversation logs, and
 expanded file/window control on top of the existing Gemini/LiveKit voice
 agent. It also includes a first Conversation Mode runtime pass for barge-in
 and queued-reply reliability. The desktop dashboard now lives in
-`Dashboard/`: the final design-handoff shell — a five-page desktop control
-center (widgets, NOVA + Second Brain, Apps & Files, Calendar, Agent) served
+`Dashboard/`: the final design-handoff shell — a six-page desktop control
+center (widgets, NOVA + Second Brain, Apps & Files, Workspace, Calendar, Agent) served
 by a local Python bridge that streams real CPU/RAM, Spotify, weather,
 Obsidian vault notes/memories/tasks, agent phase and tool activity, the
 approval queue, and the real Windows app catalog. GPT-5.6 is opt-in: NOVA only
@@ -77,11 +84,12 @@ carry credentials or arbitrary executable code.
 - Confirmed screen analysis through GPT-5.6
 - Local test driver for tools, chat, console launch, and LiveKit dev launch
 - NOVA Dashboard in `Dashboard/` (implemented 2026-07-20 from the final
-  design handoff): five swipeable pages — widget dashboard (clock, weather,
+  design handoff): six swipeable pages — widget dashboard (clock, weather,
   NOVA status, tasks, now playing, system, Obsidian notes, daily briefing),
   NOVA + Second Brain (orbiting vault graph, model route chips, live
   conversation, execution timeline), Apps & Files (real Start Menu catalog,
-  quick folders, recent files), Calendar, and Agent (activity feed, approval
+  quick folders, recent files), Workspace (custom school, coding, and project
+  launch groups), Calendar, and Agent (activity feed, approval
   queue, memory browser) — plus dock, Ctrl+K command palette, notifications,
   quick settings, focus modes, and a lock screen. A local aiohttp bridge
   (`Dashboard/server.py`) streams the real data over one WebSocket; with the

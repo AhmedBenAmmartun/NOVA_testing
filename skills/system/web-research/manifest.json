@@ -1,0 +1,11 @@
+{
+  "id": "web-research",
+  "name": "Web Research",
+  "description": "Reliable multi-query web research that retries weak searches, prefers primary sources, reads pages, and verifies important claims.",
+  "version": 1,
+  "enabled": true,
+  "risk": "read_only",
+  "required_capabilities": ["web"],
+  "permissions": ["internet_read"],
+  "tags": ["web", "research", "search", "sources", "technical", "official-docs"]
+}

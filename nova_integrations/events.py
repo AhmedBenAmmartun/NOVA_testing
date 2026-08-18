@@ -1,4 +1,4 @@
-"""Safe local event stream for future dashboard wiring."""
+"""Safe local event stream for future UI and automation consumers."""
 
 from __future__ import annotations
 

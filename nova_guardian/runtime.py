@@ -30,7 +30,7 @@ class GuardianRuntime:
     Coordinate NOVA Guardian's background monitors.
 
     Window and security monitoring can remain active in the background.
-    Screenshot analysis only starts after an explicit request.
+    Pixel capture is retired; visual input comes only from NOVA Vision.
     """
 
     def __init__(
@@ -240,62 +240,15 @@ class GuardianRuntime:
         *,
         minutes: float | None = None,
     ) -> bool:
-        """
-        Start an explicit local-only vision session.
+        """Refuse the retired Guardian screenshot-vision path."""
 
-        The session automatically stops after the configured duration.
-        """
-
-        await self.start()
-
-        async with self._runtime_lock:
-            if (
-                self._vision_task is not None
-                and not self._vision_task.done()
-            ):
-                return False
-
-            duration_minutes = (
-                float(minutes)
-                if minutes is not None
-                else float(
-                    self.configuration
-                    .maximum_vision_session_minutes
-                )
-            )
-
-            duration_minutes = max(
-                0.25,
-                min(duration_minutes, 30.0),
-            )
-
-            self._vision_stop_event = asyncio.Event()
-
-            self._vision_task = asyncio.create_task(
-                self.vision_monitor.run(
-                    self._vision_stop_event
-                ),
-                name="nova-guardian-local-vision",
-            )
-
-            self._vision_task.add_done_callback(
-                self._task_finished
-            )
-
-            self._vision_expiration_task = (
-                asyncio.create_task(
-                    self._expire_vision_after(
-                        duration_minutes
-                    ),
-                    name=(
-                        "nova-guardian-vision-expiration"
-                    ),
-                )
-            )
-
-        await asyncio.sleep(0)
-
-        return True
+        del minutes
+        logger.info(
+            "Guardian screenshot vision is retired; use NOVA Vision."
+        )
+        if self.state.snapshot().vision_active:
+            self.state.stop_vision()
+        return False
 
     async def stop_vision(self) -> bool:
         """
@@ -369,33 +322,12 @@ class GuardianRuntime:
         self,
         question: str,
     ) -> LocalVisionResult:
-        """
-        Analyze the current foreground window once.
+        """Return a fail-closed result; Guardian no longer captures pixels."""
 
-        The screenshot remains local and is not stored.
-        """
-
-        await self.start()
-
-        runtime_snapshot = self.state.snapshot()
-        started_vision_here = (
-            not runtime_snapshot.vision_active
+        return await self.vision_monitor.analyze_once(
+            question=question,
+            force=False,
         )
-
-        if started_vision_here:
-            self.state.start_vision()
-
-        try:
-            self.window_monitor.poll_once()
-
-            return await self.vision_monitor.analyze_once(
-                question=question,
-                force=True,
-            )
-
-        finally:
-            if started_vision_here:
-                self.state.stop_vision()
 
     def scan_security_once(self) -> Any:
         """Run one immediate defensive security scan."""

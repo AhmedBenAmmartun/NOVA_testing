@@ -1,7 +1,9 @@
 import ctypes
 import subprocess
+import sys
 import time
 import webbrowser
+from functools import lru_cache
 from ctypes import wintypes
 
 import psutil
@@ -92,7 +94,17 @@ VK_DOWN = 0x28
 
 KEYEVENTF_KEYUP = 0x0002
 
-user32 = ctypes.windll.user32
+@lru_cache(maxsize=1)
+def _get_user32():
+    """Return the Win32 user32 API only when a Windows action is invoked.
+
+    Keeping this lookup lazy lets the module import safely during tests, CI,
+    documentation builds, and code review on non-Windows hosts.
+    """
+
+    if sys.platform != "win32" or not hasattr(ctypes, "windll"):
+        raise RuntimeError("NOVA desktop controls require Windows.")
+    return ctypes.windll.user32
 
 
 def _press_key(
@@ -108,7 +120,7 @@ def _press_key(
         else 0
     )
 
-    user32.keybd_event(
+    _get_user32().keybd_event(
         vk_code,
         0,
         flags,
@@ -139,7 +151,7 @@ def _window_text(
 ) -> str:
     """Return the title of a visible Windows window."""
 
-    length = user32.GetWindowTextLengthW(
+    length = _get_user32().GetWindowTextLengthW(
         hwnd
     )
 
@@ -150,7 +162,7 @@ def _window_text(
         length + 1
     )
 
-    user32.GetWindowTextW(
+    _get_user32().GetWindowTextW(
         hwnd,
         buffer,
         length + 1,
@@ -166,7 +178,7 @@ def _window_process_name(
 
     pid = wintypes.DWORD()
 
-    user32.GetWindowThreadProcessId(
+    _get_user32().GetWindowThreadProcessId(
         hwnd,
         ctypes.byref(pid),
     )
@@ -186,7 +198,7 @@ def _window_process_name(
 def _foreground_window() -> int | None:
     """Return the currently focused window handle."""
 
-    hwnd = user32.GetForegroundWindow()
+    hwnd = _get_user32().GetForegroundWindow()
 
     return hwnd or None
 
@@ -231,7 +243,7 @@ def _find_window(
         hwnd: int,
         _lparam: int,
     ) -> bool:
-        if not user32.IsWindowVisible(
+        if not _get_user32().IsWindowVisible(
             hwnd
         ):
             return True
@@ -258,7 +270,7 @@ def _find_window(
 
         return True
 
-    user32.EnumWindows(
+    _get_user32().EnumWindows(
         enum_proc_type(_callback),
         0,
     )
@@ -275,12 +287,12 @@ def _focus_window(
 ) -> None:
     """Restore and focus a Windows window."""
 
-    user32.ShowWindow(
+    _get_user32().ShowWindow(
         hwnd,
         SW_RESTORE,
     )
 
-    user32.SetForegroundWindow(
+    _get_user32().SetForegroundWindow(
         hwnd
     )
 
@@ -652,19 +664,19 @@ async def control_window(
             _focus_window(hwnd)
 
         elif cleaned_action == "minimize":
-            user32.ShowWindow(
+            _get_user32().ShowWindow(
                 hwnd,
                 SW_MINIMIZE,
             )
 
         elif cleaned_action == "maximize":
-            user32.ShowWindow(
+            _get_user32().ShowWindow(
                 hwnd,
                 SW_SHOWMAXIMIZED,
             )
 
         elif cleaned_action == "restore":
-            user32.ShowWindow(
+            _get_user32().ShowWindow(
                 hwnd,
                 SW_RESTORE,
             )

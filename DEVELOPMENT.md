@@ -1,5 +1,12 @@
 # DEVELOPMENT.md — NOVA (LiveKit)
 
+> **Project boundary — 2026-08-15**
+>
+> The legacy NOVA Dashboard has been detached from this repository/runtime.
+> NOVA is the agent/AI operating layer. NOVA Vision remains part of NOVA.
+> Dashboard/Valo is a separate project and may integrate later only through a
+> defined external interface. Older dashboard references below may be historical.
+
 _Last updated: 2026-07-21_
 
 ## What this is

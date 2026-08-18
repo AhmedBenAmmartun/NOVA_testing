@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>NOVA Vision</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <main class="shell" id="shell">
+    <header class="titlebar" data-tauri-drag-region>
+      <div class="brand" data-tauri-drag-region>
+        <span class="brand-mark" aria-hidden="true"></span>
+        <strong data-tauri-drag-region>NOVA Vision</strong>
+        <span class="presence-dot" aria-hidden="true"></span>
+        <span class="presence-label" id="agentState" data-tauri-drag-region>NOVA OFFLINE</span>
+      </div>
+
+      <div class="window-actions">
+        <button class="icon-button" id="settingsButton" title="Personality settings" aria-label="Personality settings">&#9881;</button>
+        <button class="icon-button" id="pinButton" title="Always on top" aria-label="Always on top">⌖</button>
+        <button class="icon-button" id="collapseButton" title="Compact mode" aria-label="Compact mode">⌄</button>
+        <button class="icon-button" id="minimizeButton" title="Minimize" aria-label="Minimize">—</button>
+        <button class="icon-button close" id="closeButton" title="Close and stop sharing" aria-label="Close">×</button>
+      </div>
+    </header>
+
+    <section class="status-strip">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="status-copy">
+        <div class="status-text" id="statusText">DISCONNECTED</div>
+        <div id="connectionDetail">Camera and microphone start OFF.</div>
+      </div>
+      <button class="chat-sound-button active" id="speakerButton" type="button" title="Toggle NOVA audio" aria-label="Toggle NOVA audio">
+        <span id="speakerLabel">Sound on</span>
+      </button>
+    </section>
+
+    <section class="preview-card" id="previewCard">
+      <video id="cameraPreview" autoplay muted playsinline></video>
+      <div class="caption-overlay" id="captionOverlay" aria-live="polite" aria-atomic="true">
+        <div class="caption-bubble">
+          <span class="caption-speaker" id="captionSpeaker">NOVA</span>
+          <span class="caption-text" id="captionText"></span>
+        </div>
+      </div>
+      <div class="preview-empty" id="previewEmpty"></div>
+      <div class="source-badge" id="sourceBadge">AI SEES: NOTHING</div>
+      <div class="privacy-corner">LIVE · NO RECORDING</div>
+    </section>
+
+    <section class="chat-panel" id="chatPanel" aria-label="NOVA text chat">
+      <div class="chat-messages" id="chatMessages" aria-live="polite" aria-relevant="additions text">
+        <div class="chat-empty" id="chatEmpty">Ask NOVA anything.</div>
+      </div>
+
+      <div class="chat-composer">
+        <textarea id="chatInput" rows="1" maxlength="4000" placeholder="Ask NOVA anything…" aria-label="Message NOVA"></textarea>
+
+        <button class="composer-action" id="micButton" type="button" title="Microphone" aria-label="Toggle microphone">
+          <span aria-hidden="true">⌁</span>
+          <span class="sr-only" id="micLabel">Off</span>
+        </button>
+
+        <button class="composer-action" id="cameraSourceButton" type="button" title="Camera" aria-label="Toggle camera">
+          <span aria-hidden="true">◉</span>
+          <span class="sr-only" id="cameraLabel">Off</span>
+        </button>
+
+        <button class="chat-send-button" id="sendChatButton" type="button" aria-label="Send message">➜</button>
+      </div>
+      <div class="chat-hint">Enter to send · Shift+Enter for a new line</div>
+
+      <div class="nova-session-bar" id="novaSessionBar">
+        <button class="nova-session-button" id="novaSessionButton" type="button">
+          <span class="session-led" aria-hidden="true"></span>
+          <span id="novaSessionButtonLabel">Start NOVA</span>
+        </button>
+        <div class="vision-truth" id="visionTruth" role="status" aria-live="polite">
+          <span class="vision-truth-dot" aria-hidden="true"></span>
+          <span>
+            <strong id="visionTruthLabel">Vision off</strong>
+            <small id="visionTruthDetail">Camera is not shared.</small>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="source-panel utility-hidden" id="sourcePanel" aria-hidden="true">
+      <span>Window</span><span>Display</span><span>Browser tab</span>
+    </section>
+
+    <section class="session-actions utility-hidden" id="sessionActions" aria-hidden="true">
+      <button id="connectButton">Start NOVA Session</button>
+      <button id="stopButton">Stop Session</button>
+    </section>
+
+    <footer class="footer" id="footer">
+      <span>NOVA can make mistakes. Check important info.</span>
+      <span class="privacy-lock">LOCAL CONTROL</span>
+    </footer>
+
+    <section class="personality-overlay" id="personalityOverlay" aria-label="NOVA personality settings" aria-hidden="true">
+      <div class="settings-head">
+        <button class="settings-back" id="settingsBackButton" type="button" aria-label="Close settings">←</button>
+        <div>
+          <strong>Personalize NOVA</strong>
+          <span>Changes apply to this widget and the live session.</span>
+        </div>
+        <button class="settings-reset" id="personalityResetButton" type="button">Reset</button>
+      </div>
+
+      <div class="settings-scroll">
+        <div class="setting-group">
+          <div class="setting-label">Personality mode</div>
+          <div class="mode-grid" id="personalityModes">
+            <button class="mode-card" data-mode="best_friend" type="button"><span class="mode-symbol">BF</span><strong>Best Friend</strong></button>
+            <button class="mode-card" data-mode="chill" type="button"><span class="mode-symbol">CH</span><strong>Chill</strong></button>
+            <button class="mode-card" data-mode="focus" type="button"><span class="mode-symbol">FO</span><strong>Focus</strong></button>
+            <button class="mode-card" data-mode="professional" type="button"><span class="mode-symbol">PR</span><strong>Professional</strong></button>
+            <button class="mode-card" data-mode="unfiltered" type="button"><span class="mode-symbol">UN</span><strong>Unfiltered</strong></button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">Profanity level</div>
+          <div class="segmented" id="profanityLevels">
+            <button data-profanity="off" type="button">None</button>
+            <button data-profanity="light" type="button">Minimal</button>
+            <button data-profanity="natural" type="button">Moderate</button>
+            <button data-profanity="unfiltered" type="button">Off the rails</button>
+          </div>
+        </div>
+
+        <div class="setting-group tone-group">
+          <label class="slider-row">
+            <span><strong>Humor</strong><small>How often NOVA jokes.</small></span>
+            <input id="humorSlider" type="range" min="0" max="100" step="1" />
+            <output id="humorValue">72%</output>
+          </label>
+
+          <label class="slider-row">
+            <span><strong>Sarcasm</strong><small>How much witty sarcasm NOVA uses.</small></span>
+            <input id="sarcasmSlider" type="range" min="0" max="100" step="1" />
+            <output id="sarcasmValue">38%</output>
+          </label>
+        </div>
+
+        <div class="toggle-stack">
+          <label class="toggle-row">
+            <span><strong>Teasing</strong><small>Light friendly banter.</small></span>
+            <input id="teasingToggle" type="checkbox" />
+            <i></i>
+          </label>
+
+          <label class="toggle-row">
+            <span><strong>Emoji use</strong><small>Use emoji when it matches the moment.</small></span>
+            <input id="emojiToggle" type="checkbox" />
+            <i></i>
+          </label>
+
+          <label class="toggle-row">
+            <span><strong>Tone down in serious situations</strong><small>Automatically become more restrained when context calls for it.</small></span>
+            <input id="seriousToggle" type="checkbox" />
+            <i></i>
+          </label>
+        </div>
+
+        <div class="settings-safety">
+          Personality changes style only. Safety, permissions, privacy, and approval rules stay unchanged.
+        </div>
+      </div>
+
+      <div class="settings-foot">
+        <span id="personalitySaveState">Ready for this NOVA session</span>
+        <button id="personalityDoneButton" type="button">Done</button>
+      </div>
+    </section>
+
+    <div id="remoteAudio" aria-hidden="true"></div>
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

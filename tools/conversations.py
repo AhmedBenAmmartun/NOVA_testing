@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import os
 from pathlib import Path
 import re
 
@@ -24,6 +25,13 @@ MAX_SEARCH_FILES = 200
 MAX_SEARCH_RESULTS = 10
 MAX_TITLE_CHARS = 72
 MAX_TURN_CHARS = 6_000
+
+
+def _env_flag(name: str, *, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 @dataclass(slots=True)
@@ -116,9 +124,31 @@ def _find_named_log(conversation_file: str) -> Path | None:
 
 
 class SessionConversationRecorder:
-    """Persist one voice session as a local Markdown conversation log."""
+    """Optionally persist one voice session as a local Markdown log.
 
-    def __init__(self) -> None:
+    Privacy defaults:
+    - NOVA_SAVE_TRANSCRIPTS=false
+    - NOVA_MIRROR_TRANSCRIPTS_TO_OBSIDIAN=false
+
+    The recorder attaches no event listeners and writes nothing when disabled.
+    """
+
+    def __init__(
+        self,
+        *,
+        enabled: bool | None = None,
+        mirror_to_obsidian: bool | None = None,
+    ) -> None:
+        self.enabled = (
+            _env_flag("NOVA_SAVE_TRANSCRIPTS", default=False)
+            if enabled is None
+            else bool(enabled)
+        )
+        self.mirror_to_obsidian = (
+            _env_flag("NOVA_MIRROR_TRANSCRIPTS_TO_OBSIDIAN", default=False)
+            if mirror_to_obsidian is None
+            else bool(mirror_to_obsidian)
+        )
         self.started_at = datetime.now()
         self.ended_at: datetime | None = None
         self.title: str | None = None
@@ -127,7 +157,10 @@ class SessionConversationRecorder:
         self.turns: list[ConversationTurn] = []
 
     def attach(self, session) -> None:
-        """Attach this recorder to a LiveKit AgentSession."""
+        """Attach to a LiveKit AgentSession only when transcript saving is enabled."""
+        if not self.enabled:
+            logger.info("conversation transcript storage disabled")
+            return
 
         @session.on("conversation_item_added")
         def _record_conversation_item(event) -> None:
@@ -138,6 +171,9 @@ class SessionConversationRecorder:
             self.finish()
 
     def record_item(self, item: object) -> None:
+        if not self.enabled:
+            return
+
         role = getattr(item, "role", "")
         if role not in {"user", "assistant"}:
             return
@@ -160,11 +196,17 @@ class SessionConversationRecorder:
             self.write()
 
     def finish(self) -> None:
+        if not self.enabled:
+            return
+
         self.ended_at = datetime.now()
         if self._has_user_turn():
             self.write()
 
     def write(self) -> Path | None:
+        if not self.enabled:
+            return None
+
         try:
             rendered = self._render()
             path = self._ensure_file_path()
@@ -207,6 +249,9 @@ class SessionConversationRecorder:
         return self.vault_file_path
 
     def _write_vault_copy(self, rendered: str) -> None:
+        if not self.mirror_to_obsidian:
+            return
+
         try:
             path = self._ensure_vault_file_path()
             path.parent.mkdir(parents=True, exist_ok=True)

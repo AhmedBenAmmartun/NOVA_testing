@@ -396,3 +396,260 @@ async def read_memory_note(
         return (
             "NOVA could not read that memory note."
         )
+# ---------------------------------------------------------------------------
+# NOVA Vault Second Brain
+# ---------------------------------------------------------------------------
+
+SAFE_VAULT_TEXT_EXTENSIONS = {
+    ".md",
+    ".txt",
+    ".json",
+    ".csv",
+    ".yaml",
+    ".yml",
+}
+SECOND_BRAIN_WRITABLE_FOLDERS = {
+    "profile",
+    "projects",
+    "decisions",
+    "knowledge",
+    "conversations",
+    "daily",
+    "inbox",
+    "pending review",
+    "skills",
+    "nova",
+}
+SECOND_BRAIN_READ_ONLY_FOLDERS = {
+    "archive",
+    "scripts",
+}
+MAX_VAULT_FILE_READ_CHARS = 50_000
+MAX_VAULT_FILE_WRITE_CHARS = 100_000
+
+
+def _normalize_vault_relative_path(relative_path: str) -> str:
+    cleaned = str(relative_path or "").strip().replace("\\", "/").strip("/")
+    if not cleaned:
+        raise ValueError("Give me a file path inside the NOVA Vault.")
+
+    candidate = Path(cleaned)
+    if candidate.is_absolute():
+        raise PermissionError("Use a path relative to the NOVA Vault.")
+
+    for part in candidate.parts:
+        lowered = part.casefold()
+        if part in {".", ".."}:
+            raise PermissionError("Parent-directory paths are not allowed in the NOVA Vault.")
+        if lowered == ".obsidian" or lowered.startswith(".env") or lowered == ".git":
+            raise PermissionError("That protected vault path is not available to NOVA.")
+
+    return cleaned
+
+
+def _resolve_vault_text_file(relative_path: str, *, for_write: bool) -> Path:
+    vault = get_obsidian_vault_path()
+    cleaned = _normalize_vault_relative_path(relative_path)
+
+    resolved = (vault / cleaned).resolve()
+    try:
+        relative = resolved.relative_to(vault)
+    except ValueError as error:
+        raise PermissionError("That file is outside the NOVA Vault.") from error
+
+    if any(
+        part.casefold() == ".obsidian"
+        or part.casefold() == ".git"
+        or part.casefold().startswith(".env")
+        for part in relative.parts
+    ):
+        raise PermissionError("That protected vault path is not available to NOVA.")
+
+    if not relative.parts:
+        raise PermissionError("Choose a file inside the NOVA Vault.")
+
+    if for_write:
+        top_folder = relative.parts[0].casefold()
+        if top_folder in SECOND_BRAIN_READ_ONLY_FOLDERS:
+            raise PermissionError(
+                f"{relative.parts[0]} is read-only for NOVA's second-brain tools."
+            )
+        if top_folder not in SECOND_BRAIN_WRITABLE_FOLDERS:
+            allowed = ", ".join(sorted(SECOND_BRAIN_WRITABLE_FOLDERS))
+            raise PermissionError(
+                f"NOVA may write only to approved second-brain folders: {allowed}"
+            )
+
+    suffix = resolved.suffix.casefold()
+    if suffix not in SAFE_VAULT_TEXT_EXTENSIONS:
+        allowed = ", ".join(sorted(SAFE_VAULT_TEXT_EXTENSIONS))
+        raise ValueError(f"That file type is not enabled for the second brain. Allowed: {allowed}")
+
+    return resolved
+
+
+def list_second_brain_files(folder: str = "", limit: int = 100) -> list[str]:
+    vault = get_obsidian_vault_path()
+    cleaned_folder = str(folder or "").strip().replace("\\", "/").strip("/")
+
+    base = vault if not cleaned_folder else (vault / cleaned_folder).resolve()
+    try:
+        base.relative_to(vault)
+    except ValueError as error:
+        raise PermissionError("That folder is outside the NOVA Vault.") from error
+
+    if ".obsidian" in {part.casefold() for part in base.relative_to(vault).parts}:
+        raise PermissionError("NOVA cannot access Obsidian configuration files.")
+
+    if not base.exists():
+        return []
+
+    safe_limit = max(1, min(int(limit), 250))
+    results: list[str] = []
+
+    for path in sorted(base.rglob("*"), key=lambda p: p.as_posix().casefold()):
+        if not path.is_file():
+            continue
+
+        rel = path.relative_to(vault)
+        lowered_parts = [part.casefold() for part in rel.parts]
+        if ".obsidian" in lowered_parts or ".git" in lowered_parts:
+            continue
+        if any(part.startswith(".env") for part in lowered_parts):
+            continue
+        if path.suffix.casefold() not in SAFE_VAULT_TEXT_EXTENSIONS:
+            continue
+
+        results.append(rel.as_posix())
+        if len(results) >= safe_limit:
+            break
+
+    return results
+
+
+def read_second_brain_file(relative_path: str) -> str:
+    path = _resolve_vault_text_file(relative_path, for_write=False)
+    if not path.is_file():
+        raise FileNotFoundError(f"NOVA Vault file not found: {relative_path}")
+
+    content = path.read_text(encoding="utf-8", errors="replace")
+    if len(content) > MAX_VAULT_FILE_READ_CHARS:
+        return (
+            content[:MAX_VAULT_FILE_READ_CHARS].rstrip()
+            + f"\n\n[File shortened: showing {MAX_VAULT_FILE_READ_CHARS:,} "
+            + f"of {len(content):,} characters.]"
+        )
+    return content
+
+
+def write_second_brain_file(
+    relative_path: str,
+    content: str,
+    *,
+    overwrite: bool = False,
+) -> Path:
+    content = str(content or "")
+    if not content.strip():
+        raise ValueError("Give me content to save.")
+
+    if _looks_like_secret(f"{relative_path}\n{content}"):
+        raise ValueError(
+            "I will not save passwords, API keys, tokens, .env content, or secrets to the second brain."
+        )
+
+    if len(content) > MAX_VAULT_FILE_WRITE_CHARS:
+        raise ValueError(
+            f"That file is too large for this tool. Maximum: {MAX_VAULT_FILE_WRITE_CHARS:,} characters."
+        )
+
+    path = _resolve_vault_text_file(relative_path, for_write=True)
+    if path.exists() and not overwrite:
+        relative = path.relative_to(get_obsidian_vault_path()).as_posix()
+        raise FileExistsError(
+            f"{relative} already exists. Ask explicitly to overwrite it if replacement is intended."
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    logger.info("write_second_brain_file: %s", path)
+    return path
+
+
+@function_tool()
+async def second_brain_status(context: RunContext) -> str:
+    """Check NOVA's configured persistent NOVA Vault second brain."""
+    try:
+        vault = get_obsidian_vault_path()
+        markdown_count = 0
+        for path in vault.rglob("*.md"):
+            try:
+                rel = path.relative_to(vault)
+            except ValueError:
+                continue
+            if ".obsidian" in {part.casefold() for part in rel.parts}:
+                continue
+            markdown_count += 1
+
+        return (
+            "NOVA second brain is available.\n"
+            f"Vault: {vault}\n"
+            f"Markdown notes indexed by local search: {markdown_count}\n"
+            "Writable folders: Profile, Projects, Decisions, Knowledge, Conversations, "
+            "Daily, Inbox, Pending Review, Skills, NOVA.\n"
+            "Read-only folders: Archive, Scripts.\n"
+            "Protected: .obsidian, .env, .git, secrets, and paths outside the vault."
+        )
+    except Exception as error:
+        logger.warning("second_brain_status failed: %s", error)
+        return f"NOVA second brain is not available: {error}"
+
+
+@function_tool()
+async def list_vault_files(
+    context: RunContext,
+    folder: str = "",
+    limit: int = 100,
+) -> str:
+    """List safe text files in NOVA's second-brain vault."""
+    try:
+        files = list_second_brain_files(folder, limit)
+        if not files:
+            return "No matching second-brain files were found."
+        return "Second-brain files:\n" + "\n".join(f"- {path}" for path in files)
+    except Exception as error:
+        logger.warning("list_vault_files failed folder=%r: %s", folder, error)
+        return str(error)
+
+
+@function_tool()
+async def read_vault_file(
+    context: RunContext,
+    relative_path: str,
+) -> str:
+    """Read a safe text file from the NOVA Vault."""
+    try:
+        return read_second_brain_file(relative_path)
+    except Exception as error:
+        logger.warning("read_vault_file failed path=%r: %s", relative_path, error)
+        return str(error)
+
+
+@function_tool()
+async def save_vault_file(
+    context: RunContext,
+    relative_path: str,
+    content: str,
+    overwrite: bool = False,
+) -> str:
+    """Save a safe text/data file into an approved existing second-brain folder."""
+    try:
+        path = write_second_brain_file(
+            relative_path,
+            content,
+            overwrite=bool(overwrite),
+        )
+        rel = path.relative_to(get_obsidian_vault_path()).as_posix()
+        return f"Saved second-brain file: {rel}"
+    except Exception as error:
+        logger.warning("save_vault_file refused path=%r: %s", relative_path, error)
+        return str(error)

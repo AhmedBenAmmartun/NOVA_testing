@@ -373,7 +373,7 @@ class PermissionEngine:
         self,
         session_id: str = "voice",
     ) -> None:
-        """Remove temporary approvals when a session ends."""
+        """Remove temporary approvals and pending actions for one session."""
 
         with self._lock:
             self._session_grants = {
@@ -381,6 +381,13 @@ class PermissionEngine:
                 for grant in self._session_grants
                 if grant[0] != session_id
             }
+            pending_ids = [
+                action_id
+                for action_id, pending in self._pending.items()
+                if pending.session_id == session_id
+            ]
+            for action_id in pending_ids:
+                self._pending.pop(action_id, None)
 
     def _create_confirmation(
         self,

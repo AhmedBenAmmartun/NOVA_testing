@@ -1,0 +1,21 @@
+{
+  "name": "nova-vision-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1428 --strictPort",
+    "build:web": "vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "livekit-client": "2.21.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "vite": "^7.1.0"
+  }
+}

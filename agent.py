@@ -1,73 +1,22 @@
 import asyncio
+import json
 import secrets
+import time
 
 from dotenv import load_dotenv
 from google.genai import types
 
+from livekit import rtc
 from livekit import agents
 from livekit.agents import AgentServer, AgentSession, Agent, TurnHandlingOptions, room_io
 from livekit.plugins import ai_coustics, google
 
 from prompts import SYSTEM_PROMPT
-from nova_agent_bridge import AgentStatusReporter, dashboard_bridge_loop, stop_dashboard_bridge
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
-from tools import (
-    ask_specialist,
-    list_connected_accounts,
-    sync_email_calendar,
-    get_unread_emails,
-    read_email,
-    get_calendar_agenda,
-    get_next_event,
-    find_calendar_conflicts,
-    get_daily_briefing,
-    check_guardian_security,
-    get_guardian_alerts,
-    get_guardian_status,
-    look_at_screen_locally,
-    start_guardian_vision,
-    stop_guardian_vision,
-    list_pending_actions,
-    approve_action,
-    deny_action,
-    set_nova_safe_mode,
-    search_memory,
-    read_memory_note,
-    save_memory_note,
-    search_conversation_history,
-    read_conversation_history,
-    restart_app,
-    close_app,
-    control_window,
-    manage_virtual_desktop,
-    get_weather,
-    search_web,
-    open_notifications,
-    open_quick_settings,
-    open_website,
-    open_app,
-    is_app_running,
-    play_youtube_song,
-    control_music,
-    change_volume,
-    get_current_song,
-    play_spotify_song,
-    get_system_info,
-    get_time,
-    save_note,
-    read_notes,
-    find_user_file,
-    list_files,
-    open_file_or_folder,
-    create_desktop_file,
-    create_desktop_folder,
-    read_course_material,
-    read_file,
-    create_file,
-    capture_screen,
-    analyze_screen_with_gpt56,
-)
+from tools.specialist import ask_specialist
+from nova_policy import permission_engine
+from nova_os import build_default_capability_manager, build_default_skill_registry
 
 load_dotenv(".env.local")
 load_dotenv(".env")
@@ -78,10 +27,10 @@ CONVERSATION_MODE_TURN_HANDLING: TurnHandlingOptions = {
     "interruption": {
         "enabled": True,
         "discard_audio_if_uninterruptible": True,
-        "min_duration": 0.35,
+        "min_duration": 0.20,
         "min_words": 0,
         "resume_false_interruption": True,
-        "false_interruption_timeout": 1.25,
+        "false_interruption_timeout": 0.80,
         "backchannel_boundary": (0.6, 0.6),
     },
     "preemptive_generation": {
@@ -94,12 +43,11 @@ CONVERSATION_MODE_TURN_HANDLING: TurnHandlingOptions = {
 
 # Keep a short echo guard, but do not make Ahmed wait 3 seconds before he can
 # reliably barge in while NOVA is speaking.
-CONVERSATION_MODE_AEC_WARMUP_SECONDS = 0.8
+CONVERSATION_MODE_AEC_WARMUP_SECONDS = 0.40
 
 
 def _install_conversation_mode_logging(
     session: AgentSession,
-    status: AgentStatusReporter,
 ) -> None:
     """Record voice state transitions without storing private transcript text."""
 
@@ -110,16 +58,6 @@ def _install_conversation_mode_logging(
             event.old_state,
             event.new_state,
         )
-        new_state = str(event.new_state).split(".")[-1].lower()
-        phase = {
-            "initializing": "starting",
-            "idle": "idle",
-            "listening": "listening",
-            "thinking": "thinking",
-            "speaking": "speaking",
-        }.get(new_state)
-        if phase:
-            status.set_phase(phase)
 
     @session.on("user_state_changed")
     def _log_user_state(event) -> None:
@@ -128,15 +66,37 @@ def _install_conversation_mode_logging(
             event.old_state,
             event.new_state,
         )
-        new_state = str(event.new_state).split(".")[-1].lower()
-        if new_state == "speaking":
-            status.set_phase("listening")
+
+    @session.on("conversation_item_added")
+    def _log_turn_latency(event) -> None:
+        """Log per-turn response latency without storing transcript content."""
+        item = getattr(event, "item", None)
+        if item is None or getattr(item, "role", None) != "assistant":
+            return
+
+        metrics = getattr(item, "metrics", None)
+        if not metrics:
+            return
+
+        if hasattr(metrics, "get"):
+            latency = metrics.get("e2e_latency")
+        else:
+            latency = getattr(metrics, "e2e_latency", None)
+
+        if latency is None:
+            return
+
+        try:
+            latency_ms = round(float(latency) * 1000)
+        except (TypeError, ValueError):
+            return
+
+        nova_logger.info("conversation e2e_latency_ms=%d", latency_ms)
 
     @session.on("function_tools_executed")
     def _log_tools_executed(event) -> None:
         tool_count = len(getattr(event, "function_calls", ()) or ())
         nova_logger.info("conversation function_tools_executed count=%s", tool_count)
-        status.set_phase("thinking", detail=f"Completed {tool_count} tool call(s)")
 
     @session.on("error")
     def _log_session_error(event) -> None:
@@ -149,7 +109,7 @@ def _install_conversation_mode_logging(
             type(error).__name__,
         )
         if not recoverable:
-            status.set_phase("error", detail=f"Session error: {type(error).__name__}")
+            nova_logger.error("conversation unrecoverable_session_error=%s", type(error).__name__)
 
     @session.on("speech_created")
     def _log_speech_created(event) -> None:
@@ -189,66 +149,295 @@ def _install_conversation_mode_logging(
             )
 
 
-class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions=SYSTEM_PROMPT,
-            tools=[
-                check_guardian_security,
-                list_connected_accounts,
-                sync_email_calendar,
-                get_unread_emails,
-                read_email,
-                get_calendar_agenda,
-                get_next_event,
-                find_calendar_conflicts,
-                get_daily_briefing,
-                get_guardian_alerts,
-                get_guardian_status,
-                look_at_screen_locally,
-                start_guardian_vision,
-                stop_guardian_vision,
-                search_memory,
-                read_memory_note,
-                save_memory_note,
-                search_conversation_history,
-                read_conversation_history,
-                close_app,
-                restart_app,
-                control_window,
-                manage_virtual_desktop,
-                get_weather,
-                search_web,
-                open_notifications,
-                open_quick_settings,
-                open_website,
-                open_app,
-                is_app_running,
-                play_youtube_song,
-                control_music,
-                change_volume,
-                get_current_song,
-                play_spotify_song,
-                get_system_info,
-                get_time,
-                save_note,
-                read_notes,
-                find_user_file,
-                list_files,
-                open_file_or_folder,
-                create_desktop_file,
-                create_desktop_folder,
-                read_course_material,
-                read_file,
-                create_file,
-                capture_screen,
-                analyze_screen_with_gpt56,
-                list_pending_actions,
-                approve_action,
-                deny_action,
-                set_nova_safe_mode,
-            ],
+# === NOVA LIVE PERSONALITY V3 BEGIN ===
+
+_PERSONALITY_DEFAULTS = {
+    "mode": "best_friend",
+    "profanity": "natural",
+    "humor": 72,
+    "sarcasm": 38,
+    "teasing": True,
+    "emoji": True,
+    "serious_tone_down": True,
+}
+
+_PERSONALITY_MODES = {
+    "best_friend": (
+        "Talk like a highly capable close friend: relaxed, warm, funny when it fits, "
+        "comfortable with light teasing, and willing to disagree honestly."
+    ),
+    "chill": (
+        "Be calm, laid-back, friendly, and low-pressure. Keep jokes and sarcasm lighter."
+    ),
+    "focus": (
+        "Be direct, concise, task-oriented, and friendly. Minimize jokes and side comments."
+    ),
+    "professional": (
+        "Be polished, neutral, precise, and professional. Avoid slang unless the user asks for it."
+    ),
+    "unfiltered": (
+        "Be candid, energetic, playful, and blunt when useful. Keep judgment and accuracy intact."
+    ),
+}
+
+_PROFANITY_LEVELS = {
+    "off": "Do not use profanity.",
+    "light": "Occasional mild profanity is allowed when it fits naturally.",
+    "natural": (
+        "Natural conversational profanity is allowed when it genuinely fits. "
+        "Do not force it or put it in every response."
+    ),
+    "unfiltered": (
+        "Stronger casual profanity is allowed more freely when appropriate, "
+        "but never hateful slurs, threats, abusive harassment, or unsafe language."
+    ),
+}
+
+
+def _normalize_personality(raw: object) -> dict:
+    settings = dict(_PERSONALITY_DEFAULTS)
+    if not isinstance(raw, dict):
+        return settings
+
+    mode = str(raw.get("mode", settings["mode"])).strip().lower()
+    if mode in _PERSONALITY_MODES:
+        settings["mode"] = mode
+
+    profanity = str(raw.get("profanity", settings["profanity"])).strip().lower()
+    if profanity in _PROFANITY_LEVELS:
+        settings["profanity"] = profanity
+
+    for key in ("humor", "sarcasm"):
+        try:
+            settings[key] = max(0, min(100, int(raw.get(key, settings[key]))))
+        except (TypeError, ValueError):
+            pass
+
+    for key in ("teasing", "emoji", "serious_tone_down"):
+        value = raw.get(key, settings[key])
+        if isinstance(value, bool):
+            settings[key] = value
+
+    return settings
+
+
+def _build_personality_instructions(raw: object = None) -> str:
+    p = _normalize_personality(raw)
+    humor_hint = (
+        "Use humor often when appropriate."
+        if p["humor"] >= 65
+        else "Use humor sometimes when appropriate."
+        if p["humor"] >= 30
+        else "Use very little humor."
+    )
+    sarcasm_hint = (
+        "Sarcasm can be fairly noticeable but still friendly."
+        if p["sarcasm"] >= 65
+        else "Use occasional light sarcasm."
+        if p["sarcasm"] >= 30
+        else "Avoid most sarcasm."
+    )
+
+    return (
+        SYSTEM_PROMPT
+        + "\n\n==================================================\n"
+        + "LIVE PERSONALITY PROFILE\n"
+        + "==================================================\n\n"
+        + "This profile changes conversational style only. It NEVER overrides safety, privacy, permissions, tool rules, trusted approval requirements, or factual accuracy.\n\n"
+        + f"Mode: {p['mode']}\n"
+        + f"{_PERSONALITY_MODES[p['mode']]}\n\n"
+        + f"Profanity: {p['profanity']}\n"
+        + f"{_PROFANITY_LEVELS[p['profanity']]}\n\n"
+        + f"Humor level: {p['humor']}/100. {humor_hint}\n"
+        + f"Sarcasm level: {p['sarcasm']}/100. {sarcasm_hint}\n"
+        + (
+            "Light friendly teasing and banter are allowed.\n"
+            if p["teasing"]
+            else "Do not tease the user.\n"
         )
+        + (
+            "Occasional emoji are okay when natural.\n"
+            if p["emoji"]
+            else "Do not use emoji.\n"
+        )
+        + (
+            "Automatically reduce jokes, sarcasm, teasing, emoji, and profanity "
+            "during serious, sensitive, emergency, security, medical, legal, financial, "
+            "or destructive/high-risk situations.\n"
+            if p["serious_tone_down"]
+            else ""
+        )
+        + "\n\nLIVE VISION BEHAVIOR\n"
+        + "When live camera/video frames are available in the session, use them directly. "
+          "Do not claim you are limited to voice and text if visual context is present. "
+          "If no usable visual frame is available, say that clearly instead of guessing.\n"
+        + "\nMaintain a friend-like conversational vibe without pretending to be human. "
+          "Do not invent human memories, physical experiences, or a human life.\n"
+    )
+
+
+def _install_personality_stream(
+    ctx: agents.JobContext,
+    assistant: "Assistant",
+) -> set:
+    active_tasks: set = set()
+
+    async def _apply(reader, participant_identity: str) -> None:
+        try:
+            raw_text = await reader.read_all()
+            payload = json.loads(raw_text)
+            settings = _normalize_personality(payload)
+            await assistant.update_instructions(
+                _build_personality_instructions(settings)
+            )
+            nova_logger.info(
+                "personality updated mode=%s profanity=%s humor=%s sarcasm=%s",
+                settings["mode"],
+                settings["profanity"],
+                settings["humor"],
+                settings["sarcasm"],
+            )
+        except Exception as error:
+            nova_logger.warning(
+                "personality update rejected participant=%s error=%s",
+                participant_identity,
+                type(error).__name__,
+            )
+
+    def _handler(reader, participant_identity: str) -> None:
+        task = asyncio.create_task(_apply(reader, participant_identity))
+        active_tasks.add(task)
+        task.add_done_callback(active_tasks.discard)
+
+    ctx.room.register_text_stream_handler("nova.personality", _handler)
+    return active_tasks
+
+# === NOVA LIVE PERSONALITY V3 END ===
+
+# === NOVA VISION TRANSPORT V3.2 BEGIN ===
+
+async def _send_vision_status(
+    ctx: agents.JobContext,
+    state: str,
+    *,
+    detail: str = "",
+    source: str = "camera",
+) -> None:
+    payload = {
+        "state": state,
+        "detail": detail[:180],
+        "source": source,
+    }
+    try:
+        await ctx.room.local_participant.send_text(
+            json.dumps(payload),
+            topic="nova.vision-status",
+        )
+    except Exception as error:
+        nova_logger.debug(
+            "vision status send skipped state=%s error=%s",
+            state,
+            type(error).__name__,
+        )
+
+
+def _install_vision_transport_monitor(ctx: agents.JobContext) -> set:
+    active_tasks: set = set()
+
+    def spawn(coro) -> None:
+        task = asyncio.create_task(coro)
+        active_tasks.add(task)
+        task.add_done_callback(active_tasks.discard)
+
+    @ctx.room.on("participant_connected")
+    def _participant_connected(participant) -> None:
+        nova_logger.info(
+            "vision participant connected identity=%s",
+            getattr(participant, "identity", "unknown"),
+        )
+
+    @ctx.room.on("track_published")
+    def _track_published(publication, participant) -> None:
+        kind = getattr(publication, "kind", None)
+        source = getattr(publication, "source", None)
+        nova_logger.info(
+            "vision track published participant=%s kind=%s source=%s sid=%s",
+            getattr(participant, "identity", "unknown"),
+            kind,
+            source,
+            getattr(publication, "sid", "unknown"),
+        )
+        if kind == rtc.TrackKind.KIND_VIDEO:
+            spawn(_send_vision_status(
+                ctx,
+                "CAMERA_PUBLISHED",
+                detail="Video track published in the LiveKit room.",
+                source=str(source),
+            ))
+
+    @ctx.room.on("track_subscribed")
+    def _track_subscribed(track, publication, participant) -> None:
+        nova_logger.info(
+            "vision track subscribed participant=%s kind=%s source=%s sid=%s",
+            getattr(participant, "identity", "unknown"),
+            getattr(track, "kind", None),
+            getattr(publication, "source", None),
+            getattr(publication, "sid", "unknown"),
+        )
+        if getattr(track, "kind", None) == rtc.TrackKind.KIND_VIDEO:
+            spawn(_send_vision_status(
+                ctx,
+                "AGENT_RECEIVING_VIDEO",
+                detail="Agent subscribed to the remote video track.",
+                source=str(getattr(publication, "source", "camera")),
+            ))
+
+    @ctx.room.on("track_unsubscribed")
+    def _track_unsubscribed(track, publication, participant) -> None:
+        if getattr(track, "kind", None) == rtc.TrackKind.KIND_VIDEO:
+            nova_logger.info(
+                "vision track unsubscribed participant=%s source=%s",
+                getattr(participant, "identity", "unknown"),
+                getattr(publication, "source", None),
+            )
+            spawn(_send_vision_status(
+                ctx,
+                "VIDEO_NOT_RECEIVING",
+                detail="Agent is no longer subscribed to the video track.",
+            ))
+
+    @ctx.room.on("track_subscription_failed")
+    def _track_subscription_failed(participant, track_sid, error) -> None:
+        nova_logger.warning(
+            "vision track subscription failed participant=%s sid=%s error=%s",
+            getattr(participant, "identity", "unknown"),
+            track_sid,
+            error,
+        )
+        spawn(_send_vision_status(
+            ctx,
+            "VIDEO_SUBSCRIPTION_FAILED",
+            detail=str(error),
+        ))
+
+    return active_tasks
+
+# === NOVA VISION TRANSPORT V3.2 END ===
+
+
+
+class Assistant(Agent):
+    """NOVA realtime agent backed by the NOVA OS capability kernel."""
+
+    def __init__(self) -> None:
+        manager = build_default_capability_manager(specialist_tool=ask_specialist)
+        skills = build_default_skill_registry()
+        super().__init__(
+            instructions=_build_personality_instructions(),
+            tools=manager.build_tool_context(),
+        )
+        self.capability_manager = manager
+        self.skill_registry = skills
 
 
 server = AgentServer()
@@ -264,12 +453,16 @@ async def my_agent(ctx: agents.JobContext):
             voice="Puck",
             temperature=0.5,
 
+            input_audio_transcription=types.AudioTranscriptionConfig(),
+            output_audio_transcription=types.AudioTranscriptionConfig(),
+
             thinking_config=types.ThinkingConfig(
                 thinking_budget=0,
                 include_thoughts=False,
             ),
 
             realtime_input_config=types.RealtimeInputConfig(
+                turn_coverage=types.TurnCoverage.TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO,
                 activity_handling=types.ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     disabled=False,
@@ -281,34 +474,50 @@ async def my_agent(ctx: agents.JobContext):
                     # waits for an actual pause before responding.
                     start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                     end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                    prefix_padding_ms=200,
-                    silence_duration_ms=650,
+                    prefix_padding_ms=120,
+                    silence_duration_ms=400,
                 ), # <--- Closes AutomaticActivityDetection
             ), # <--- Closes RealtimeInputConfig
         ), # <--- Closes RealtimeModel
     ) # <--- Closes AgentSession
 
+    # Historical variable name retained only for the existing Phase 0/1
+    # security contract. This is now just a per-session permission ID;
+    # the legacy Dashboard bridge itself is removed.
     bridge_session_id = f"job_{secrets.token_hex(8)}"
-    bridge_status = AgentStatusReporter(session_id=bridge_session_id)
-    _install_conversation_mode_logging(session, bridge_status)
+    _install_conversation_mode_logging(session)
     SessionConversationRecorder().attach(session)
 
-    bridge_task = asyncio.create_task(
-        dashboard_bridge_loop(
-            session,
-            bridge_session_id,
-            status=bridge_status,
-        ),
-        name="nova_dashboard_bridge",
+    ctx.add_shutdown_callback(
+        lambda: permission_engine.clear_session(bridge_session_id)
     )
-    ctx.add_shutdown_callback(lambda: stop_dashboard_bridge(bridge_task))
+    # Legacy desktop tools still use the compatibility "voice" bucket.
+    # Clear it once when this LiveKit job ends so temporary grants cannot
+    # survive into a later session.
+    ctx.add_shutdown_callback(
+        lambda: permission_engine.clear_session("voice")
+    )
+
+    assistant = Assistant()
+    _personality_tasks = _install_personality_stream(ctx, assistant)
+
+    _vision_transport_tasks = _install_vision_transport_monitor(ctx)
+    await _send_vision_status(
+        ctx,
+        "WAITING_FOR_CAMERA",
+        detail="Agent vision transport monitor is ready.",
+    )
 
     try:
         await session.start(
             room=ctx.room,
-            agent=Assistant(),
+            agent=assistant,
             room_options=room_io.RoomOptions(
-                video_input=False,
+                text_input=True,
+                text_output=room_io.TextOutputOptions(
+                    sync_transcription=False,
+                ),
+                video_input=True,
                 audio_input=room_io.AudioInputOptions(
                     noise_cancellation=ai_coustics.audio_enhancement(
                         model=ai_coustics.EnhancerModel.QUAIL_VF_S
@@ -317,15 +526,16 @@ async def my_agent(ctx: agents.JobContext):
             ),
         )
     except Exception as error:
-        bridge_status.set_phase(
-            "error",
-            detail=f"Agent startup failed: {type(error).__name__}",
-        )
-        await bridge_status.publish_now()
+        nova_logger.exception("agent startup failed: %s", type(error).__name__)
         raise
 
-    bridge_status.set_phase("idle")
-    await bridge_status.publish_now()
+    await ctx.connect()
+    nova_logger.info("vision transport: job context connected")
+    await _send_vision_status(
+        ctx,
+        "AGENT_CONNECTED",
+        detail="NOVA agent joined the LiveKit room with video input enabled.",
+    )
 
     await session.generate_reply(
         instructions="Greet Ahmed briefly and naturally. Tell him NOVA is ready.",
@@ -335,3 +545,5 @@ async def my_agent(ctx: agents.JobContext):
 
 if __name__ == "__main__":
     agents.cli.run_app(server)
+
+# === NOVA VISION TYPED CAMERA V3.4 ===

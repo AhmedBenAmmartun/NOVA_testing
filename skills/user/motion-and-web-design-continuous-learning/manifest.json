@@ -1,0 +1,21 @@
+{
+  "id": "motion-and-web-design-continuous-learning",
+  "name": "Motion and Web Design Continuous Learning",
+  "description": "A comprehensive skill for continuous learning, research, and knowledge management in Motion and Web Design, integrating inspiration from sites like Dribbble and saving durable knowledge to the NOVA Vault.",
+  "version": 1,
+  "enabled": true,
+  "risk": "mixed",
+  "required_capabilities": [
+    "second_brain",
+    "web"
+  ],
+  "permissions": [],
+  "tags": [
+    "design",
+    "learning",
+    "motion",
+    "skill",
+    "vault",
+    "web"
+  ]
+}

@@ -74,7 +74,6 @@ dist/
 node_modules/
 .pnpm-store/
 *.egg-info/
-Dashboard/nova-app/src-tauri/target/
 *.zip
 nova-file-inventory.txt
 
@@ -83,9 +82,6 @@ logs/
 *.log
 nova_status.json
 
-# Dashboard runtime artifacts
-Dashboard/runtime/
-Dashboard/__pycache__/
 
 # NOVA temporary integration backups
 .nova-patch-backup/
@@ -94,12 +90,6 @@ Dashboard/__pycache__/
 # Local development assistant configuration
 .agents/launch.json
 
-# Dashboard dependencies and generated builds
-Dashboard/node_modules/
-Dashboard/dist/
-Dashboard/build/
-Dashboard/.next/
-Dashboard/.vite/
 
 # Local testing and runtime output
 coverage/
@@ -114,3 +104,6 @@ git-*-diff-stat.txt
 *-review.patch
 NOVA-Safe-Source-*.manifest.txt
 docs/audit/**/_git_*_raw.txt
+
+# Dashboard/Valo is a separate project; do not recreate it inside NOVA.
+Dashboard/
