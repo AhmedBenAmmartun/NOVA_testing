@@ -141,12 +141,59 @@ def _install_conversation_mode_logging(
 
     @session.on("user_input_transcribed")
     def _log_user_input(event) -> None:
-        if event.is_final:
+        if not event.is_final:
+            return
+
+        transcript = (event.transcript or "").strip()
+
+        nova_logger.info(
+            "conversation user_transcript final length=%s speaker_id=%s",
+            len(transcript),
+            event.speaker_id,
+        )
+
+        normalized = transcript.lower().strip()
+
+        obvious_noise = {
+            "",
+            ".",
+            "..",
+            "...",
+            "<noise>",
+            "[noise]",
+            "<silence>",
+            "[silence]",
+        }
+
+        if normalized in obvious_noise:
             nova_logger.info(
-                "conversation user_transcript final length=%s speaker_id=%s",
-                len(event.transcript or ""),
-                event.speaker_id,
+                "conversation ignored_noise_transcript text=%r",
+                transcript,
             )
+            return
+
+        # Very short fragments are commonly music/noise hallucinations.
+        # Keep real short commands such as "stop", "pause", "yes", etc.
+        allowed_short_commands = {
+            "yes",
+            "no",
+            "stop",
+            "pause",
+            "play",
+            "next",
+            "back",
+            "mute",
+            "unmute",
+            "nova",
+            "hey nova",
+        }
+
+        if len(normalized) <= 3 and normalized not in allowed_short_commands:
+            nova_logger.info(
+                "conversation ignored_short_transcript text=%r",
+                transcript,
+            )
+            return
 
 
 # === NOVA LIVE PERSONALITY V3 BEGIN ===
@@ -537,8 +584,21 @@ async def my_agent(ctx: agents.JobContext):
         detail="NOVA agent joined the LiveKit room with video input enabled.",
     )
 
+    from datetime import datetime
+
+    hour = datetime.now().hour
+
+    if hour < 12:
+        greeting = "Good morning"
+    elif hour < 18:
+        greeting = "Good afternoon"
+    else:
+        greeting = "Good evening"
+
     await session.generate_reply(
-        instructions="Greet Ahmed briefly and naturally. Tell him NOVA is ready.",
+        instructions=(
+            f"Say exactly: {greeting}, Ahmed. NOVA is ready."
+        ),
         allow_interruptions=True,
     )
 

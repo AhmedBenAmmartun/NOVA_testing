@@ -113,3 +113,6 @@ Dashboard/
 vision-client/src-tauri/target/
 NOVA-Agent-pending/
 *.backup-*
+
+# Local class recordings, transcripts, and generated session data
+class_sessions/
