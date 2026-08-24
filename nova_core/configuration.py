@@ -561,7 +561,7 @@ def load_configuration() -> NovaConfiguration:
             name=ProviderName.GROQ,
             model=_environment_value(
                 "GROQ_MODEL",
-                "llama-3.3-70b-versatile",
+                "openai/gpt-oss-120b",
             ),
             enabled=_environment_bool(
                 "NOVA_ENABLE_GROQ",

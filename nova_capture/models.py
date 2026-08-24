@@ -40,6 +40,7 @@ class TranscriptSegment:
     speaker_confidence: float = 0.0
     topic: str | None = None
     is_question: bool = False
+    speaker_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -65,9 +66,10 @@ class QuestionRecord:
     timestamp_seconds: float
     question: str
     answer: str | None = None
-    speaker: SpeakerRole = SpeakerRole.STUDENT
+    speaker: SpeakerRole = SpeakerRole.UNKNOWN
     topic: str | None = None
     study_value: str = "unknown"
+    speaker_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -95,14 +97,21 @@ class ClassSessionMetadata:
     stopped_at: datetime | None = None
     keep_audio: bool = True
     transcript_enabled: bool = True
-    notes_enabled: bool = True
+    notes_enabled: bool = False
+    capture_version: str = "1.3"
+    status: str = "recording"
+    audio_enabled: bool = False
+    audio_error: str | None = None
+    transcript_segment_count: int = 0
+    question_count: int = 0
+    speaker_ids: list[str] = field(default_factory=list)
+    speaker_roles: dict[str, dict[str, Any]] = field(default_factory=dict)
+    live_answers_enabled: bool = True
+    postprocess_enabled: bool = True
+    postprocess_pid: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["started_at"] = self.started_at.isoformat()
-        value["stopped_at"] = (
-            self.stopped_at.isoformat()
-            if self.stopped_at is not None
-            else None
-        )
+        value["stopped_at"] = self.stopped_at.isoformat() if self.stopped_at else None
         return value

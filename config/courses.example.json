@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "note": "Runtime course data is stored under %LOCALAPPDATA%\\NOVA\\School\\courses.json. Meeting times are intentionally blank until verified.",
+  "courses": [
+    {
+      "code": "CEN4065",
+      "name": "Software Architecture and Design",
+      "meetings": [],
+      "term": "Fall 2026"
+    },
+    {
+      "code": "COP3350",
+      "name": "Systems Admin and Programming",
+      "meetings": [],
+      "term": "Fall 2026"
+    },
+    {
+      "code": "COP3710",
+      "name": "Introduction to Data Engineering",
+      "meetings": [],
+      "term": "Fall 2026"
+    },
+    {
+      "code": "COT3400",
+      "name": "Design and Analysis of Algorithms",
+      "meetings": [],
+      "term": "Fall 2026"
+    }
+  ]
+}

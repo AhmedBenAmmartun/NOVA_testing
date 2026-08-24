@@ -12,6 +12,7 @@ spotipy
 psutil
 requests
 python-dotenv
+sounddevice>=0.5,<1
 pypdf
 Pillow
 pystray
@@ -24,3 +25,6 @@ msal>=1.37.0
 keyring>=25.7.0
 winotify>=1.1.0; platform_system == "Windows"
 tzdata>=2026.3; platform_system == "Windows"
+
+# NOVA Class Intelligence presentation generation
+python-pptx>=1.0,<2

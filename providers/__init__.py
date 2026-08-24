@@ -8,6 +8,7 @@ from .base import (
     ProviderResponse,
     ProviderUnavailableError,
 )
+from .groq_provider import GroqProvider
 from .ollama_provider import OllamaProvider
 from .openai_provider import OpenAIProvider
 
@@ -19,6 +20,7 @@ __all__ = [
     "ProviderRequestError",
     "ProviderResponse",
     "ProviderUnavailableError",
+    "GroqProvider",
     "OpenAIProvider",
     "OllamaProvider",
 ]

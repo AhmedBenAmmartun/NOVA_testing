@@ -9,6 +9,8 @@ from .storage import ClassCaptureStorage
 class MarkerJournal:
     def __init__(self, path: Path) -> None:
         self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch(exist_ok=True)
         self._items: list[MarkerRecord] = []
 
     def add(

@@ -6,6 +6,7 @@ import asyncio
 from typing import Any
 
 from providers import (
+    GroqProvider,
     ModelProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -263,6 +264,12 @@ def create_provider_registry(
         )
     )
 
+    groq_configuration = (
+        active_configuration.provider(
+            ProviderName.GROQ
+        )
+    )
+
     ollama_configuration = (
         active_configuration.provider(
             ProviderName.OLLAMA
@@ -273,6 +280,13 @@ def create_provider_registry(
         ProviderName.OPENAI,
         OpenAIProvider(
             openai_configuration
+        ),
+    )
+
+    registry.register(
+        ProviderName.GROQ,
+        GroqProvider(
+            groq_configuration
         ),
     )
 

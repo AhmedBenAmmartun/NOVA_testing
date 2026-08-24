@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-13_
+_Last updated: 2026-08-23_
 
 ## Mission
 
@@ -18,6 +18,14 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **NOVA Class Intelligence V1.3.4 — turn-aware live questions** (2026-08-23):
+      raw STT remains immediate/authoritative, while live Q&A now waits for a
+      committed human turn, merges split question continuations, suppresses
+      near-duplicate restatements, and serializes provider work through a
+      bounded answer queue. Automated acceptance includes the exact
+      `Like, where are you?` + `Getting the data from?` regression. Next:
+      Windows live acceptance, then NOVA Class Awareness / natural-language
+      class start-stop-control integration.
 - [x] **NOVA Vision Phase 1 — camera + mic client** (2026-08-13): added a
       standalone Tauri 2 Windows control surface under `vision-client/`. It
       joins a unique LiveKit room with a short-lived backend-generated token,

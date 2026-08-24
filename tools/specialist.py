@@ -79,6 +79,8 @@ async def route_specialist_request(
     *,
     role: str = "reasoning",
     private: bool = False,
+    preferred_provider: str | None = None,
+    allow_fallback: bool = True,
 ) -> str:
     """
     Route a task through NOVA's model-provider system.
@@ -105,7 +107,8 @@ async def route_specialist_request(
             result = await router.route(
                 cleaned_task,
                 role=normalized_role,
-                allow_fallback=True,
+                preferred_provider=preferred_provider,
+                allow_fallback=allow_fallback,
             )
 
         logger.info(
