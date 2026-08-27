@@ -1,4 +1,17 @@
 from .context import LectureContext
+from .evidence import (
+    EvidenceItem,
+    EvidenceKind,
+    LectureSection,
+    Provenance,
+    SessionEvidence,
+    derive_lecture_structure,
+    evidence_digest_markdown,
+    lecture_structure_markdown,
+    lecture_timeline_markdown,
+    load_session_evidence,
+    write_session_evidence,
+)
 from .markers import MarkerJournal
 from .microphone import LocalMicrophoneCapture
 from .models import (
@@ -33,7 +46,10 @@ __all__ = [
     "ClassCaptureState",
     "ClassCaptureStorage",
     "ClassSessionMetadata",
+    "EvidenceItem",
+    "EvidenceKind",
     "LectureContext",
+    "LectureSection",
     "LocalMicrophoneCapture",
     "LocalWaveRecorder",
     "MarkerJournal",
@@ -43,6 +59,8 @@ __all__ = [
     "QuestionDeduplicator",
     "QuestionJournal",
     "QuestionRecord",
+    "Provenance",
+    "SessionEvidence",
     "SpeakerResolution",
     "SpeakerRole",
     "SpeakerRoleTracker",
@@ -51,7 +69,13 @@ __all__ = [
     "TopicTracker",
     "TranscriptJournal",
     "TranscriptSegment",
+    "derive_lecture_structure",
+    "evidence_digest_markdown",
     "is_rhetorical_classroom_filler",
+    "lecture_structure_markdown",
+    "lecture_timeline_markdown",
+    "load_session_evidence",
     "looks_like_question",
     "should_answer_question",
+    "write_session_evidence",
 ]

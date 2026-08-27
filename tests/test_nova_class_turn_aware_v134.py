@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from nova_capture.models import TranscriptSegment
 from nova_capture.questions import QuestionDeduplicator, TurnQuestionBuffer
+
+
+#: The capture version that introduced turn-aware live questions. This test
+#: exists to protect that architecture, so it asserts a *floor* rather than an
+#: exact pin — the implementation is expected to move forward (it is at 1.3.6 as
+#: of commit 776c53d), and a forward bump is not a regression. Reverting below
+#: this version, or dropping the constant entirely, still fails.
+TURN_AWARE_MINIMUM_VERSION = (1, 3, 4)
+
+_CAPTURE_VERSION = re.compile(r'^CAPTURE_VERSION\s*=\s*"([0-9]+(?:\.[0-9]+)*)"', re.MULTILINE)
+
+
+def _declared_capture_version(source: str) -> tuple[int, ...]:
+    match = _CAPTURE_VERSION.search(source)
+    assert match is not None, "class_capture.py must declare a CAPTURE_VERSION constant"
+    return tuple(int(part) for part in match.group(1).split("."))
 
 
 def test_turn_buffer_waits_for_turn_boundary() -> None:
@@ -61,7 +78,9 @@ def test_question_deduplicator_allows_question_after_window() -> None:
 def test_root_capture_uses_turn_boundary_and_serial_answer_queue() -> None:
     root = Path(__file__).resolve().parents[1]
     source = (root / "class_capture.py").read_text(encoding="utf-8-sig")
-    assert 'CAPTURE_VERSION = "1.3.4"' in source
+    assert _declared_capture_version(source) >= TURN_AWARE_MINIMUM_VERSION, (
+        "class_capture.py regressed below the turn-aware live-question version"
+    )
     assert 'live_session.on("conversation_item_added")' in source
     assert 'schedule_turn_flush(0.45, "turn_commit")' in source
     assert 'schedule_turn_flush(3.5, "fallback")' in source

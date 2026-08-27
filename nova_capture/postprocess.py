@@ -13,6 +13,12 @@ from typing import Any
 from nova_school.context import CourseContextLibrary, course_sessions_root
 from nova_school.registry import CourseRegistry
 
+from .evidence import (
+    evidence_digest_markdown,
+    lecture_timeline_markdown,
+    load_session_evidence,
+    write_session_evidence,
+)
 from .intelligence import _route
 from .presentation import build_presentation
 from .storage import safe_slug
@@ -20,6 +26,14 @@ from .storage import safe_slug
 
 logger = logging.getLogger("nova.class_capture.postprocess")
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
+
+#: How much of the lecture timeline each generation prompt may carry.
+#: This replaces the old ``transcript_excerpt[:16000]`` head-truncation, which
+#: silently dropped everything after roughly the first fifteen minutes. The
+#: timeline is budgeted by salience with guaranteed coverage of every stretch of
+#: the lecture, so raising or lowering this trades detail for cost, never the
+#: end of the lecture.
+TIMELINE_BUDGET_CHARS = 32_000
 
 
 @dataclass(slots=True)
@@ -73,8 +87,14 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return items
 
 
-def _elapsed(seconds: float) -> str:
-    total = max(0, int(float(seconds)))
+def _elapsed(seconds: Any) -> str:
+    # Raw journal values are model/STT-derived and a truncated or malformed
+    # write must not take down the whole post-class job. An unreadable
+    # timestamp degrades to 00:00 the same way the evidence loader coerces it.
+    try:
+        total = max(0, int(float(seconds)))
+    except (TypeError, ValueError):
+        total = 0
     return f"{total // 60:02d}:{total % 60:02d}"
 
 
@@ -185,10 +205,11 @@ async def _generate_doc(
     kind: str,
     course: str,
     title: str,
-    evidence: EvidenceBundle,
+    evidence_markdown: str,
+    session_digest: str,
     questions: list[dict[str, Any]],
     materials_context: str,
-    transcript_excerpt: str,
+    lecture_timeline: str,
 ) -> str | None:
     qa = "\n".join(
         f"- Q: {item.get('question', '')}\n  A: {item.get('answer') or '(no live answer logged)'}"
@@ -199,14 +220,26 @@ COURSE: {course}
 SESSION: {title}
 
 GROUNDING RULES:
-- Use only the transcript evidence, logged Q&A, and supplied course materials.
+- Use only the lecture timeline, logged Q&A, session evidence, and supplied course materials.
 - Never invent a professor statement, deadline, grade policy, exam hint, definition, or example.
+- The professor's explanation is primary. Course materials supplement the lecture; they never replace it.
+- Lines labelled "NOVA LIVE ANSWER" are NOVA's own in-class answers, not professor statements. Never attribute them to the professor.
+- Moments labelled "MARKED BY AHMED" are explicit study signals. Give them weight.
 - Clearly separate confirmed lecture evidence from NOVA study recommendations.
 - Omit empty sections rather than padding them with made-up content.
 - Preserve important technical terminology.
 
+STRUCTURE RULES:
+- Follow the professor's actual intellectual progression as it appears in the timeline.
+- Let the lecture decide the headings. Do not impose a generic
+  "Introduction / Key Takeaways / Conclusion" shape on a lecture that did not have one.
+- No filler, no repeated summaries, no bullet dumps, no decorative bold, no fake certainty.
+
+SESSION EVIDENCE (markers, topic progression, questions asked):
+{session_digest}
+
 EXTRACTED EVIDENCE:
-{_evidence_markdown(evidence)}
+{evidence_markdown}
 
 LOGGED QUESTIONS/ANSWERS:
 {qa or '(none)'}
@@ -214,8 +247,8 @@ LOGGED QUESTIONS/ANSWERS:
 RELATED MATERIAL EXCERPTS:
 {materials_context[:22000] or '(none)'}
 
-TRANSCRIPT EXCERPT:
-{transcript_excerpt[:16000]}
+LECTURE TIMELINE:
+{lecture_timeline}
 
 Return polished Markdown only."""
     return await _route(prompt)
@@ -237,7 +270,10 @@ async def process_session(session_path: Path) -> Path:
     transcript = _load_jsonl(session_path / "transcript.jsonl")
     questions = _load_jsonl(session_path / "questions.jsonl")
     speaker_payload = _load_json(session_path / "speaker_roles.json", {})
-    role_map = speaker_payload.get("speakers", {}) if isinstance(speaker_payload, dict) else {}
+    role_map = speaker_payload.get("speakers") if isinstance(speaker_payload, dict) else None
+    # A corrupt speaker map must degrade to generic labels, not abort the job.
+    if not isinstance(role_map, dict):
+        role_map = {}
 
     status_path = session_path / "postprocess.json"
     _write_status(
@@ -248,10 +284,32 @@ async def process_session(session_path: Path) -> Path:
     )
 
     try:
+        # Layer 2 (working intelligence): one authoritative read of every raw
+        # journal this session produced. Markers, topic progression, live Q&A and
+        # attachments reach generation through here; before this they were
+        # captured and then silently dropped.
+        session_evidence = load_session_evidence(session_path)
+        write_session_evidence(
+            session_path,
+            session_evidence,
+            generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        )
+        if session_evidence.warnings:
+            logger.warning(
+                "class evidence loaded with warnings: %s",
+                "; ".join(session_evidence.warnings),
+            )
+        lecture_timeline = lecture_timeline_markdown(
+            session_evidence,
+            max_chars=TIMELINE_BUDGET_CHARS,
+        )
+        session_digest = evidence_digest_markdown(session_evidence)
+
         library = CourseContextLibrary(course, session_path=session_path, max_chars=40_000)
         materials_context, sources = library.build_context("")
         chunks = _chunk_transcript(transcript)
         evidence = await extract_evidence(chunks, course) if chunks else EvidenceBundle()
+        evidence_markdown = _evidence_markdown(evidence)
 
         started_at = str(metadata.get("started_at") or "")
         try:
@@ -272,11 +330,19 @@ async def process_session(session_path: Path) -> Path:
         )
         (folder / "Source Transcript.md").write_text(source_transcript, encoding="utf-8")
         (folder / "Evidence.md").write_text(
-            f"# Evidence — {title}\n\n{_evidence_markdown(evidence)}",
+            f"# Evidence — {title}\n\n"
+            f"{session_digest}\n"
+            f"## Extracted from the transcript\n\n{evidence_markdown}",
+            encoding="utf-8",
+        )
+        (folder / "Lecture Timeline.md").write_text(
+            f"# Lecture Timeline — {title}\n\n"
+            "> Chronological, budget-selected view of the whole lecture. Derived from "
+            "the authoritative raw journals; it never replaces them.\n\n"
+            f"{lecture_timeline}",
             encoding="utf-8",
         )
 
-        transcript_excerpt = "\n".join(str(item.get("text", "")) for item in transcript)
         documents = {
             "Lecture.md": "detailed, organized lecture notes with topics, explanations, definitions, examples, and clearly labeled assignments/deadlines/exam emphasis",
             "Summary.md": "a concise but complete session summary and key takeaways",
@@ -291,12 +357,15 @@ async def process_session(session_path: Path) -> Path:
                 kind=kind,
                 course=course,
                 title=title,
-                evidence=evidence,
+                evidence_markdown=evidence_markdown,
+                session_digest=session_digest,
                 questions=questions,
                 materials_context=materials_context,
-                transcript_excerpt=transcript_excerpt,
+                lecture_timeline=lecture_timeline,
             )
             if not value:
+                # No model was reachable. Fall back to grounded evidence rather
+                # than an empty file — the digest needs no AI to be useful.
                 if filename == "Summary.md":
                     value = f"# Session Summary — {title}\n\n{_fallback_summary(transcript, evidence)}\n"
                 elif filename == "Questions.md":
@@ -307,7 +376,12 @@ async def process_session(session_path: Path) -> Path:
                 elif filename == "Presentation Outline.md":
                     value = f"# Session Overview\n\n{_fallback_summary(transcript, evidence)}\n"
                 else:
-                    value = f"# {filename.removesuffix('.md')} — {title}\n\n{_evidence_markdown(evidence)}"
+                    value = (
+                        f"# {filename.removesuffix('.md')} — {title}\n\n"
+                        "> NOVA could not reach a model for this session, so this file "
+                        "contains the grounded session evidence without AI synthesis.\n\n"
+                        f"{session_digest}\n{evidence_markdown}"
+                    )
             generated[filename] = value.rstrip() + "\n"
             (folder / filename).write_text(generated[filename], encoding="utf-8")
 
@@ -333,6 +407,8 @@ async def process_session(session_path: Path) -> Path:
             output_folder=str(folder),
             material_sources=[source.path for source in sources],
             presentation=str(presentation_path) if presentation_path else None,
+            evidence_coverage=session_evidence.coverage(),
+            evidence_warnings=list(session_evidence.warnings),
         )
         return folder
     except Exception as error:

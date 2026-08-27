@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-08-26_
 
 ## Mission
 
@@ -18,6 +18,64 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **Lecture structure derivation — the professor's progression** (2026-08-27,
+      *uncommitted, pending review*): found that the live recorder **never
+      records topics** — `LectureContext.set_topic` and `TopicTracker.update`
+      have zero production callers, so `topics.jsonl` is empty in every real
+      session, every `topic` field on every transcript/question/marker record is
+      `None`, and live Q&A always says "CURRENT TOPIC: not yet resolved". The
+      intellectual progression that lecture notes most need to preserve was
+      structurally absent. Rather than add model calls to the stabilized capture
+      hot path, `nova_capture/evidence.py` now reconstructs it *after the fact*
+      from lexical cohesion in the professor's own words (deterministic,
+      offline, TextTiling-style), exposed as `SessionEvidence.lecture_structure()`
+      and `LectureSection`. Captured topics always win if the recorder ever
+      starts writing them. Sections carry the new `Provenance.NOVA_DERIVED` and
+      render with an explicit "NOT the professor's own section headings" caveat,
+      so reconstructed structure can never be quoted as professor speech.
+      Measured: 14/50/90/120-minute lectures yield 7/9/12/11 sections at 100%
+      coverage in ≤51 ms; evidence schema bumped to 2 with `structure`
+      persisted. **Deliberately NOT done:** SessionEvidence → `nova_knowledge`
+      retrieval integration — see risks below.
+- [x] **Session Evidence Model V1 — grounded Class Intelligence** (2026-08-26,
+      *uncommitted, pending review*): added `nova_capture/evidence.py`, one
+      authoritative read of every raw session journal into an ordered,
+      provenance-carrying, deterministically serializable model (stable IDs,
+      `Provenance` separating captured audio / user marks / NOVA answers /
+      source material). Post-processing now consumes it, which fixes three
+      defects: (1) all five generated documents previously saw only
+      `transcript_excerpt[:16000]` — measured at **20.4%** of a 90-minute
+      lecture; budgeted salience selection with guaranteed per-window coverage
+      now reaches **94.6%** at the same budget; (2) `markers.jsonl`,
+      `topics.jsonl` and `attachments.jsonl` were captured and then never read
+      by `process_session`, so every `mark_class_moment` call was silently
+      discarded — they now reach generation; (3) prompts imposed no structural
+      grounding, so notes defaulted to generic Introduction/Key
+      Takeaways/Conclusion. Writes `session_evidence.json` (layer:
+      working_intelligence) beside the raw journals and a new
+      `Lecture Timeline.md` output. Raw evidence is never mutated. 21 new
+      behavioural tests.
+- [x] **Repair pass — green baseline restored** (2026-08-26, *uncommitted*):
+      full suite now **249 passed / 0 failed** (was 222/2). Four fixes:
+      (1) removed the UTF-8 BOM `agent.py` had picked up from uncommitted
+      learning work — exactly 3 bytes, byte-proven, learning code untouched;
+      (2) `test_nova_class_turn_aware_v134` pinned the literal
+      `CAPTURE_VERSION = "1.3.4"` while `776c53d` intentionally moved the file
+      to `1.3.6` — replaced with a parsed **minimum-version floor**, which is
+      strictly stronger (it now rejects 1.3.3 and a missing constant, which the
+      sibling `"1.3` prefix checks do not); (3) `_elapsed()` raised
+      `ValueError` on a non-numeric timestamp, killing the whole post-class
+      job — now coerces; (4) `role_map` was not validated as a dict, so a
+      corrupt `speaker_roles.json` raised `AttributeError` — now degrades to
+      generic labels. (3) and (4) are pre-existing crash paths at `776c53d`,
+      found by hostile-input testing of review point 13. **Known remaining
+      brittleness (not fixed, no failure today):**
+      `test_nova_class_intelligence_v13` and `test_nova_class_quality_v133`
+      assert `'CAPTURE_VERSION = "1.3'` / `'"1.3.'` as substrings — these will
+      break on a 1.4.0 bump *and* would silently pass on a 1.3.3 regression.
+      Next: have `nova_knowledge` retrieval consume `SessionEvidence` so
+      course-material alignment is grounded in the same evidence, then concept
+      extraction.
 - [x] **NOVA Class Intelligence V1.3.4 — turn-aware live questions** (2026-08-23):
       raw STT remains immediate/authoritative, while live Q&A now waits for a
       committed human turn, merges split question continuations, suppresses
