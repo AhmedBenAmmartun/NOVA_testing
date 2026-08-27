@@ -49,7 +49,7 @@ from nova_school.resolver import resolve_course_override
 load_dotenv(".env.local")
 load_dotenv(".env")
 
-CAPTURE_VERSION = "1.3.4"
+CAPTURE_VERSION = "1.3.6"
 logger = logging.getLogger("nova.class_capture")
 server = AgentServer()
 
@@ -89,6 +89,7 @@ async def class_capture(ctx: JobContext):
     title = os.getenv("NOVA_CLASS_TITLE", "Class Session").strip() or "Class Session"
     live_answers_enabled = _env_bool("NOVA_CLASS_LIVE_ANSWERS", True)
     postprocess_enabled = _env_bool("NOVA_CLASS_POSTPROCESS", True)
+    auto_organize_downloads = _env_bool("NOVA_CLASS_AUTO_ORGANIZE_DOWNLOADS", False)
 
     capture = ClassCaptureSession(
         course.code,
@@ -389,12 +390,18 @@ async def class_capture(ctx: JobContext):
             postprocess_enabled=postprocess_enabled,
         )
 
-        try:
-            organized = await asyncio.to_thread(organize_recent_downloads_for_course, course.code)
-            if organized:
-                print(f"AUTO-ORGANIZED:     {len(organized)} recent course material(s)")
-        except Exception:
-            logger.exception("recent Downloads course-material scan failed")
+        if auto_organize_downloads:
+            try:
+                organized = await asyncio.to_thread(
+                    organize_recent_downloads_for_course,
+                    course.code,
+                )
+                if organized:
+                    print(f"AUTO-ORGANIZED:     {len(organized)} recent course material(s)")
+            except Exception:
+                logger.exception("recent Downloads course-material scan failed")
+        else:
+            print("AUTO-ORGANIZED:     disabled by NOVA_CLASS_AUTO_ORGANIZE_DOWNLOADS")
 
         context_library = CourseContextLibrary(course.code, session_path=session_path)
         try:

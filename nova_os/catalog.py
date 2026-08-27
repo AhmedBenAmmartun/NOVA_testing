@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nova_os.capabilities import CapabilityManager, CapabilityRegistry, CapabilitySpec
 from tools.capabilities import CAPABILITY_CONTROL_TOOLS
+from tools.class_capture import CLASS_CAPTURE_TOOLS
 from tools.conversations import read_conversation_history, search_conversation_history
 from tools.desktop import (
     close_app,
@@ -141,6 +142,20 @@ def build_default_capability_manager(*, specialist_tool=ask_specialist) -> Capab
             permissions=("media_control",),
             tags=("music", "spotify", "youtube", "volume", "media"),
             risk="reversible",
+            default_active=True,
+        ),
+        CapabilitySpec(
+            capability_id="class_intelligence",
+            name="Class Intelligence",
+            description=(
+                "Record lectures in the background, inspect the active transcript, "
+                "mark important moments, and gracefully finalize class sessions while "
+                "the same NOVA agent remains conversational."
+            ),
+            tools=tuple(CLASS_CAPTURE_TOOLS),
+            permissions=("microphone_capture", "class_notes_write"),
+            tags=("class", "lecture", "record", "transcript", "notes", "school", "questions", "multitasking"),
+            risk="mixed",
             default_active=True,
         ),
         CapabilitySpec(

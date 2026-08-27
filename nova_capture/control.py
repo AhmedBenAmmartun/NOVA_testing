@@ -12,7 +12,7 @@ from pathlib import Path
 import psutil
 
 
-CONTROL_VERSION = 2
+CONTROL_VERSION = 3
 DEFAULT_STALE_SECONDS = 45.0
 
 
@@ -368,21 +368,102 @@ def wait_until_inactive(
     return False
 
 
-def _launcher_matches(state: ActiveCapture) -> psutil.Process | None:
-    if not _same_process(state.launcher_pid, state.launcher_created_at):
-        return None
+def _is_capture_console_process(process: psutil.Process) -> bool:
     try:
-        process = psutil.Process(state.launcher_pid)
         name = process.name().casefold()
         command = " ".join(process.cmdline()).replace("\\", "/").casefold()
     except (psutil.NoSuchProcess, psutil.AccessDenied):
-        return None
+        return False
+    return (
+        "python" in name
+        and "class_capture.py" in command
+        and "console" in command
+    )
 
-    if "python" not in name:
-        return None
-    if "class_capture.py" not in command or "console" not in command:
-        return None
-    return process
+
+def _capture_console_tree(
+    launcher_pid: int,
+    *,
+    launcher_created_at: float | None = None,
+) -> list[psutil.Process]:
+    if launcher_created_at is not None and not _same_process(
+        launcher_pid,
+        launcher_created_at,
+    ):
+        return []
+
+    try:
+        launcher = psutil.Process(int(launcher_pid))
+    except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError, TypeError):
+        return []
+
+    if not _is_capture_console_process(launcher):
+        return []
+
+    matching: list[psutil.Process] = []
+    try:
+        descendants = launcher.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        descendants = []
+
+    # Only stop descendants that are themselves Class Capture console
+    # processes. Post-processing or other unrelated children must survive.
+    for process in descendants:
+        if _is_capture_console_process(process):
+            matching.append(process)
+
+    matching.append(launcher)
+    return matching
+
+
+def close_capture_launcher_tree(
+    launcher_pid: int,
+    *,
+    launcher_created_at: float | None = None,
+    grace_seconds: float = 0.0,
+    wait_seconds: float = 5.0,
+) -> str:
+    time.sleep(max(0.0, float(grace_seconds)))
+
+    processes = _capture_console_tree(
+        launcher_pid,
+        launcher_created_at=launcher_created_at,
+    )
+    if not processes:
+        return "launcher already exited or could not be safely identified"
+
+    # Descendants are listed before the outer launcher, so the LiveKit worker
+    # is asked to exit before its console owner.
+    for process in processes:
+        try:
+            process.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    _gone, alive = psutil.wait_procs(
+        processes,
+        timeout=max(0.1, float(wait_seconds)),
+    )
+
+    for process in alive:
+        try:
+            process.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    if alive:
+        _gone_after_kill, still_alive = psutil.wait_procs(
+            alive,
+            timeout=max(0.1, float(wait_seconds)),
+        )
+    else:
+        still_alive = []
+
+    if still_alive:
+        pids = ", ".join(str(process.pid) for process in still_alive)
+        return f"class saved, but capture process(es) remain: {pids}"
+
+    return f"class capture process tree closed ({len(processes)} process(es))"
 
 
 def close_legacy_launcher_after_save(
@@ -390,23 +471,14 @@ def close_legacy_launcher_after_save(
     *,
     grace_seconds: float = 1.0,
 ) -> str:
-    # This runs only after active.json is gone, which is written as the final
-    # step of NOVA's capture cleanup. The extra grace allows LiveKit's HTTP
-    # client and terminal renderer to finish their own cleanup first.
-    time.sleep(max(0.0, float(grace_seconds)))
-
-    process = _launcher_matches(state)
-    if process is None:
-        return "launcher already exited or could not be safely identified"
-
-    try:
-        process.terminate()
-        process.wait(timeout=5.0)
-        return "legacy LiveKit console closed"
-    except psutil.TimeoutExpired:
-        return "class saved, but legacy LiveKit console did not exit automatically"
-    except (psutil.NoSuchProcess, psutil.AccessDenied) as error:
-        return f"class saved; launcher close skipped ({type(error).__name__})"
+    # active.json is removed only after transcript/audio/session finalization.
+    # Close every matching Class Capture console process in the launcher's tree,
+    # but preserve unrelated descendants such as post-processing workers.
+    return close_capture_launcher_tree(
+        state.launcher_pid,
+        launcher_created_at=state.launcher_created_at,
+        grace_seconds=grace_seconds,
+    )
 
 
 def status_payload() -> dict:
