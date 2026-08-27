@@ -12,7 +12,7 @@ from pathlib import Path
 from nova_capture.storage import ClassCaptureStorage
 
 from .materials import SUPPORTED_MATERIAL_EXTENSIONS, extract_text
-from .paths import course_materials_root, obsidian_vault_path
+from .paths import course_materials_root, course_sessions_root
 
 
 _WORD_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_+.#/-]*")
@@ -43,10 +43,6 @@ class AttachmentRecord:
     destination: str
     sha256: str
     attached_at: str
-
-
-def course_sessions_root(course_code: str) -> Path:
-    return obsidian_vault_path() / "Knowledge" / "Classes" / course_code / "Sessions"
 
 
 def _sha256(path: Path) -> str:

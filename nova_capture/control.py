@@ -11,6 +11,8 @@ from pathlib import Path
 
 import psutil
 
+from .storage import default_capture_root
+
 
 CONTROL_VERSION = 3
 DEFAULT_STALE_SECONDS = 45.0
@@ -59,9 +61,8 @@ def _now_iso() -> str:
 
 
 def control_root() -> Path:
-    local = os.getenv("LOCALAPPDATA", "").strip()
-    base = Path(local) if local else Path.home() / "AppData" / "Local"
-    root = base / "NOVA" / "ClassCapture" / "_control"
+    """Control/lock directory, always beside the active capture root."""
+    root = default_capture_root() / "_control"
     root.mkdir(parents=True, exist_ok=True)
     return root.resolve()
 

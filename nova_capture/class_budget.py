@@ -8,6 +8,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
 
+from .storage import default_capture_root
+
 
 @dataclass(frozen=True, slots=True)
 class BudgetDecision:
@@ -56,9 +58,7 @@ class ClassCloudUsageBudget:
         custom = os.getenv("NOVA_CLASS_CLOUD_USAGE_FILE", "").strip()
         if custom:
             return Path(custom).expanduser()
-        local = os.getenv("LOCALAPPDATA", "").strip()
-        base = Path(local) if local else Path.home() / "AppData" / "Local"
-        return base / "NOVA" / "ClassCapture" / "_control" / "class_cloud_usage.json"
+        return default_capture_root() / "_control" / "class_cloud_usage.json"
 
     @staticmethod
     def _empty_state() -> dict[str, Any]:

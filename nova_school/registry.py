@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, time
 from pathlib import Path
 from typing import Iterable
+
+from .paths import school_runtime_root
 
 
 _DAY_ALIASES = {
@@ -70,9 +71,7 @@ class CourseProfile:
 
 
 def default_registry_path() -> Path:
-    local = os.getenv("LOCALAPPDATA", "").strip()
-    base = Path(local) if local else Path.home() / "AppData" / "Local"
-    return (base / "NOVA" / "School" / "courses.json").resolve()
+    return (school_runtime_root() / "courses.json").resolve()
 
 
 DEFAULT_COURSES = [

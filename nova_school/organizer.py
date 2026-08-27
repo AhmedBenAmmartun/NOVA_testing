@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .materials import SUPPORTED_MATERIAL_EXTENSIONS, extract_text
-from .paths import course_materials_root, school_runtime_root
+from .paths import course_materials_root, is_archived_path, school_runtime_root
 from .registry import CourseProfile, CourseRegistry
 from .resolver import resolve_current_course
 
@@ -179,6 +179,19 @@ class SchoolMaterialOrganizer:
         *,
         minimum_confidence: float,
     ) -> OrganizeResult:
+        if is_archived_path(source):
+            return OrganizeResult(
+                str(source),
+                None,
+                None,
+                0.0,
+                "archived_source",
+                [
+                    "Source is inside a preserved archive/backup location and "
+                    "is never copied into the live vault."
+                ],
+            )
+
         if not source.is_file() or source.suffix.lower() not in SUPPORTED_MATERIAL_EXTENSIONS:
             return OrganizeResult(
                 str(source),

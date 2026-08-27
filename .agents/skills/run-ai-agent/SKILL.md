@@ -29,7 +29,7 @@ suite.
 ## Run (agent path) — the driver
 
 ```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+Set-Location "C:\Projects\AI Agent"
 $env:PYTHONIOENCODING = 'utf-8'
 
 # 1. Local tools directly, no API keys or network (get_time, system info, notes, files)

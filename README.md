@@ -132,7 +132,7 @@ Use [.env.example](.env.example) as the non-secret template.
 From PowerShell in the project root:
 
 ```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+Set-Location "C:\Projects\AI Agent"
 
 # If the checked-in machine already has the provisioned venv, use it.
 $env:PYTHONIOENCODING = 'utf-8'
@@ -232,7 +232,7 @@ Local Ollama-only text mode:
 NOVA Dashboard (design shell + real data bridge):
 
 ```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+Set-Location "C:\Projects\AI Agent"
 powershell -ExecutionPolicy Bypass -File ".\Dashboard\start_dashboard.ps1"
 ```
 
@@ -267,7 +267,7 @@ near another voice assistant listener.
 Dashboard checks:
 
 ```powershell
-Set-Location "C:\Users\ahmed\OneDrive\Desktop\AI Agent"
+Set-Location "C:\Projects\AI Agent"
 npm --prefix Dashboard run lint
 npm --prefix Dashboard run build
 npm --prefix Dashboard test
