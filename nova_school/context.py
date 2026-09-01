@@ -190,6 +190,46 @@ class CourseContextLibrary:
         return "\n\n---\n\n".join(parts), sources
 
 
+    #: Source kinds that a human authored. NOVA's own prior notes are excluded
+    #: deliberately -- see `verification_material`.
+    HUMAN_SOURCE_KINDS = ("course_material", "session_attachment")
+
+    def verification_material(self) -> tuple[str, tuple[str, ...]]:
+        """Course evidence suitable for CHECKING NOVA's own generated content.
+
+        `build_context` deliberately includes `prior_note` sources so a live
+        answer has continuity with earlier lectures. That is exactly wrong for
+        verification: those notes are NOVA's own output, so a fabrication
+        corroborates itself.
+
+        This was not hypothetical. On the real COT3400 course, "GNRO" -- a
+        mishearing of `g(n)` that generation had promoted into a definition --
+        appeared in `Lecture.md`, `Study.md` and `Questions.md`. Checking the
+        definition against a pool containing those files found "support" for it
+        and flagged nothing.
+
+        So verification sees only what a human wrote: slides, handouts, and
+        materials Ahmed attached. Same boundary `HUMAN_PROVENANCE` draws in
+        `nova_capture/evidence.py`.
+
+        Returns the text and the source kinds that contributed, so a caller can
+        assert what it was actually checked against.
+        """
+        parts: list[str] = []
+        kinds: list[str] = []
+        for path, kind in self._candidate_files():
+            if kind not in self.HUMAN_SOURCE_KINDS:
+                continue
+            try:
+                text = extract_text(path, max_chars=self.per_file_chars)
+            except Exception:
+                continue
+            if not text.strip():
+                continue
+            parts.append(text)
+            kinds.append(kind)
+        return "\n\n".join(parts), tuple(dict.fromkeys(kinds))
+
     def build_stt_keyterms(
         self,
         seed_terms: list[str] | tuple[str, ...],

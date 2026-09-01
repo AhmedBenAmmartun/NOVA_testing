@@ -1,3 +1,10 @@
+param(
+    [string]$Session = "",
+    [switch]$Json,
+    [switch]$Watch,
+    [int]$IntervalSeconds = 10
+)
+
 $ErrorActionPreference = "Stop"
 $project = $PSScriptRoot
 $python = Join-Path $project "venv\Scripts\python.exe"
@@ -8,36 +15,36 @@ if (-not (Test-Path -LiteralPath $python)) {
     return
 }
 
+function Show-NovaClassStatus {
+    param([string]$Project, [string]$Python, [string]$SessionPath, [bool]$AsJson)
+
+    $arguments = @("-m", "nova_capture.status")
+    if ($SessionPath) { $arguments += @("--session", $SessionPath) }
+    if ($AsJson) { $arguments += "--json" }
+
+    $env:PYTHONIOENCODING = "utf-8"
+    & $Python $arguments
+}
+
 Push-Location $project
 try {
     Write-Host ""
-    Write-Host "=== CLASS CAPTURE ===" -ForegroundColor Cyan
+    Write-Host "=== CLASS CAPTURE LIFECYCLE ===" -ForegroundColor Cyan
     & $python -m nova_capture.control status
+    Write-Host ""
 
-    $captureRoot = Join-Path $env:LOCALAPPDATA "NOVA\ClassCapture"
-    $latest = Get-ChildItem -LiteralPath $captureRoot -Directory -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { Test-Path (Join-Path $_.FullName "session.json") } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if ($null -ne $latest) {
-        Write-Host ""
-        Write-Host "=== LATEST SESSION ===" -ForegroundColor Cyan
-        Write-Host $latest.FullName
-        $post = Join-Path $latest.FullName "postprocess.json"
-        if (Test-Path -LiteralPath $post) {
-            $state = Get-Content -LiteralPath $post -Raw | ConvertFrom-Json
-            Write-Host "Post-class intelligence:" $state.status
-            if ($state.output_folder) {
-                Write-Host "Notes:" $state.output_folder
-            }
-            if ($state.error) {
-                Write-Host "Post-process error:" $state.error -ForegroundColor Yellow
-            }
+    if ($Watch) {
+        Write-Host "Watching class health. Press Ctrl+C to stop watching." -ForegroundColor Cyan
+        Write-Host "(This only watches. It never stops the recording.)" -ForegroundColor DarkGray
+        while ($true) {
+            Clear-Host
+            Write-Host ("Refreshed {0}" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor DarkGray
+            Show-NovaClassStatus -Project $project -Python $python -SessionPath $Session -AsJson:$Json.IsPresent
+            Start-Sleep -Seconds ([Math]::Max(2, $IntervalSeconds))
         }
-        else {
-            Write-Host "Post-class intelligence: not started"
-        }
+    }
+    else {
+        Show-NovaClassStatus -Project $project -Python $python -SessionPath $Session -AsJson:$Json.IsPresent
     }
 }
 finally {

@@ -613,9 +613,12 @@ class TestCorruptSessionDegradation:
         folder = asyncio.run(postprocess.process_session(session))
         state = json.loads((session / "postprocess.json").read_text(encoding="utf-8"))
 
-        assert state["status"] == "completed"
+        # No model was reachable, so this is NOT a clean completion. Before
+        # 2026-08-28 this reported "completed" over five silent fallback dumps.
+        assert state["status"] == "completed_with_warnings"
         assert state["evidence_warnings"]
         assert (folder / "Lecture.md").exists()
+        assert "Incomplete" in (folder / "Lecture.md").read_text(encoding="utf-8")
 
     def test_postprocess_completes_on_an_empty_session(
         self, tmp_path: Path, monkeypatch
@@ -644,6 +647,8 @@ class TestCorruptSessionDegradation:
 
         folder = asyncio.run(postprocess.process_session(session))
         state = json.loads((session / "postprocess.json").read_text(encoding="utf-8"))
+        # Nothing to digest is not a failure -- an empty session must not
+        # claim warnings it did not earn.
         assert state["status"] == "completed"
         assert (folder / "Summary.md").exists()
 

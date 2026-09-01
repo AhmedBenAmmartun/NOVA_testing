@@ -198,6 +198,28 @@ def _read_recent_transcript(session_path: str | Path, max_lines: int = 30) -> st
     return "\n".join(output[-max(1, int(max_lines)):])
 
 
+def _verify_saved_audio(session_path: Path) -> tuple[bool, str]:
+    """Confirm a real recording exists, chunked or legacy single-file.
+
+    Chunked sessions are the current format; ``audio.wav`` is still accepted so
+    sessions captured before the durable recorder verify correctly.
+    """
+    from nova_capture.audio_chunks import scan_audio_dir
+
+    report = scan_audio_dir(session_path / "audio")
+    if report.chunk_count:
+        minutes = report.recorded_seconds / 60.0
+        detail = f"{report.chunk_count} chunks, {minutes:.1f} min"
+        if not report.healthy:
+            return True, detail + ", integrity NEEDS REVIEW"
+        return True, detail
+
+    legacy = session_path / "audio.wav"
+    if legacy.exists() and legacy.stat().st_size > 44:
+        return True, "legacy audio.wav"
+    return False, "no audio chunks or audio.wav found"
+
+
 @function_tool()
 async def start_class_capture(course: str = "") -> str:
     """Begin class recording as a background capability of this same NOVA.
@@ -354,8 +376,7 @@ async def end_class_capture() -> str:
 
     session_path = Path(active.session_path)
     transcript_ok = (session_path / "transcript.jsonl").exists()
-    audio = session_path / "audio.wav"
-    audio_ok = audio.exists() and audio.stat().st_size > 44
+    audio_ok, audio_detail = _verify_saved_audio(session_path)
     session_json = session_path / "session.json"
 
     status = "unknown"
@@ -372,7 +393,11 @@ async def end_class_capture() -> str:
 
     verification = [
         "transcript saved" if transcript_ok else "transcript needs verification",
-        "audio saved" if audio_ok else "audio unavailable/needs verification",
+        (
+            f"audio saved ({audio_detail})"
+            if audio_ok
+            else f"audio unavailable/needs verification ({audio_detail})"
+        ),
     ]
     return (
         f"{active.course} class recording finalized with status {status}. "

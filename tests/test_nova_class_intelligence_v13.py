@@ -263,7 +263,11 @@ def test_postprocess_falls_back_without_ai_and_writes_outputs(
     source = (folder / "Source Transcript.md").read_text(encoding="utf-8")
     assert "Teacher" in source
     state = json.loads((session / "postprocess.json").read_text(encoding="utf-8"))
-    assert state["status"] == "completed"
+    # Outputs are still written with no model reachable -- but the run says so.
+    # Before 2026-08-28 this reported a clean "completed" over five silent dumps.
+    assert state["status"] == "completed_with_warnings"
+    assert state["evidence_warnings"]
+    assert "Incomplete" in (folder / "Summary.md").read_text(encoding="utf-8")
 
 
 def test_root_capture_wires_v13_intelligence_without_replacing_capture_architecture() -> None:

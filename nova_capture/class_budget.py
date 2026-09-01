@@ -29,9 +29,13 @@ class ClassCloudUsageBudget:
 
     def __init__(self) -> None:
         self.enabled = self._read_bool("NOVA_CLASS_CLOUD_BUDGET_ENABLED", True)
+        # Raised from 60 on 2026-08-28: a real 107-minute class exhausted the
+        # cap in under two hours and fell back to a local model that was
+        # initially offline and then 30-90s behind. The cap exists to protect
+        # the shared cloud quota, not to end live answers mid-lecture.
         self.daily_request_limit = self._read_int(
             "NOVA_CLASS_CLOUD_DAILY_REQUEST_LIMIT",
-            60,
+            200,
         )
         self.path = self._usage_path()
         self._lock = threading.Lock()

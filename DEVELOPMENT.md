@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-08-31_
 
 ## What this is
 
@@ -32,29 +32,35 @@ agent.py            LiveKit AgentServer wiring: session, Gemini Realtime
                     tuning), ai_coustics noise cancellation,
                     video_input=False (Ahmed turned it off), greeting
 prompts.py          SYSTEM_PROMPT (NOVA persona)
-nova_bridge.py      private atomic dashboard command inbox/outbox + heartbeat
-nova_agent_bridge.py  injects delegated user turns and resolves approvals
-                    inside the active LiveKit agent process
-tools/              38 function tools split into modules: common.py
-                    (sandbox, logging), desktop.py (open/close/restart app,
-                    website, is_app_running, window control, notifications,
-                    quick settings, virtual desktops), files.py (notes +
-                    file ops + file finder/open + Desktop create + course
-                    materials), conversations.py (auto-saved session
-                    logs + search/read tools),
-                    information.py (weather, search, system info, time),
-                    media.py (music/Spotify/YouTube), models.py (ask_gpt56
-                    OpenAI + ask_groq cloud + ask_ollama local specialists),
-                    vision.py (capture_screen + confirmed GPT-5.6 screen
-                    analysis), obsidian.py (search_memory +
-                    read_memory_note + save_memory_note over Ahmed's Obsidian vault,
-                    vault-sandboxed); logging to nova_tools.log
-Dashboard/          the real NOVA desktop shell (2026-07-20, from
-                    design_handoff_nova_desktop): web/index.html+support.js
-                    5-page design served by server.py (aiohttp,
-                    127.0.0.1:8787) with feeds.py collectors + actions.py
-                    handlers; streams real psutil/Spotify/weather/Obsidian/
-                    agent-log data over /ws; see Dashboard/README.md
+nova_os/            capability kernel: catalog.py registers 12 capabilities
+                    over ~69 tools; capabilities.py owns CapabilityRegistry +
+                    CapabilityManager.build_tool_context() (the ONLY tool
+                    surface agent.py consumes); skills.py the skill registry
+nova_core/          model routing: router.py + configuration.py +
+                    provider_registry.py + cloud_budget.py. fallback_order is
+                    env-driven; providers/ holds the concrete adapters
+nova_policy/        permission engine (capability != permission)
+nova_capture/       Class Capture runtime (see its own section below)
+nova_school/        course registry, path authority, material context,
+                    vocabulary, corrections.py (Ahmed's STT ground truth)
+nova_knowledge/     course-material extraction + local retrieval index
+nova_learning/      experience capture: schema/store/evaluator/instrument.
+                    Wired into agent.py via LearningSessionRecorder
+nova_runtime/       job + task-state foundation (BackgroundJobManager,
+                    TaskSnapshot, JobState, EventBus).
+                    NOT wired into agent.py -- only nova_school/automation.py
+                    and cli.py consume it. See ROADMAP before extending
+nova_guardian/      guardian subsystem
+nova_integrations/  email/calendar + secrets
+tools/              ~80 @function_tool definitions across 15 modules;
+                    capabilities.py, class_capture.py, conversations.py,
+                    desktop.py, email_calendar.py, files.py, guardian.py,
+                    information.py, media.py, models.py, obsidian.py,
+                    permissions.py, skills.py, specialist.py, web.py.
+                    common.py holds the sandbox/logging helpers and
+                    vision.py the screen capture (neither exports tools).
+                    Registration happens in nova_os/catalog.py, NOT here --
+                    the decorator count and the live count differ
 requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     powers course-material PDF extraction)
 .env                secrets: LIVEKIT_URL/API_KEY/API_SECRET, GOOGLE_API_KEY,
@@ -62,6 +68,270 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
 .agents/skills/run-ai-agent/   run skill + driver.py test harness
 ```
+
+## Class Capture (capability of the one NOVA, V1.3.7)
+
+Class Capture is a NOVA capability, not a separate mode. Raw evidence lives
+outside Git at `%LOCALAPPDATA%\NOVA\ClassCapture\<COURSE>\<SESSION_ID>\`;
+derived notes go to `<Obsidian vault>\Knowledge\Classes\<COURSE>\Sessions\`.
+
+```
+class_capture.py              LiveKit job: supervisor + transcription + live
+                              intelligence. Starts the durable recorder BEFORE
+                              any STT work. An AgentSession close is a recovery,
+                              never the end of the class.
+nova_capture/
+  recorder_process.py         THE microphone owner, in its own OS process
+                              (`python -m nova_capture.recorder_process`).
+                              Stops only on an explicit stop file/signal, an
+                              unrecoverable device failure, or a long-expired
+                              supervisor heartbeat.
+  audio_chunks.py             ChunkedAudioRecorder (20 s WAV chunks, temp ->
+                              fsync -> atomic rename -> manifest) and
+                              scan_audio_dir() integrity checking
+  supervisor.py               ClassSessionSupervisor: one session id per
+                              sitting, worker health, health.json, events.jsonl,
+                              honest stop outcomes
+  live_notes.py               notes during the lecture, durable evidence queue
+  speakers.py                 conservative authoritative roles + live
+                              confidence view + Guest Speaker
+  pipeline.py                 NOVA_CLASS_PIPELINE seam (livekit default;
+                              pipecat is an uninstalled pilot)
+  status.py                   the status renderer both PowerShell and tests use
+  control.py                  lifecycle lock, stop requests, orphaned-recorder stop
+  understanding.py            map/reduce lecture understanding (see below)
+  renderers.py                pure functions: understanding -> each document
+scripts/nova_class_endurance.py   wall-clock soak monitor (observer only)
+```
+
+Per-session files: `audio/*.wav` + `audio/manifest.jsonl`, `health.json`,
+`events.jsonl`, `class_capture.log`, `live_notes.md` (+ queue/state),
+`transcript.jsonl`/`.txt`, `questions.jsonl`, `live_qa_events.jsonl`,
+`speaker_roles.json` / `speaker_roles_live.json`, `session_evidence.json`,
+`understanding.json`.
+
+### Post-class generation is map/reduce, not five generations
+
+Generation used to send the same ~32,000-character evidence bundle to the model
+**once per output document**. On 2026-08-28 that produced five silent fallback
+dumps for a real CEN4934 class while `postprocess.json` still said
+`"completed"` — every prompt was ~8,000 tokens against a stock Ollama serving
+2,048.
+
+```
+lecture sections (derive_lecture_structure, no model)
+  -> windows of <=7,000 chars that never cross a section
+  -> MAP       one small call per window
+  -> REDUCE    one bounded call per semantic section
+               oversized single topic -> contiguous child reductions
+               -> compact child summaries -> bounded parent reduction
+  -> GLOBAL    one bounded cross-cutting study-list pass
+  -> LectureUnderstanding  -> understanding.json
+  -> RENDER    pure Python, zero model calls -> all five documents
+```
+
+The original whole-lecture reduce was structurally unsafe: the measured prompt
+was ~6,625 input tokens and the Groq path reserves 4,000 output tokens, so the
+request could never fit an 8,000-TPM envelope. Section-level reduction fixed the
+real lecture, but a professor can still stay on one topic for 90 minutes. The
+current guard therefore enforces this invariant before every model call:
+
+`estimated input + actual configured output reservation + safety margin <= request limit`
+
+The default envelope is 8,000 request tokens, a 4,000 output reservation and a
+500-token safety margin. Non-ASCII text is estimated conservatively, and the
+post-class process tracks the largest output reservation actually configured for
+its Groq/OpenAI/Ollama fallback path. If one semantic section is too large,
+`understanding.py` recursively reduces contiguous child groups and then merges
+bounded child summaries; it never sends the oversized parent request. A
+pathological synthetic 90-minute single-topic regression test pins this case.
+
+A failed window still costs one window rather than a whole document
+(`degraded_windows`). Any section/global reduce path that needs deterministic
+fallback is now reported through `reduce_degraded`, so postprocessing cannot
+claim a completely clean synthesis. Adding a document means adding an entry to
+`renderers.RENDERERS` — no prompt, no extra model call.
+
+`live_notes.md` is written during class and kept in the raw session, but
+`postprocess.py` does **not** read it yet — post-class generation still starts
+from the transcript and `session_evidence.json`. Wiring live notes into
+generation is a tracked P1 follow-up, not current behaviour.
+
+**There is no `audio.wav` any more.** Read `audio/manifest.jsonl`, or use
+`nova_capture.audio_chunks.scan_audio_dir()`. Sessions recorded before V1.3.7
+still have `audio.wav` and are never migrated.
+
+```powershell
+.\Start-NOVA-Class.ps1 -Course COP3710         # start
+.\Get-NOVA-Class-Status.ps1 -Watch             # live health
+.\Stop-NOVA-Class.ps1                          # clean stop (never close the window)
+.\Test-NOVA-Class-Endurance.ps1 -Minutes 150   # real soak, run beside a class
+```
+
+Rules that must not be undone (each has a regression test in
+`tests/test_nova_class_fault_isolation.py`): the durable recorder starts before
+any STT work; the `AgentSession` `close` handler may never call `finalize()` or
+`ctx.shutdown()`; a stop that was never requested may never be reported as
+`completed`. Full write-up:
+`docs/NOVA-CLASS-CAPTURE-RELIABILITY-REPORT.md`.
+
+Two more invariants, added 2026-08-31 after a real COT3400 lecture lost its
+notes (`tests/test_nova_class_postprocess_liveness.py`,
+`tests/test_nova_class_corrections.py`):
+
+- **A status file never proves its own job is alive.** `postprocess.json` is
+  read through `read_postprocess_status()`, which resolves the recorded status
+  against process identity (`pid` + `pid_created_at`) using
+  `control.process_identity_matches`. A killed job cannot write its own
+  failure, so a recorded `running` whose process is gone resolves to
+  `interrupted`. A bare PID is never enough — the OS recycles them. Only
+  `running` is ever reinterpreted; terminal statuses are facts. Never read
+  `postprocess.json` raw.
+- **Ahmed's corrections outrank the recognizer, and never touch raw evidence.**
+  `<classes root>/<COURSE>/STT-Corrections.md` holds `heard => actual` rules
+  (`nova_school/corrections.py`). They are applied longest-phrase-first to the
+  *derived* evidence view in `apply_course_corrections()`, before any fuzzy
+  term repair, with the original preserved in `attributes["raw_text"]`.
+  `transcript.jsonl` and the audio are never rewritten. The file lives beside
+  `Materials/` and must never move inside it, or the corrections would be
+  re-ingested as course material.
+
+  Known limit: corrections match within a single transcript segment, so a
+  phrase split across a segment boundary ("...to N" / "zero...") will not fire.
+- **`session.json` is the manifest; `health.json` is the live truth.** The
+  counts on `ClassSessionMetadata` from `transcript_segment_count` down are
+  *finalization outputs* — before `finalize()` they are dataclass defaults, so
+  a live session legitimately shows `audio_chunks: 0` and
+  `recorder_mode: "none"`. Never read them raw: go through
+  `nova_capture.status.session_metrics()`, which answers from session.json when
+  `metrics_finalized` is set, from health.json while recording, and `None` for
+  anything genuinely unmeasured. `None` means "nobody checked" and is a
+  different claim from zero. Sessions written before the flag are trusted when
+  stopped, so historical measurements are not discarded.
+
+## Task runtime (`nova_runtime`)
+
+The authoritative task foundation. Consumers: `agent.py` (constructs it,
+recovers durable state at startup, shuts it down with the job),
+`nova_school/automation.py`, and `nova_school/cli.py`.
+
+```
+nova_runtime/
+  task_state.py   JobState + TaskSnapshot (frozen). The five original states
+                  are a compatibility contract -- consumers compare by
+                  identity (`is JobState.COMPLETED`), so never rename or
+                  re-value them. Graph fields (parent_id, depends_on,
+                  children, priority, attempt/max_attempts, owner,
+                  required_permissions) are additive with defaults.
+  jobs.py         BackgroundJobManager: asyncio, one loop, no locks. State
+                  changes are whole-object `replace()` into a dict slot.
+                  `start(name, awaitable)` is the original one-shot path and
+                  must keep its exact behavior -- `nova_school` depends on it,
+                  including its infinite watcher job and its over-limit
+                  RuntimeError. `submit(JobSpec)` is the graph path: it takes a
+                  FACTORY, not a coroutine, because a consumed coroutine cannot
+                  be re-awaited -- which is what structurally blocked deferral
+                  and retry. A dependency that fails, is cancelled, or does not
+                  exist BLOCKS its dependent; an unknown dependency id fails
+                  loudly rather than wedging the runtime forever.
+  store.py        Durable state: append-only `tasks.ndjson` + atomically
+                  replaced `tasks.json` index, under `runtime_root()/runtime`.
+  events.py       EventBus. `publish` awaits handlers inline and catches
+                  nothing -- a subscriber that raises surfaces as a JOB
+                  failure, so any subscriber must swallow its own errors.
+```
+
+Rules:
+
+- **`INTERRUPTED` is not `FAILED`.** A task whose process vanished was never
+  observed to fail. `TaskStore.recover()` reinterprets a `RUNNING` task whose
+  owning process is gone (matched on pid **and** process create time, since the
+  OS recycles PIDs); terminal states are facts and are never rewritten. Same
+  reasoning as the postprocess-liveness and session-metrics rules above.
+- **`nova_runtime` must not import `nova_policy`, `nova_os`, or `nova_school`.**
+  It records the permissions a task *would* need as data and never evaluates
+  them — the task layer must not be able to decide its own authority. It also
+  keeps infrastructure off a domain package: importing `nova_school.paths`
+  costs ~372ms because that package's `__init__` loads all of course
+  intelligence.
+- **`runtime_root()` is deliberately duplicated** from `nova_school/paths.py`
+  for that reason, and `tests/test_nova_runtime_store.py` asserts the two
+  resolvers return the same path so the split-brain `paths.py` warns about
+  cannot happen silently.
+- **`result` is never persisted**, only `result_ref`. A result may be huge,
+  unserializable, or private; durable state carries a pointer.
+
+> **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first** — exact Git
+> state, verified test count, architecture decisions, blockers, and the next
+> executable step. `docs/NOVA-FAILURE-LEDGER.md` holds the root causes and the
+> reusable rule from each failure.
+
+## Knowledge, truth, and evidence
+
+Transcript is **evidence, not fact**. Three stores, one owner each:
+
+| Store | Owns | Never |
+| --- | --- | --- |
+| Raw files (`%LOCALAPPDATA%\NOVA\ClassCapture\...`) | audio, `transcript.jsonl`, journals | rewritten by any correction |
+| `knowledge.sqlite3` (`nova_knowledge/knowledge_db.py`) | confidence, status, scope, counts, provenance | large binaries |
+| The vault | human-readable notes Ahmed reads and edits | opaque rows |
+
+Rules:
+
+- **Only CONFIRMED corrections are applied.** A correction NOVA infers enters as
+  a `candidate` and is inert. `times_seen` never promotes anything on its own —
+  the recognizer can be wrong the same way twice. Promotion needs user
+  confirmation or independent evidence; contradiction lowers confidence and
+  retires the rule, which is **retained, not deleted**, because a retired rule
+  explains why a note was revised.
+- **Scope is part of the rule** (global / course / topic / speaker; most
+  specific wins). `consents → constants` is right in an algorithms lecture and
+  wrong in a conversation about consent forms.
+- **NOVA's own output is never evidence for verifying NOVA's own output.**
+  `CourseContextLibrary.build_context` includes `prior_note` sources — NOVA's
+  generated notes — which is correct for *grounding* a live answer and
+  disqualifying for *verification*. Use `verification_material()` there; it
+  admits only `course_material` and `session_attachment`. This is not
+  hypothetical: "GNRO" appeared in `Lecture.md`, `Study.md` and `Questions.md`,
+  so the reviewer's first real run found "corroboration" and flagged nothing.
+- **The note reviewer makes no model call.** Asking the same model whether it
+  believes itself is not independent evidence; the professor's slides are.
+  `nova_capture/note_review.py` is deterministic and **marks rather than
+  deletes** — a real term the slides happen not to contain must survive flagged,
+  in `Review.md`.
+- **A regeneration preserves what it replaces.** `nova_capture/note_versions.py`
+  archives previous notes into `_versions/vN/` with a manifest recording when
+  and why. Current notes keep their filenames; large artifacts are referenced,
+  not copied; archiving is best-effort and never blocks regeneration.
+
+## Security invariants (each has a regression test)
+
+- **`os.startfile` may only ever receive a document or media file.**
+  `open_file_or_folder` (`tools/files.py`) checks `is_launchable()` against the
+  `LAUNCHABLE_SUFFIXES` **allowlist** before launching. `os.startfile` runs the
+  shell's default verb, which for `.exe/.bat/.cmd/.vbs/.js/.lnk/.hta/.msi` means
+  *execute*. Without this check, `web_download` (REVERSIBLE, never prompts) into
+  `~/Downloads` (a SAFE_DIR) followed by `open_file_or_folder` was unconfirmed
+  code execution using two default-active capabilities — bypassing the declared
+  `arbitrary_shell_command: RESTRICTED` policy entirely.
+  **Keep it an allowlist.** A denylist loses to the next extension Windows makes
+  executable, and to the ones nobody remembers (`.pif`, `.wsh`, `.application`).
+  `tests/test_nova_launch_safety.py`.
+- **NOVA may not write a runnable file to the Desktop.** `_safe_desktop_child`
+  forces a non-launchable suffix. It previously applied `.txt` only when the
+  suffix was *empty*, so `create_desktop_file("x.bat")` wrote an executable.
+- **Being inside a SAFE_DIR says the path is allowed, never that the contents
+  are safe.** Sandbox containment and content safety are different questions;
+  do not let one stand in for the other.
+- **`nova_runtime` must not import `nova_policy` or `nova_os`.** The task layer
+  records the permissions a task *would* need as data; it must never be able to
+  evaluate its own authority. The orchestrator asks the trusted engine.
+  `tests/test_nova_runtime_task_graph.py`.
+
+Known gaps, documented in `ROADMAP.md` and NOT yet fixed: `approve()` has no
+production caller, so no SENSITIVE action can ever be approved; the permission
+engine has no principal, so a worker would be indistinguishable from the user;
+only 4 of 81 tools route through the engine at all.
 
 ## Run & test (all verified)
 
@@ -174,7 +444,11 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   now also mirror to `<vault>/NOVA/Conversations/YYYY/MM/` when configured.
   Driver `tools` passed 31/31; one full chat smoke check succeeded, while the
   final rerun hit Gemini-side 503/504 errors after retries.
-- Dashboard status (updated 2026-07-21): the old React/Vite + Tauri shell and the
+- Dashboard status (updated 2026-07-21) — **SUPERSEDED 2026-08-15**: the
+  `Dashboard/` directory described below no longer exists in this repository.
+  It was detached with the rest of Valo per the project boundary at the top of
+  this file. The entry is kept as history; nothing in it describes current
+  NOVA. Original text follows. The old React/Vite + Tauri shell and the
   Tkinter skin were deleted at Ahmed's request (source backed up to the
   session scratchpad first) along with the demo zip. `Dashboard/` now holds
   the REAL dashboard, implemented from `design_handoff_nova_desktop` (kept as
@@ -209,6 +483,19 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
 - `NOVA_REALTIME_MODEL` / `NOVA_VOICE` / `NOVA_TEMPERATURE` exist in `.env`
   and `.env.example` but `agent.py` hardcodes Ahmed's tuning and ignores
   them. Wiring them up needs Ahmed's explicit OK (don't change his tuning).
-- `core/` (task.py, router.py, orchestrator.py — model routing scaffolding)
-  is written but not imported anywhere yet. Don't delete; wire it up or ask
-  Ahmed.
+- `core/` (task.py, router.py, orchestrator.py) — **SUPERSEDED 2026-08-31.**
+  Written, never imported by anything, and it collides by *class name* with the
+  systems that actually run:
+
+  | dead                       | live                                    |
+  | -------------------------- | --------------------------------------- |
+  | `core/router.py:12` `ModelRouter` (47 lines) | `nova_core/router.py:59` `ModelRouter` (421+) |
+  | `core/task.py:25` `NovaTask`                 | `nova_runtime/task_state.py:17` `TaskSnapshot` |
+  | `core/orchestrator.py:22` `NovaOrchestrator` | — (no live equivalent yet)              |
+
+  **Ownership decision: `nova_runtime` owns tasks, `nova_core` owns model
+  routing.** Do NOT revive `core/` and do NOT build the orchestrator from
+  `core/orchestrator.py` — that would give NOVA two routers and two task
+  models. `tests/test_nova_no_duplicate_runtime.py` fails the build if anything
+  imports `core.*`. Deleting the directory is still Ahmed's call; the guard
+  test makes leaving it on disk safe in the meantime.

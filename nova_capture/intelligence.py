@@ -92,6 +92,15 @@ async def _route(task: str, *, role: str = "reasoning") -> str | None:
     return None
 
 
+async def route_class_prompt(task: str, *, role: str = "reasoning") -> str | None:
+    """Public Class-Intelligence routing entry point (Groq -> OpenAI -> Ollama).
+
+    Live notes and post-class generation both go through here so they share one
+    provider order and one class-scoped cloud budget.
+    """
+    return await _route(task, role=role)
+
+
 class LiveQAManager:
     """Ground live answers in transcript/material context and persist events."""
 

@@ -23,7 +23,10 @@ def test_class_budget_defaults_are_independent(monkeypatch, tmp_path: Path) -> N
     monkeypatch.setenv("NOVA_CLASS_CLOUD_USAGE_FILE", str(tmp_path / "class-budget.json"))
     budget = ClassCloudUsageBudget()
     assert budget.enabled is True
-    assert budget.daily_request_limit == 60
+    # Raised 60 -> 200 on 2026-08-28 after a real class exhausted the cap
+    # in under two hours. What this test guards is independence from the
+    # general NOVA cloud budget, not the specific number.
+    assert budget.daily_request_limit == 200
     assert budget.status()["used_today"] == 0
 
 

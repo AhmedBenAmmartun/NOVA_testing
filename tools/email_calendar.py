@@ -8,7 +8,7 @@ from livekit.agents import RunContext, function_tool
 
 from nova_integrations.models import ContentMode
 from nova_integrations.runtime import get_runtime
-from nova_policy import ActionPolicy, PermissionLevel, permission_engine
+from nova_policy import ActionPolicy, PermissionLevel, Principal, permission_engine
 
 
 # Reading a complete message body exposes private content to the current cloud
@@ -157,6 +157,9 @@ async def read_email(
         action_name="read_email_body_cloud",
         summary=f"Read one selected email body from account label '{connected.label}'.",
         session_id="voice",
+        # Invoked from a tool the user is talking to. When the orchestrator
+        # spawns workers, it passes a worker principal here instead.
+        principal=Principal.user(),
         executor=execute_read,
     )
 

@@ -2,10 +2,22 @@
 
 ## Release candidate
 
-V1.3.4 — Turn-aware live question engine
+V1.3.7 — Durable audio, session supervisor, live notes
+
+> Full reliability write-up: `docs/NOVA-CLASS-CAPTURE-RELIABILITY-REPORT.md`
 
 ## Verified by automated tests
 
+- durable chunked audio in a separate OS process, surviving a hard kill of the
+  intelligence process (real subprocess test on Windows);
+- one logical session id across repeated transcription-worker loss and restart;
+- a simulated 180-minute sitting with a continuous chunk sequence, frame-exact
+  timestamps, no self-stop, and no memory growth with duration;
+- a 2h30m fault-injection scenario (STT loss, provider outage, guest speaker);
+- live notes with a durable evidence queue that survives a provider outage;
+- live speaker confidence with guest-speaker separation, without weakening the
+  conservative labels written into study documents;
+- stop outcomes that can never claim success they did not achieve;
 - one authoritative `nova_capture` session/audio pipeline;
 - V1.2 lifecycle reliability and recovery;
 - structured/raw + readable transcript storage;
@@ -19,6 +31,30 @@ V1.3.4 — Turn-aware live question engine
 - real PPTX generation;
 - no eager `nova_capture.control` import warning;
 - NOVA/Valo repository boundary unchanged.
+
+## 2026-08-29 checkpoint hardening — pending Windows verification
+
+The current uncommitted patch closes the last known request-size hole in
+post-class synthesis without changing the durable capture hot path:
+
+- every model request is checked against an explicit request envelope before it
+  is sent; the default is 8,000 request tokens with the actual configured
+  output reservation plus a 500-token safety margin;
+- one unusually long semantic section is reduced hierarchically (contiguous
+  child groups -> compact child summaries -> parent reduction) instead of being
+  sent as one oversized request;
+- a forced synthetic 90-minute one-topic lecture verifies that every observed
+  request stays inside the envelope and the final section still covers the full
+  lecture span;
+- non-ASCII prompt estimation is conservative rather than assuming an English
+  chars/token ratio;
+- committed question-detection fixtures now use synthetic ASR-like phrases, and
+  the reliability report uses `<SESSION_ID>` rather than a unique real-session
+  folder name.
+
+Local audit-copy verification: 66 directly affected tests passed. The Windows
+venv full suite and one final end-to-end Groq run are still required before this
+can be called a completed checkpoint.
 
 ## Needs live verification on the user's Windows NOVA runtime
 
@@ -182,3 +218,49 @@ The next quality gate is a short Windows acceptance run that reproduces the
 exact split-question case, repeats a paraphrase within 15 seconds, verifies
 only one live answer, and confirms no live-answer work continues after clean
 shutdown. After that, Class Awareness can be wired into the normal NOVA agent.
+
+
+## V1.3.7 reliability rebuild (2026-08-28)
+
+A real COP3710 lecture on 2026-08-27 stopped recording after **38m37s** while
+the user was still in class. The evidence on disk is unambiguous: `audio.wav`
+ended at 2317.744 s, the last transcript segment ended at 2317.812 s, and
+`session.json` said `status: "completed"` with `audio_error: null`. Both streams
+died together because the microphone was closed by `finalize()`, which the
+LiveKit job shutdown callback owned. **Which** LiveKit event fired cannot be
+determined, because Class Capture wrote no log file.
+
+V1.3.7 therefore:
+
+- moves the microphone into its own OS process (`nova_capture/recorder_process.py`)
+  that knows nothing about STT, LLMs, or LiveKit, and stops only on an explicit
+  request, an unrecoverable capture-device failure, or a long-expired supervisor;
+- replaces the single `audio.wav` with rolling 20-second WAV chunks plus an
+  append-only `audio/manifest.jsonl`, written temp → fsync → atomic rename, so a
+  crash costs at most the chunk in flight and any loss is detectable
+  (`scan_audio_dir`);
+- adds `ClassSessionSupervisor`, which owns one session id for the whole sitting,
+  tracks every worker in `health.json`, and journals lifecycle events to
+  `events.jsonl`;
+- turns an `AgentSession` close into a recovery — `STT_GAP_START`, rebuild with
+  backoff, `STT_GAP_END` — instead of the end of the class;
+- adds a live notes worker with evidence batching and a durable queue, so a
+  provider outage costs latency and never evidence, and starts producing notes
+  within roughly 60–120 seconds. `live_notes.md` is written during class and
+  persisted in the raw session, but **post-processing does not read it yet** —
+  wiring it in as an explicit generation input is a P1 follow-up;
+- gives `SpeakerRoleTracker` a live confidence view and a Guest Speaker role,
+  while leaving the authoritative finalize-only labels exactly as V1.3.3 made
+  them;
+- reports honest stop outcomes (`completed` / `completed_with_warnings` /
+  `failed` / `aborted`) and writes `class_capture.log` in every session;
+- keeps LiveKit Inference as the default pipeline and ships Pipecat 1.8.1 only
+  as a flagged, uninstalled pilot (`NOVA_CLASS_PIPELINE`).
+
+**Status: IMPLEMENTED + AUTOMATED TESTS PASSED** — 388 passed / 0 failed
+(baseline 282), plus a real Windows microphone check proving the separate
+recorder process acquires the capture device. **The real 150-minute soak has
+NOT been run**, and transcript gap backfill is **not implemented**.
+
+Next quality gate: a real classroom run with
+`.\Test-NOVA-Class-Endurance.ps1 -Minutes 150` beside it.

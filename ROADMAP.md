@@ -7,7 +7,13 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-26_
+_Last updated: 2026-08-31_
+
+> **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
+> It is the authoritative handoff: exact Git state, verified test count (682),
+> architecture decisions, security invariants, the Knowledge/Truth architecture,
+> the implemented database schema, known blockers, and the exact next executable
+> step. If it disagrees with the repository, the repository wins — fix the file.
 
 ## Mission
 
@@ -18,6 +24,286 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **SECURITY — unconfirmed code execution chain closed** (2026-08-31,
+      *uncommitted*): found by the security threat-model worker, verified
+      directly against source. `open_file_or_folder` called
+      `os.startfile(path)` (`tools/files.py`) with **no extension check**.
+      `os.startfile` runs the Windows shell's default verb — *view* for a
+      document, *execute* for `.exe/.bat/.cmd/.vbs/.js/.lnk/.hta/.msi`. That
+      composed with the write tools into unconfirmed RCE:
+      `web_download` (registered **REVERSIBLE**, so the permission engine runs
+      it with no prompt, `tools/web.py:41`) → `~/Downloads`, which is in
+      `SAFE_DIRS` → `open_file_or_folder` → the payload runs. Both `files` and
+      `web` are `default_active=True`, so no confirmation was required anywhere
+      in the chain. No network was even needed:
+      `create_file("~/Desktop/x.bat")` → open did the same, and
+      `_safe_desktop_child` only forced `.txt` when the suffix was *empty*, so
+      an explicit `.bat` passed straight through. **This entirely bypassed the
+      declared `arbitrary_shell_command: RESTRICTED` policy** — the real
+      execution primitive was never a shell tool.
+      Fixed with an extension **allowlist** (`LAUNCHABLE_SUFFIXES` +
+      `is_launchable()` in `tools/files.py`): documents and media open,
+      everything else is refused, folders still open. A denylist was rejected —
+      it loses to the next extension Windows makes executable. **40 new tests.**
+      NOT done, and deliberately: `web_download` was left REVERSIBLE. Promoting
+      it to SENSITIVE would delete the feature outright, because
+      `PermissionEngine.approve()` has **zero production callers** — see the
+      approval-path item below. The vulnerability was the launch, and the launch
+      is closed.
+- [ ] **SECURITY — `PermissionEngine.approve()` has no implementation**
+      (found 2026-08-31, *not fixed*): `nova_policy/engine.py:183` is called by
+      nothing outside negative assertions in tests. Every SENSITIVE action
+      (`close_app`, `restart_app`, `read_email`) therefore mints a confirmation
+      id and then expires — the confirmation system has never actually approved
+      anything. This is a safe failure mode today, but it means the tier is
+      unproven, and it blocks any correct hardening that would move a tool up a
+      level. Also found: 8 of 10 `DEFAULT_POLICIES` govern tools that do not
+      exist, and only **4 of 81 tools** route through the permission engine.
+- [x] **Note quality reviewer + circular-evidence fix** (2026-08-31,
+      *uncommitted*): corrections only repair mishearings someone already knows
+      about. The one that cost the 2026-08-31 lecture was novel — "GNRO" from
+      `g(n) >= 0` — and generation promoted it into a *definition* attributed to
+      a slide. `nova_capture/note_review.py` checks generated definitions
+      against the course's own materials: a definition whose central term
+      appears in **none** of the slides the professor is teaching from is a
+      fabrication signal. Deliberately **not** another model call (directive
+      §2: independent evidence beats repeated generation) — it is deterministic,
+      cheap enough to run every time, and **marks rather than deletes**, since
+      dropping content on a heuristic would lose real lecture material.
+      **Found while testing against real data — a circular-evidence bug:**
+      `CourseContextLibrary.build_context` mixes course materials with
+      `prior_note` sources from the Sessions folder, which are **NOVA's own
+      generated notes**. "GNRO" appeared in `Lecture.md`, `Study.md` and
+      `Questions.md`, so the first real run found "corroboration" and flagged
+      **nothing** — the fabrication was vouching for itself. Added
+      `CourseContextLibrary.verification_material()`, which admits only
+      human-authored sources (`course_material`, `session_attachment`). Prior
+      notes remain available for *grounding* a live answer, where continuity
+      helps; they are disqualified from *verifying* NOVA's own output. Same
+      boundary `HUMAN_PROVENANCE` already draws in `nova_capture/evidence.py`.
+      **16 new tests.** Verified end to end on the real session: of 5
+      definitions in the generated `Lecture.md`, exactly the fabricated one was
+      flagged and all 4 genuine ones passed — zero false positives.
+- [x] **Note versioning: a regeneration preserves what it replaces**
+      (2026-08-31, *uncommitted*): post-class generation wrote into the session
+      folder in place, so a re-run destroyed the previous notes. That was about
+      to cost something real — the 2026-08-31 COT3400 notes were written by a
+      local fallback model after the Groq credential failed and contain a
+      definition fabricated from a mishearing; re-running after the key is
+      replaced would have erased both the mistake and the fact that it changed.
+      `nova_capture/note_versions.py` archives the previous version into
+      `_versions/vN/` with a manifest recording **when and why**, so "why did
+      this change?" is answerable from the artifact. Current notes keep their
+      filenames — Ahmed opens `Lecture.md` in Obsidian, and versioning must not
+      make the common case harder to read. Large artifacts are **referenced,
+      not copied** (a 32 KB deck per regeneration is how a vault bloats), and
+      archiving is best-effort: losing a version archive is bad, losing the new
+      notes because bookkeeping failed would be worse. **10 new tests**;
+      verified against a copy of the real COT3400 session — 8 files preserved,
+      the `.pptx` referenced, current notes untouched.
+- [x] **Correction memory: candidate → evidence → confirmed** (2026-08-31,
+      *uncommitted*): first piece of the truth/evidence layer.
+      `nova_knowledge/knowledge_db.py` is a local-only SQLite store following
+      the conventions already in `nova_integrations/storage.py` (WAL, foreign
+      keys, busy timeout, versioned migrations) — not a second pattern, and not
+      a second memory system. Ownership is explicit: the **vault file** stays
+      Ahmed's human-editable surface, the **database** holds what a flat file
+      cannot express (confidence, status, scope, counts, provenance), and **raw
+      evidence stays in files**.
+      A correction NOVA *infers* enters as a **candidate** and is deliberately
+      never applied — `times_seen` alone never promotes anything, because the
+      recognizer can be wrong the same way twice. Only user confirmation or
+      independent evidence promotes it; contradiction lowers confidence and
+      eventually retires the rule, which is **retained, not deleted**, since a
+      retired rule explains why a note was revised. Scope is part of the rule
+      (global / course / topic / speaker, most specific wins) because
+      `consents → constants` is right in an algorithms lecture and wrong in a
+      conversation about consent forms.
+      Wired into postprocess, which now takes confirmed rules from the store and
+      degrades to the hand-written file if the store is unavailable.
+      **29 new tests**, using the real failures as fixtures per the directive.
+      Found by running against Ahmed's real file: the parser was importing the
+      file's own instruction prose (*"One rule per line, `heard => actual`"*) as
+      a rule, because that sentence contains the separator. Fixed with a
+      phrase-shape guard; his file now yields 19 clean rules instead of 20.
+      Not yet done: claims/concepts tables, note versioning, semantic retrieval,
+      and the note-quality reviewer.
+- [x] **Task runtime: durable state, graph vocabulary, dependency scheduling,
+      and agent wiring** (2026-08-31, *uncommitted*): `nova_runtime` held a
+      correct job manager that **`agent.py` never imported** — the NOVA Ahmed
+      talks to had no task layer at all. A read-only architecture worker
+      confirmed EXTEND over REPLACE (332 lines, 6 call sites, zero persisted
+      state to migrate) and produced a 13-item compatibility contract, all of
+      which is now pinned by tests. Delivered:
+      **(a)** `TaskSnapshot` widened additively with `parent_id`, `children`,
+      `depends_on`, `priority`, `progress`, `owner`, `attempt`/`max_attempts`,
+      `result_ref`, `required_permissions`; `JobState` gained
+      `WAITING_DEPENDENCY`, `BLOCKED`, `PAUSED`, `RETRYING`, `INTERRUPTED`.
+      The original five names/values are untouched — consumers compare by
+      identity. **(b)** `nova_runtime/store.py`: append-only `tasks.ndjson` +
+      atomically replaced index, with `recover()` reinterpreting a task left
+      RUNNING by a dead process as `INTERRUPTED` (matched on pid **and** process
+      create time). `result` is never persisted, only `result_ref`.
+      **(c)** `JobSpec` + `submit()` beside the untouched `start()`: a
+      **factory**, not a coroutine, because a consumed coroutine cannot be
+      re-awaited — which is what blocked deferral and retry structurally. A
+      dependency that fails, is cancelled, or does not exist **blocks** its
+      dependent rather than letting it run on a broken prerequisite; an unknown
+      dependency id fails loudly instead of wedging the runtime forever.
+      **(d)** `agent.py` constructs the runtime, recovers durable state at
+      startup behind a try/except (task state is valuable; being able to talk to
+      NOVA is more valuable), and shuts it down with the job.
+      **56 new tests.** `nova_runtime` is guarded from importing `nova_policy`,
+      `nova_os`, or `nova_school` — the task layer must never evaluate its own
+      authority, and infrastructure must not depend on a domain package.
+- [x] **SECURITY — the permission engine now knows WHO is asking**
+      (2026-08-31, *uncommitted*): `run()` previously took no principal, every
+      live call site passed the literal `"voice"`, and the audit record had no
+      actor field. Session grants keyed `(session_id, action_name)` meant that
+      once workers could call tools, **one user approval would silently
+      authorize unlimited worker invocations of that action for the rest of the
+      session**, and a post-incident audit could attribute nothing.
+      `Principal` (user / worker / system, with a `parent` for the delegation
+      chain) is now minted only by trusted constructors — `kind` is validated
+      against a closed set, so a forged kind raises rather than being accepted
+      as free text. `run(..., principal=...)` is a **required** keyword: a
+      caller cannot omit it and be silently treated as Ahmed. Grants are keyed
+      `"<session>|<principal>"`; `ActionPolicy.worker_invocable` defaults
+      **False**, so a policy that never considered workers has not authorized
+      them; the worker check runs *before* grant lookup, so no prior human
+      approval can promote a worker into an action it was never allowed;
+      `approve()` refuses any non-user principal **in the engine** and audits
+      the attempt, rather than relying on the absence of a `@function_tool`
+      decorator as a boundary. All 4 live call sites updated. **14 new
+      behavioral tests**, including the load-bearing one: a user's session grant
+      does not authorize a worker, while still working for the user.
+      Also replaced `test_session_cleanup_removes_pending_state`, which asserted
+      a literal source string, with a behavioral test — it broke on this
+      refactor and would have passed had cleanup been genuinely broken.
+      Still open: only 4 of 81 tools route through the engine at all, so the
+      principal governs those 4. Extending coverage is the next security step.
+- [!] **BLOCKED_EXTERNAL — `GROQ_API_KEY` returns HTTP 403** (2026-08-31):
+      verified directly against `https://api.groq.com/openai/v1/models`. Groq is
+      the primary provider for Class Intelligence, so every live-notes fold,
+      live answer, and post-class generation on 2026-08-31 fell through to a
+      local model; OpenAI answered `/v1/models` fine but returned
+      `ProviderUnavailableError` under load, which maps to rate/usage limit or
+      timeout (`providers/openai_provider.py:216`). **Requires a valid
+      credential from Ahmed — no engineering work can clear it.** Blocks only:
+      the real-provider acceptance run, and notes quality. Does NOT block
+      runtime, orchestrator, learning, or capture-state work; those proceed.
+- [x] **Capture-state single source of truth** (2026-08-31, *uncommitted*):
+      during the live COT3400 lecture `session.json` reported
+      `audio_chunks: 0`, `recorder_mode: "none"`, `audio_integrity_ok: false`
+      while `health.json` simultaneously reported 84 chunks from a healthy
+      isolated recorder. Both described the same session; one was false. Root
+      cause is not a write bug — those fields are *finalization outputs* held
+      in a struct written from session start, so before `finalize()` they are
+      dataclass defaults and nothing distinguishes "measured as zero" from
+      "never measured". `audio_integrity_ok: false` therefore reads as *the
+      recording is damaged* when it means *nobody has checked yet*. Fixed with
+      the same shape as the postprocess fix: `metrics_finalized` on
+      `ClassSessionMetadata`, set by finalize(), and
+      `nova_capture.status.session_metrics()` as the only sanctioned reader —
+      finalized sessions answer from session.json, live ones from health.json,
+      genuinely unmeasured values answer `None` rather than a placeholder zero.
+      Pre-flag sessions stay trusted when stopped. Verified against the real
+      2026-08-31 session (no flag present, correctly resolved: 201 chunks,
+      4005.07s, 729 segments). **9 new tests.**
+- [x] **Class Capture reliability: postprocess liveness + course corrections**
+      (2026-08-31, *uncommitted*): a real COT3400 lecture produced **no notes**.
+      Post-processing was launched at 13:01:11, died without raising, and
+      `postprocess.json` still read `{"status": "running", "error": null}` eight
+      hours later with the vault folder never created — the same class of
+      failure V1.3.7 fixed for the recorder, left unguarded for postprocess.
+      Fixed by making liveness the *reader's* job: `read_postprocess_status()`
+      resolves a recorded `running` against process identity (`pid` +
+      `pid_created_at`, via the now-public `control.process_identity_matches`)
+      and reports `interrupted` when the process is gone. Verified against the
+      real stale file, including the no-identity backwards-compatible path.
+      Separately, the recognizer's `GNRO`/`consents` mis-hearings reached
+      `Lecture.md` as *stated definitions*. `nova_school/corrections.py` loads
+      Ahmed's `STT-Corrections.md` (`heard => actual`, longest-phrase-first) and
+      `apply_course_corrections()` rewrites the **derived** evidence only —
+      `transcript.jsonl` and audio are never touched, originals kept in
+      `attributes["raw_text"]`. Verified on the real session: 20 rules, 20/795
+      items corrected. **28 new tests; full suite 487 passed.**
+- [x] **Windows full-suite verification** (2026-08-31): the item below carried
+      a standing NEEDS VERIFICATION for the uncommitted V1.3.7/V1.3.8 work.
+      Run on Windows against the project venv: **459 passed in 166.71s**, zero
+      failures. The final real-provider acceptance run is still outstanding —
+      `GROQ_API_KEY` currently returns **HTTP 403**, so every class-intelligence
+      call today fell through to a local model. That key must be replaced before
+      the acceptance run means anything.
+- [ ] **Class Intelligence final checkpoint hardening** (2026-08-29,
+      *uncommitted; Windows full-suite VERIFIED 2026-08-31 (459 passed); one
+      final real Groq acceptance run still required, blocked on a valid key*):
+      sanitized real-session ASR snippets out of committed regression
+      fixtures/comments and replaced the exact session-folder identifier in the
+      reliability report with `<SESSION_ID>`. Closed the remaining reduce-scaling
+      hole: a long lecture could pass the 180-minute test only because its derived
+      sections happened to stay small; one 90-minute semantic topic could still
+      exceed the provider envelope. `nova_capture/understanding.py` now checks
+      estimated input + actual configured output reservation + safety margin
+      before model calls, recursively reduces oversized contiguous section groups,
+      compresses child summaries before the parent reduction, and refuses to send
+      an oversized singleton/global request. The postprocess guard tracks the
+      largest configured Groq/OpenAI/Ollama reservation instead of assuming 4,000.
+      New pathological single-topic and multilingual-estimation tests added.
+      Local affected verification in the ChatGPT audit copy: **66 passed**
+      (`test_nova_class_understanding.py` + `test_nova_class_recovery_v138.py`);
+      multiple additional class test files also passed. This Linux container lacks
+      NOVA's LiveKit/OpenAI dependencies and has a per-command time cap, so the
+      authoritative Windows 456+ full suite and final real provider run remain
+      explicitly **NEEDS VERIFICATION** before checkpoint/commit.
+- [x] **Class Capture reliability rebuild — V1.3.7** (2026-08-28,
+      *uncommitted, pending review*): the 2026-08-27 COP3710 lecture stopped
+      recording after **38m37s** while Ahmed was still in class. Root cause is
+      verified from the session's own evidence: `audio.wav` ended at 2317.744 s,
+      the last transcript segment at 2317.812 s, `status: "completed"`,
+      `audio_error: null` — both streams died together because the microphone
+      was closed by `finalize()`, which the LiveKit job shutdown callback owned.
+      *Which* LiveKit event fired is **unknowable**: Class Capture wrote no log
+      file. Fixed by inverting ownership. The microphone now lives in its own OS
+      process (`nova_capture/recorder_process.py`) that knows nothing about STT,
+      LLMs, or LiveKit; audio is rolling 20 s WAV chunks with an append-only
+      `audio/manifest.jsonl` (temp → fsync → atomic rename), so a crash costs at
+      most one chunk and loss is *detectable* via `scan_audio_dir`; a new
+      `ClassSessionSupervisor` owns one session id for the whole sitting and
+      writes `health.json` + `events.jsonl` + `class_capture.log`; an
+      `AgentSession` close is now a recovery (`STT_GAP_START` → rebuild with
+      backoff → `STT_GAP_END`) instead of the end of class; a live notes worker
+      (`nova_capture/live_notes.py`) produces notes within ~60–120 s with a
+      durable evidence queue that survives a provider outage; `SpeakerRoleTracker`
+      gained a live confidence view and a Guest Speaker role without weakening
+      the conservative V1.3.3 finalize-only labels; stop now reports
+      `completed` / `completed_with_warnings` / `failed` / `aborted` honestly.
+      Also fixed three defects the new tests found: `write_pcm` did not split at
+      chunk boundaries, degraded live notes were invisible in `live_notes.md`,
+      and guest presenters could never be identified. Side effect: `topics.jsonl`
+      is populated for the first time — `LectureContext.set_topic` and
+      `TopicTracker.update` had **zero production callers**, so live Q&A always
+      said "CURRENT TOPIC: not yet resolved". Suite **388 passed / 0 failed**
+      (was 282), including a real subprocess crash test proving audio survives a
+      hard kill of the intelligence process, and a real Windows microphone check
+      (separate process acquires the device; RSS flat at 9.5 MB; 115 MB/hour).
+      A 2026-08-28 follow-up corrected two documentation/test accuracy issues:
+      the report implied post-processing already consumed `live_notes.md` (it
+      does **not** — `postprocess.py` has no reference to it; that stays P1),
+      and the long-session tests used 30-second chunks while production defaults
+      to 20, so they asserted 360 chunks for a three-hour class instead of the
+      real 540. `tests/test_nova_class_long_session.py` now builds the recorder
+      with **no** `chunk_seconds` so the shipped default does the work, and
+      asserts exactly 540 chunks, sequences 1..540 with none reused, 8,640,000
+      frames, and a last chunk ending at 10800.000000 s.
+      **Pipecat 1.8.1: PILOT ONLY** — measured on this runtime, it resolves on
+      Python 3.14 but pulls 21 packages including numba/llvmlite/onnxruntime,
+      its `local` transport needs PyAudio (no cp314 wheel), and it would need a
+      Deepgram key NOVA does not have; the seam and `NOVA_CLASS_PIPELINE` flag
+      ship, the dependency does not. **NOT done:** transcript gap backfill (gaps
+      are recorded `backfilled: false`), and the **real 150-minute soak has NOT
+      been run** — `.\Test-NOVA-Class-Endurance.ps1 -Minutes 150`. Full report:
+      `docs/NOVA-CLASS-CAPTURE-RELIABILITY-REPORT.md`.
 - [x] **Lecture structure derivation — the professor's progression** (2026-08-27,
       *uncommitted, pending review*): found that the live recorder **never
       records topics** — `LectureContext.set_topic` and `TopicTracker.update`

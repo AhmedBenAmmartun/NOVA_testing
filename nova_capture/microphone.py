@@ -1,9 +1,29 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
-from .recorder import LocalWaveRecorder
+
+class PcmSink(Protocol):
+    """What the microphone adapter needs from a recorder.
+
+    Both :class:`~nova_capture.recorder.LocalWaveRecorder` (single WAV) and
+    :class:`~nova_capture.audio_chunks.ChunkedAudioRecorder` (durable rolling
+    chunks) satisfy this, so the microphone adapter never has to know which
+    storage strategy is in force.
+    """
+
+    sample_rate: int
+    channels: int
+
+    @property
+    def active(self) -> bool: ...
+
+    def start(self) -> None: ...
+
+    def write_pcm(self, data: bytes | bytearray | memoryview) -> None: ...
+
+    def close_safely(self) -> None: ...
 
 
 class LocalMicrophoneCapture:
@@ -15,7 +35,7 @@ class LocalMicrophoneCapture:
 
     def __init__(
         self,
-        recorder: LocalWaveRecorder,
+        recorder: PcmSink,
         *,
         stream_factory: Callable[..., Any] | None = None,
     ) -> None:

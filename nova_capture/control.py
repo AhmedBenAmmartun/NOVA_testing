@@ -79,6 +79,17 @@ def stop_request_path() -> Path:
     return control_root() / "stop.request.json"
 
 
+def last_session_path() -> Path:
+    """Where the most recent claim recorded its session directory.
+
+    The durable recorder is a separate process that outlives an intelligence
+    crash. When the intelligence process is gone, ``active.json`` goes stale
+    and nothing else remembers which folder that recorder is writing into --
+    so a stop request would have no way to reach it. This file is that memory.
+    """
+    return control_root() / "last_session.json"
+
+
 def _atomic_write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -106,6 +117,28 @@ def _same_process(pid: int, created_at: float) -> bool:
         process = psutil.Process(int(pid))
         return abs(float(process.create_time()) - float(created_at)) < 2.0
     except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError, TypeError):
+        return False
+
+
+def process_identity_matches(
+    pid: int | float | str | None,
+    created_at: int | float | str | None,
+) -> bool:
+    """True only when ``pid`` is alive AND is the process born at ``created_at``.
+
+    The public form of :func:`_same_process`, for any subsystem that persists a
+    PID and later has to ask whether the work it describes is still running.
+    A bare PID is not enough on its own: the OS recycles PIDs, so an unrelated
+    process can inherit the number of a job that died. Both halves must match.
+
+    Missing or unparseable identity is never treated as alive -- a record that
+    cannot prove its process is running has not proven anything.
+    """
+    if pid is None or created_at is None:
+        return False
+    try:
+        return _same_process(int(pid), float(created_at))
+    except (TypeError, ValueError):
         return False
 
 
@@ -278,6 +311,15 @@ def claim_active_session(
 
     try:
         _atomic_write_json(active_state_path(), state.as_dict())
+        _atomic_write_json(
+            last_session_path(),
+            {
+                "session_id": state.session_id,
+                "course": state.course,
+                "session_path": state.session_path,
+                "started_at": state.started_at,
+            },
+        )
     except Exception:
         _cleanup_control_files()
         raise
@@ -312,6 +354,44 @@ def release_active_session(session_id: str) -> bool:
     return True
 
 
+def _stop_durable_recorder(session_path: str | Path) -> bool:
+    """Tell the separate recorder process to finalize, if one is writing there.
+
+    Imported lazily so the control CLI stays light and free of any audio
+    dependency.
+    """
+    try:
+        from .recorder_process import request_recorder_stop
+
+        request_recorder_stop(Path(session_path), reason="user_requested")
+    except Exception:
+        return False
+    return True
+
+
+def stop_orphaned_recorder() -> str | None:
+    """Stop a recorder whose intelligence process died. Returns its path."""
+    try:
+        payload = json.loads(last_session_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    session_path = str(payload.get("session_path") or "")
+    if not session_path:
+        return None
+
+    audio_state = Path(session_path) / "audio" / "recorder.json"
+    if not audio_state.exists():
+        return None
+    try:
+        state = json.loads(audio_state.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if state.get("status") != "recording":
+        return None
+
+    return session_path if _stop_durable_recorder(session_path) else None
+
+
 def request_stop() -> ActiveCapture | None:
     active = read_active_session(clean_stale=True)
     if active is None:
@@ -325,6 +405,9 @@ def request_stop() -> ActiveCapture | None:
         "target_session_id": active.session_id,
     }
     _atomic_write_json(stop_request_path(), payload)
+    # The recorder is a different process on purpose. Signalling it directly
+    # means a stop still works when the intelligence process is unresponsive.
+    _stop_durable_recorder(active.session_path)
     return active
 
 
@@ -545,6 +628,11 @@ def main() -> int:
     if args.command == "stop":
         active = request_stop()
         if active is None:
+            orphan = stop_orphaned_recorder()
+            if orphan is not None:
+                print("No active NOVA class session.")
+                print(f"Stopped an orphaned durable recorder at: {orphan}")
+                return 0
             print("No active NOVA class session.")
             return 0
 

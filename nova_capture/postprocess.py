@@ -4,28 +4,42 @@ import argparse
 import asyncio
 import json
 import logging
-import re
-from dataclasses import dataclass, field
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from nova_school.context import CourseContextLibrary, course_sessions_root
-from nova_school.registry import CourseRegistry
+import psutil
 
+from nova_school.context import CourseContextLibrary, course_sessions_root
+from nova_knowledge.knowledge_db import KnowledgeStore, default_knowledge_path
+from nova_school.corrections import active_corrections_for, load_course_corrections
+
+from .control import process_identity_matches
 from .evidence import (
+    SessionEvidence,
     evidence_digest_markdown,
     lecture_timeline_markdown,
     load_session_evidence,
     write_session_evidence,
 )
+from .terminology import TerminologyInterpreter
 from .intelligence import _route
+from .note_review import ReviewFinding, review_definitions
+from .note_versions import archive_existing_notes
 from .presentation import build_presentation
+from .renderers import render_all
 from .storage import safe_slug
+from .understanding import (
+    DEFAULT_REQUEST_TOKEN_LIMIT,
+    DEFAULT_RESERVED_OUTPUT_TOKENS,
+    LectureUnderstanding,
+    build_understanding,
+    write_understanding,
+)
 
 
 logger = logging.getLogger("nova.class_capture.postprocess")
-_JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 
 #: How much of the lecture timeline each generation prompt may carry.
 #: This replaces the old ``transcript_excerpt[:16000]`` head-truncation, which
@@ -34,32 +48,6 @@ _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
 #: the lecture, so raising or lowering this trades detail for cost, never the
 #: end of the lecture.
 TIMELINE_BUDGET_CHARS = 32_000
-
-
-@dataclass(slots=True)
-class EvidenceBundle:
-    topics: list[str] = field(default_factory=list)
-    definitions: list[str] = field(default_factory=list)
-    examples: list[str] = field(default_factory=list)
-    assignments: list[str] = field(default_factory=list)
-    deadlines: list[str] = field(default_factory=list)
-    exam_hints: list[str] = field(default_factory=list)
-    emphasized: list[str] = field(default_factory=list)
-    explanations: list[str] = field(default_factory=list)
-
-    def merge(self, payload: dict[str, Any]) -> None:
-        for name in self.__dataclass_fields__:
-            values = payload.get(name, [])
-            if not isinstance(values, list):
-                continue
-            target = getattr(self, name)
-            for item in values:
-                cleaned = " ".join(str(item).split()).strip()
-                if cleaned and cleaned.casefold() not in {value.casefold() for value in target}:
-                    target.append(cleaned)
-
-    def as_dict(self) -> dict[str, list[str]]:
-        return {name: list(getattr(self, name)) for name in self.__dataclass_fields__}
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -132,126 +120,55 @@ def build_source_transcript(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _chunk_transcript(transcript: list[dict[str, Any]], max_chars: int = 12_000) -> list[str]:
-    chunks: list[str] = []
-    current: list[str] = []
-    length = 0
-    for item in transcript:
-        line = f"[{_elapsed(item.get('start_seconds', 0.0))}] speaker={item.get('speaker_id')} {item.get('text', '')}".strip()
-        if current and length + len(line) + 1 > max_chars:
-            chunks.append("\n".join(current))
-            current, length = [], 0
-        current.append(line)
-        length += len(line) + 1
-    if current:
-        chunks.append("\n".join(current))
-    return chunks
-
-
-def _parse_evidence_json(text: str | None) -> dict[str, Any] | None:
-    if not text:
-        return None
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-    match = _JSON_OBJECT.search(cleaned)
-    if not match:
-        return None
-    try:
-        payload = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
-    return payload if isinstance(payload, dict) else None
-
-
-async def extract_evidence(chunks: list[str], course: str) -> EvidenceBundle:
-    bundle = EvidenceBundle()
-    for index, chunk in enumerate(chunks, start=1):
-        prompt = f"""Extract grounded study evidence from lecture transcript chunk {index}/{len(chunks)} for {course}.
-Return ONLY one JSON object with these array keys:
-topics, definitions, examples, assignments, deadlines, exam_hints, emphasized, explanations.
-Each item must be a concise statement directly supported by the supplied transcript. Do not invent missing information. If a category is absent, use an empty array.
-
-TRANSCRIPT CHUNK:
-{chunk}"""
-        payload = _parse_evidence_json(await _route(prompt))
-        if payload:
-            bundle.merge(payload)
-    return bundle
-
-
-def _fallback_summary(transcript: list[dict[str, Any]], evidence: EvidenceBundle) -> str:
-    topics = evidence.topics[:10]
-    if topics:
-        return "\n".join(f"- {item}" for item in topics)
-    sample = [str(item.get("text", "")).strip() for item in transcript if str(item.get("text", "")).strip()]
-    return "\n".join(f"- {item}" for item in sample[:12]) or "- No transcript content was captured."
-
-
-def _evidence_markdown(evidence: EvidenceBundle) -> str:
-    sections = []
-    for name, values in evidence.as_dict().items():
-        sections.append(f"## {name.replace('_', ' ').title()}")
-        sections.extend(f"- {item}" for item in values[:30])
+def understanding_evidence_markdown(understanding: LectureUnderstanding) -> str:
+    """The extracted-evidence view of Evidence.md, from the understanding."""
+    blocks: list[str] = []
+    for label, values in (
+        ("Definitions", understanding.definitions),
+        ("Examples", understanding.examples),
+        ("Assignments", understanding.assignments),
+        ("Deadlines", understanding.deadlines),
+        ("Exam signals", understanding.exam_signals),
+        ("Emphasised", understanding.emphasis),
+    ):
+        blocks.append(f"## {label}")
+        blocks.extend(f"- {value}" for value in values[:30])
         if not values:
-            sections.append("- None identified from the captured evidence.")
-        sections.append("")
-    return "\n".join(sections)
+            blocks.append("- None identified from the captured evidence.")
+        blocks.append("")
+    return "\n".join(blocks)
 
 
-async def _generate_doc(
-    *,
-    kind: str,
-    course: str,
-    title: str,
-    evidence_markdown: str,
-    session_digest: str,
-    questions: list[dict[str, Any]],
-    materials_context: str,
-    lecture_timeline: str,
-) -> str | None:
-    qa = "\n".join(
-        f"- Q: {item.get('question', '')}\n  A: {item.get('answer') or '(no live answer logged)'}"
-        for item in questions[:40]
-    )
-    prompt = f"""Create {kind} for a college class session.
-COURSE: {course}
-SESSION: {title}
 
-GROUNDING RULES:
-- Use only the lecture timeline, logged Q&A, session evidence, and supplied course materials.
-- Never invent a professor statement, deadline, grade policy, exam hint, definition, or example.
-- The professor's explanation is primary. Course materials supplement the lecture; they never replace it.
-- Lines labelled "NOVA LIVE ANSWER" are NOVA's own in-class answers, not professor statements. Never attribute them to the professor.
-- Moments labelled "MARKED BY AHMED" are explicit study signals. Give them weight.
-- Clearly separate confirmed lecture evidence from NOVA study recommendations.
-- Omit empty sections rather than padding them with made-up content.
-- Preserve important technical terminology.
+def _render_review(
+    findings: list["ReviewFinding"], *, title: str, course: str
+) -> str:
+    """A short, actionable note about what could not be corroborated.
 
-STRUCTURE RULES:
-- Follow the professor's actual intellectual progression as it appears in the timeline.
-- Let the lecture decide the headings. Do not impose a generic
-  "Introduction / Key Takeaways / Conclusion" shape on a lecture that did not have one.
-- No filler, no repeated summaries, no bullet dumps, no decorative bold, no fake certainty.
-
-SESSION EVIDENCE (markers, topic progression, questions asked):
-{session_digest}
-
-EXTRACTED EVIDENCE:
-{evidence_markdown}
-
-LOGGED QUESTIONS/ANSWERS:
-{qa or '(none)'}
-
-RELATED MATERIAL EXCERPTS:
-{materials_context[:22000] or '(none)'}
-
-LECTURE TIMELINE:
-{lecture_timeline}
-
-Return polished Markdown only."""
-    return await _route(prompt)
+    Written as its own document rather than mixed into the lecture notes, so
+    the notes stay readable and the doubt stays visible.
+    """
+    lines = [
+        f"# Review — {title}",
+        "",
+        f"**Course:** {course}",
+        "",
+        "> These terms appear in NOVA's generated notes but in **none** of this",
+        "> course's materials. This lecture is taught from those materials, so a",
+        "> definition resting on an uncorroborated term may be built on a",
+        "> transcription error rather than on something the professor said.",
+        ">",
+        "> Nothing has been removed. Check these against the audio before",
+        "> relying on them, and add a rule to `STT-Corrections.md` if one is",
+        "> genuinely a mishearing.",
+        "",
+    ]
+    for finding in findings:
+        lines.append(f"## `{finding.term}` — not found in any course material")
+        lines.append("")
+        lines.append(f"> {finding.claim}")
+        lines.append("")
+    return "\n".join(lines)
 
 
 def _write_status(path: Path, **payload: Any) -> None:
@@ -260,6 +177,106 @@ def _write_status(path: Path, **payload: Any) -> None:
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
     temporary.replace(path)
+
+
+#: Statuses that describe a job which has stopped for a known reason. Only a
+#: recorded "running" is ever reinterpreted against process liveness; a job
+#: that reported its own ending told us something the OS cannot contradict.
+TERMINAL_POSTPROCESS_STATUSES = frozenset(
+    {"completed", "completed_with_warnings", "failed", "failed_to_launch", "interrupted"}
+)
+
+
+def apply_course_corrections(
+    evidence: "SessionEvidence",
+    corrections: tuple[tuple[str, str], ...],
+) -> int:
+    """Rewrite misheard phrases in the DERIVED evidence view, in place.
+
+    ``transcript.jsonl`` and the audio are never touched: they are the
+    authoritative record of what the recognizer actually produced, and every
+    document already says so. What gets corrected is the working copy that
+    reaches generation -- which is where an uncorrected mis-hearing turns into
+    a stated definition in the user's notes.
+
+    Returns the number of items changed, for the run log.
+    """
+    if not corrections:
+        return 0
+
+    interpreter = TerminologyInterpreter([], corrections=corrections)
+    changed = 0
+    for item in evidence.items:
+        result = interpreter.interpret(item.text)
+        if not result.changed:
+            continue
+        item.text = result.interpreted
+        # Keep the original within reach: a correction is Ahmed's judgement,
+        # and anyone auditing a note must be able to see what was actually
+        # heard without going back to the raw journal.
+        item.attributes.setdefault("raw_text", result.raw)
+        item.attributes["corrections"] = [list(pair) for pair in result.corrections]
+        changed += 1
+    return changed
+
+
+def write_running_status(path: Path) -> None:
+    """Claim the post-class job for THIS process.
+
+    Whoever is about to do the work stamps their own identity, so a manual
+    rerun cannot inherit the PID of the launcher that died hours ago.
+    """
+    process = psutil.Process(os.getpid())
+    _write_status(
+        path,
+        status="running",
+        started_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        error=None,
+        pid=process.pid,
+        pid_created_at=process.create_time(),
+        completed_at=None,
+    )
+
+
+def postprocess_status_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Resolve a raw status record against whether its process is still alive.
+
+    A process that is killed, power-cycled, or reaped never gets to write its
+    own failure. Trusting the file alone therefore reports a dead job as
+    healthy forever -- which is exactly how a real COT3400 lecture silently
+    produced no notes on 2026-08-31. Liveness is the reader's job.
+    """
+    resolved = dict(payload)
+    recorded = str(resolved.get("status") or "not_started")
+    resolved["recorded_status"] = recorded
+
+    # "launched" is as ambiguous as "running": the launcher writes it before the
+    # child process writes its own "running", so a child that dies in between --
+    # an import error, a missing dependency, an immediate crash -- leaves it
+    # standing forever. Both mean "believed to be in progress"; neither is a
+    # reported outcome.
+    if recorded not in {"running", "launched"}:
+        return resolved
+
+    if process_identity_matches(resolved.get("pid"), resolved.get("pid_created_at")):
+        return resolved
+
+    resolved["status"] = "interrupted"
+    resolved["error"] = resolved.get("error") or (
+        "Post-class processing stopped without reporting a result: the process "
+        "that claimed this job is no longer running. Re-run it with "
+        "`python -m nova_capture.postprocess --session <path>`."
+    )
+    return resolved
+
+
+def read_postprocess_status(session_path: str | Path) -> dict[str, Any]:
+    """The trustworthy view of a session's post-class job."""
+    path = Path(session_path).expanduser() / "postprocess.json"
+    payload = _load_json(path, {})
+    if not payload:
+        return {"status": "not_started", "recorded_status": "not_started", "error": None}
+    return postprocess_status_payload(payload)
 
 
 async def process_session(session_path: Path) -> Path:
@@ -276,12 +293,7 @@ async def process_session(session_path: Path) -> Path:
         role_map = {}
 
     status_path = session_path / "postprocess.json"
-    _write_status(
-        status_path,
-        status="running",
-        started_at=datetime.now().astimezone().isoformat(timespec="seconds"),
-        error=None,
-    )
+    write_running_status(status_path)
 
     try:
         # Layer 2 (working intelligence): one authoritative read of every raw
@@ -289,6 +301,23 @@ async def process_session(session_path: Path) -> Path:
         # attachments reach generation through here; before this they were
         # captured and then silently dropped.
         session_evidence = load_session_evidence(session_path)
+        # Corrections come from the structured store, not straight off the
+        # file: the store is what knows which rules are CONFIRMED. A correction
+        # NOVA merely inferred is retained there as a candidate and is
+        # deliberately not applied -- one guess must not reach the notes.
+        # A store failure degrades to the hand-written file rather than to no
+        # corrections at all, because those rules are Ahmed's own ground truth.
+        try:
+            store = KnowledgeStore(default_knowledge_path())
+            rules = active_corrections_for(course, store)
+        except Exception:
+            logger.exception("knowledge store unavailable; using file rules only")
+            rules = load_course_corrections(course)
+        corrected = apply_course_corrections(session_evidence, rules)
+        if corrected:
+            logger.info(
+                "applied %s course correction(s) to derived class evidence", corrected
+            )
         write_session_evidence(
             session_path,
             session_evidence,
@@ -307,9 +336,29 @@ async def process_session(session_path: Path) -> Path:
 
         library = CourseContextLibrary(course, session_path=session_path, max_chars=40_000)
         materials_context, sources = library.build_context("")
-        chunks = _chunk_transcript(transcript)
-        evidence = await extract_evidence(chunks, course) if chunks else EvidenceBundle()
-        evidence_markdown = _evidence_markdown(evidence)
+
+        # One understanding of the lecture, built from small windows, then
+        # rendered into every document. Replaces the old path, which sent the
+        # same ~32k-character bundle to the model once per document and blew
+        # past a stock Ollama's context on every one of them.
+        request_token_limit, reserved_output_tokens = _generation_request_budget(
+            os.environ
+        )
+        understanding = await build_understanding(
+            session_evidence,
+            route=_route,
+            questions=questions,
+            materials=materials_context,
+            request_token_limit=request_token_limit,
+            reserved_output_tokens=reserved_output_tokens,
+        )
+        write_understanding(session_path, understanding)
+        if understanding.degraded:
+            logger.warning(
+                "lecture understanding is incomplete: %s",
+                "; ".join(understanding.warnings()),
+            )
+        evidence_markdown = understanding_evidence_markdown(understanding)
 
         started_at = str(metadata.get("started_at") or "")
         try:
@@ -321,6 +370,20 @@ async def process_session(session_path: Path) -> Path:
             fallback="session",
         )
         folder.mkdir(parents=True, exist_ok=True)
+
+        # A regeneration must not destroy the notes it replaces. Record what
+        # prompted it, so "why did this change?" is answerable from the folder
+        # itself rather than from someone's memory.
+        archived = archive_existing_notes(
+            folder,
+            reason=(
+                f"Regenerated {datetime.now().astimezone():%Y-%m-%d %H:%M}. "
+                f"{corrected} correction(s) applied to derived evidence; "
+                f"provider route: {'degraded' if understanding.degraded else 'normal'}."
+            ),
+        )
+        if archived is not None:
+            logger.info("previous notes preserved at %s", archived)
 
         source_transcript = build_source_transcript(
             transcript,
@@ -343,47 +406,35 @@ async def process_session(session_path: Path) -> Path:
             encoding="utf-8",
         )
 
-        documents = {
-            "Lecture.md": "detailed, organized lecture notes with topics, explanations, definitions, examples, and clearly labeled assignments/deadlines/exam emphasis",
-            "Summary.md": "a concise but complete session summary and key takeaways",
-            "Study.md": "a study guide with key concepts, what to understand, likely review priorities, and NOVA recommendations clearly labeled as recommendations",
-            "Questions.md": "a complete Q&A review using every logged question and answer plus transcript-supported answers where possible",
-            "Presentation Outline.md": "a slide-by-slide presentation outline with short slide titles and concise bullets",
-        }
+        # Every document is a view of the one understanding, so they cannot
+        # disagree with each other, and rendering costs no model calls at all.
+        generated = render_all(understanding)
+        for filename, value in generated.items():
+            (folder / filename).write_text(value, encoding="utf-8")
 
-        generated: dict[str, str] = {}
-        for filename, kind in documents.items():
-            value = await _generate_doc(
-                kind=kind,
-                course=course,
-                title=title,
-                evidence_markdown=evidence_markdown,
-                session_digest=session_digest,
-                questions=questions,
-                materials_context=materials_context,
-                lecture_timeline=lecture_timeline,
+        # Independent evidence check, before Ahmed relies on any of this. The
+        # corrections layer only repairs mishearings someone already knows
+        # about; this catches novel ones by asking whether a definition's
+        # central term appears anywhere in the slides the professor is teaching
+        # from. Deliberately NOT another model call, and it MARKS rather than
+        # deletes -- a real term the slides happen not to contain must survive.
+        review_findings: list = []
+        try:
+            verification, _kinds = library.verification_material()
+            review_findings = list(
+                review_definitions(understanding.definitions, materials=verification)
             )
-            if not value:
-                # No model was reachable. Fall back to grounded evidence rather
-                # than an empty file — the digest needs no AI to be useful.
-                if filename == "Summary.md":
-                    value = f"# Session Summary — {title}\n\n{_fallback_summary(transcript, evidence)}\n"
-                elif filename == "Questions.md":
-                    lines = [f"# Questions — {title}", ""]
-                    for item in questions:
-                        lines += [f"## {item.get('question', '')}", "", item.get("answer") or "No answer was logged.", ""]
-                    value = "\n".join(lines)
-                elif filename == "Presentation Outline.md":
-                    value = f"# Session Overview\n\n{_fallback_summary(transcript, evidence)}\n"
-                else:
-                    value = (
-                        f"# {filename.removesuffix('.md')} — {title}\n\n"
-                        "> NOVA could not reach a model for this session, so this file "
-                        "contains the grounded session evidence without AI synthesis.\n\n"
-                        f"{session_digest}\n{evidence_markdown}"
-                    )
-            generated[filename] = value.rstrip() + "\n"
-            (folder / filename).write_text(generated[filename], encoding="utf-8")
+            if review_findings:
+                (folder / "Review.md").write_text(
+                    _render_review(review_findings, title=title, course=course),
+                    encoding="utf-8",
+                )
+                logger.warning(
+                    "note review flagged %s uncorroborated term(s)",
+                    len(review_findings),
+                )
+        except Exception:
+            logger.exception("note review failed; notes published unreviewed")
 
         presentation_path = None
         try:
@@ -400,15 +451,25 @@ async def process_session(session_path: Path) -> Path:
                 encoding="utf-8",
             )
 
+        # A run where the model failed on part of the lecture is NOT a clean
+        # completion. On 2026-08-28 this reported "completed" while all five
+        # documents had silently fallen back to an evidence dump.
+        warnings = list(session_evidence.warnings) + understanding.warnings()
         _write_status(
             status_path,
-            status="completed",
+            status="completed_with_warnings" if understanding.degraded else "completed",
             completed_at=datetime.now().astimezone().isoformat(timespec="seconds"),
             output_folder=str(folder),
             material_sources=[source.path for source in sources],
             presentation=str(presentation_path) if presentation_path else None,
             evidence_coverage=session_evidence.coverage(),
-            evidence_warnings=list(session_evidence.warnings),
+            evidence_warnings=warnings,
+            understanding={
+                "windows": len(understanding.windows),
+                "degraded_windows": list(understanding.degraded_windows),
+                "reduce_degraded": understanding.reduce_degraded,
+                "sections": len(understanding.sections),
+            },
         )
         return folder
     except Exception as error:
@@ -422,6 +483,75 @@ async def process_session(session_path: Path) -> Path:
         raise
 
 
+#: Output-token budget for post-class generation.
+#:
+#: NOVA's shared provider defaults are 600 (Groq) and 400 (Ollama) output
+#: tokens, which is right for a spoken specialist answer and far too small to
+#: emit a structured lecture digest. On 2026-08-28 that returned an EMPTY
+#: completion for every window -- "Groq returned an empty response" -- and the
+#: whole class silently fell back to a dump. gpt-oss-120b is a reasoning model,
+#: so it spends that budget thinking and never reaches the content.
+#:
+#: Post-processing runs in its own detached process, so raising the budget here
+#: cannot affect live Q&A or the voice agent. An explicitly configured value
+#: always wins.
+#:
+#: Capped at 4,000 rather than higher because Groq bills the RESERVED output
+#: against its tokens-per-minute limit, not the tokens actually produced. On the
+#: free tier that limit is 8,000 TPM, so a ~2,000-token window prompt plus a
+#: 6,000-token reservation was rejected outright:
+#:     413 - Request too large ... TPM: Limit 8000, Requested 8428
+#: 4,000 leaves room for the prompt and is still far more than any window digest
+#: needs -- a real one measured 4,163 characters, roughly 1,000 tokens.
+CLASS_GENERATION_MAX_TOKENS = 4_000
+
+_GENERATION_TOKEN_VARIABLES = (
+    "GROQ_MAX_TOKENS",
+    "OPENAI_MAX_OUTPUT_TOKENS",
+    "OLLAMA_MAX_TOKENS",
+)
+
+
+def _raise_generation_output_budget(environment: Any) -> None:
+    budget = environment.get(
+        "NOVA_CLASS_GENERATION_MAX_TOKENS", str(CLASS_GENERATION_MAX_TOKENS)
+    )
+    for name in _GENERATION_TOKEN_VARIABLES:
+        environment.setdefault(name, budget)
+
+
+def _positive_int(value: Any, fallback: int) -> int:
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return fallback
+    return parsed if parsed > 0 else fallback
+
+
+def _generation_request_budget(environment: Any) -> tuple[int, int]:
+    """Return the real request limit and largest configured output reservation.
+
+    ``_route`` may fall through several providers. Their explicit output-token
+    settings are allowed to differ, so Class Intelligence protects against the
+    largest reservation that could actually be sent rather than assuming the
+    default 4,000-token postprocess budget.
+    """
+    request_limit = _positive_int(
+        environment.get("NOVA_CLASS_REQUEST_TOKEN_LIMIT"),
+        DEFAULT_REQUEST_TOKEN_LIMIT,
+    )
+    reservations: list[int] = []
+    for name in _GENERATION_TOKEN_VARIABLES:
+        value = environment.get(name)
+        if value in (None, ""):
+            continue
+        parsed = _positive_int(value, 0)
+        if parsed > 0:
+            reservations.append(parsed)
+    reserved = max(reservations, default=DEFAULT_RESERVED_OUTPUT_TOKENS)
+    return request_limit, reserved
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nova-class-postprocess")
     parser.add_argument("--session", required=True)
@@ -429,6 +559,18 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    # Post-processing is normally spawned by class_capture.py, which has
+    # already loaded the environment, so the child inherits the provider
+    # credentials. A MANUAL rerun does not -- and on 2026-08-28 that silently
+    # reduced 'regenerate my notes' to a local-only run reporting every
+    # provider as 'not_configured'. load_dotenv never overrides an existing
+    # variable, so this is a no-op in the spawned case.
+    from dotenv import load_dotenv
+
+    load_dotenv(".env.local")
+    load_dotenv(".env")
+    _raise_generation_output_budget(os.environ)
+
     args = _parser().parse_args()
     folder = asyncio.run(process_session(Path(args.session)))
     print("Class Intelligence outputs:", folder)
@@ -485,5 +627,21 @@ def launch_postprocess(session_path: Path) -> int | None:
         logger.exception("could not launch post-class intelligence")
         return None
 
-    _write_status(status_path, status="launched", pid=process.pid)
+    # Record the child's process IDENTITY, not just its number. A bare PID
+    # proves nothing once the OS recycles it, and this status has to survive
+    # until the child overwrites it with its own "running".
+    try:
+        pid_created_at = psutil.Process(process.pid).create_time()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        # The child is already gone, or unreadable. Leaving the identity out
+        # makes the reader resolve this to "interrupted", which is the honest
+        # answer: we cannot show that anything is running.
+        pid_created_at = None
+
+    _write_status(
+        status_path,
+        status="launched",
+        pid=process.pid,
+        pid_created_at=pid_created_at,
+    )
     return process.pid

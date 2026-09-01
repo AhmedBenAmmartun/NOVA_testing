@@ -17,6 +17,9 @@ from tools.common import logger as nova_logger
 from tools.specialist import ask_specialist
 from nova_policy import permission_engine
 from nova_os import build_default_capability_manager, build_default_skill_registry
+from nova_learning.runtime import LearningSessionRecorder
+from nova_runtime import NovaRuntime
+from nova_runtime.store import TaskStore
 
 load_dotenv(".env.local")
 load_dotenv(".env")
@@ -534,16 +537,51 @@ async def my_agent(ctx: agents.JobContext):
     bridge_session_id = f"job_{secrets.token_hex(8)}"
     _install_conversation_mode_logging(session)
     SessionConversationRecorder().attach(session)
+    LearningSessionRecorder(
+        route="gemini_realtime",
+        model="gemini-2.5-flash-native-audio-preview-12-2025",
+        strategy_versions={
+            "learning_runtime": "v1.1",
+            "capability_kernel": "nova_os",
+        },
+    ).attach(session)
+    # The one NOVA task runtime. `nova_school` has consumed it for a while; the
+    # agent Ahmed actually talks to had no task layer at all until now.
+    runtime = NovaRuntime()
 
-    ctx.add_shutdown_callback(
-        lambda: permission_engine.clear_session(bridge_session_id)
-    )
+    # Recover durable task state before anything new is dispatched. This is
+    # also what reinterprets a task left RUNNING by a process that died -- the
+    # same reader-verifies-liveness rule the postprocess status file follows.
+    #
+    # Task state is valuable; being able to talk to NOVA is more valuable. A
+    # corrupt or unreadable store degrades to "no recovered tasks", never to an
+    # agent that refuses to start.
+    try:
+        recovered = TaskStore().recover()
+        if recovered:
+            nova_logger.info(
+                "runtime recovered %s task(s) from durable state", len(recovered)
+            )
+    except Exception:
+        nova_logger.exception("durable task recovery failed; starting with none")
+
+    async def _shutdown_runtime() -> None:
+        await runtime.shutdown()
+
+    ctx.add_shutdown_callback(_shutdown_runtime)
+
+    async def _clear_job_permissions() -> None:
+        permission_engine.clear_session(bridge_session_id)
+
+    async def _clear_voice_permissions() -> None:
+        permission_engine.clear_session("voice")
+
+    ctx.add_shutdown_callback(_clear_job_permissions)
+
     # Legacy desktop tools still use the compatibility "voice" bucket.
     # Clear it once when this LiveKit job ends so temporary grants cannot
     # survive into a later session.
-    ctx.add_shutdown_callback(
-        lambda: permission_engine.clear_session("voice")
-    )
+    ctx.add_shutdown_callback(_clear_voice_permissions)
 
     assistant = Assistant()
     _personality_tasks = _install_personality_stream(ctx, assistant)
@@ -607,3 +645,4 @@ if __name__ == "__main__":
     agents.cli.run_app(server)
 
 # === NOVA VISION TYPED CAMERA V3.4 ===
+

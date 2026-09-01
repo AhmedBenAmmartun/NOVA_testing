@@ -97,8 +97,7 @@ def check_tools() -> int:
     from tools import conversations as conversations_mod
     from tools import files as files_mod
     from tools import (
-        ask_gpt56,
-        ask_groq,
+        ask_specialist,
         control_music,
         control_window,
         create_desktop_file,
@@ -183,7 +182,16 @@ def check_tools() -> int:
                     self.role = role
                     self.text_content = text
 
-            recorder = conversations_mod.SessionConversationRecorder()
+            # The recorder is privacy-gated off by default on this branch
+            # (NOVA_SAVE_TRANSCRIPTS / NOVA_MIRROR_TRANSCRIPTS_TO_OBSIDIAN both
+            # default to false), so a bare recorder writes nothing. Enable both
+            # explicitly so the checks below exercise the real persist + mirror
+            # path instead of depending on ambient env; the writes land in the
+            # temp conversation root and temp vault patched above.
+            recorder = conversations_mod.SessionConversationRecorder(
+                enabled=True,
+                mirror_to_obsidian=True,
+            )
             recorder.record_item(FakeChatItem("assistant", "Hello Ahmed. NOVA is ready."))
             recorder.record_item(FakeChatItem("user", "Help me remember our biology quiz plan."))
             recorder.record_item(FakeChatItem("assistant", "We planned a biology quiz mode."))
@@ -217,6 +225,7 @@ def check_tools() -> int:
                 ("control_music rejects bad action", control_music(no_ctx, "explode"), lambda r: "Unknown music action" in r),
                 ("control_window rejects bad action", control_window(no_ctx, "current", "teleport"), lambda r: "Unknown window action" in r),
                 ("manage_virtual_desktop rejects bad action", manage_virtual_desktop(no_ctx, "explode"), lambda r: "Unknown virtual desktop action" in r),
+                ("ask_specialist rejects empty task", ask_specialist(no_ctx, "   "), lambda r: "specialist request was empty" in r),
                 # graceful no-setup paths
                 ("is_app_running", is_app_running(no_ctx, "spotify"), lambda r: "running" in r),
                 ("get_current_song", get_current_song(no_ctx), lambda r: "Spotify" in r or "playing" in r),
@@ -230,15 +239,6 @@ def check_tools() -> int:
             if not os.getenv("SPOTIFY_CLIENT_ID"):
                 checks.append(
                     ("play_spotify_song unconfigured", play_spotify_song(no_ctx, "test"), lambda r: "not configured" in r)
-                )
-            if not os.getenv("GROQ_API_KEY"):
-                checks.append(
-                    ("ask_groq unconfigured", ask_groq(no_ctx, "test"), lambda r: "not configured" in r)
-                )
-            openai_key = os.getenv("OPENAI_API_KEY", "").strip().lower()
-            if not openai_key or openai_key in {"replace_me", "your_key_here", "your-api-key"}:
-                checks.append(
-                    ("ask_gpt56 unconfigured", ask_gpt56(no_ctx, "test"), lambda r: "not configured" in r)
                 )
             total = len(checks)
             try:

@@ -40,6 +40,43 @@ KNOWN_FOLDER_NAMES = {
     "videos": "Videos",
 }
 
+#: What `open_file_or_folder` is allowed to hand to `os.startfile`.
+#:
+#: `os.startfile` runs the Windows shell's default verb. For a document that
+#: means *view*; for `.exe`, `.bat`, `.vbs`, `.lnk` and friends it means
+#: *execute*. Before this list existed, `web_download` (registered REVERSIBLE,
+#: so it never prompts) into `~/Downloads` -- a SAFE_DIR -- followed by
+#: `open_file_or_folder` was unconfirmed code execution, using two tools that
+#: are both active by default. `create_file` to the Desktop did the same with
+#: no network at all.
+#:
+#: This is an ALLOWLIST on purpose. A denylist loses to whatever extension
+#: Windows decides to make executable next, and to the ones nobody remembered
+#: (`.pif`, `.wsh`, `.application`, `.msp`).
+LAUNCHABLE_SUFFIXES = frozenset(
+    {
+        # documents
+        ".pdf", ".txt", ".md", ".rtf", ".csv", ".tsv", ".log", ".json", ".xml",
+        ".doc", ".docx", ".odt", ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp",
+        ".epub",
+        # images
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".tif", ".tiff",
+        ".heic", ".ico",
+        # audio / video
+        ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac",
+        ".mp4", ".mov", ".mkv", ".avi", ".webm", ".wmv",
+    }
+)
+
+
+def is_launchable(path: Path) -> bool:
+    """True only for suffixes that Windows opens rather than runs.
+
+    Directories are handled by the caller: they have no suffix, and opening a
+    folder in Explorer executes nothing.
+    """
+    return path.suffix.lower() in LAUNCHABLE_SUFFIXES
+
 
 @function_tool()
 async def save_note(
@@ -280,6 +317,20 @@ async def open_file_or_folder(
     try:
         if not path.exists():
             return "That file or folder does not exist."
+
+        # A folder opens in Explorer and runs nothing. A FILE goes to the shell's
+        # default verb, which for an executable means run it -- so anything that
+        # is not a known document/media type is refused here. Being inside a
+        # SAFE_DIR says the path is allowed, never that its contents are safe.
+        if path.is_file() and not is_launchable(path):
+            logger.warning(
+                "open_file_or_folder refused a non-document suffix: %s", path.suffix
+            )
+            return (
+                f"I will not open '{path.name}'. Opening a {path.suffix or 'file with no'} "
+                "file would ask Windows to run it, and NOVA only opens documents "
+                "and media. Open it yourself if you are sure it is safe."
+            )
 
         os.startfile(path)  # type: ignore[attr-defined]
         logger.info("open_file_or_folder: %s", path)
@@ -554,6 +605,13 @@ def _safe_desktop_child(name: str, *, extension: str = "") -> Path | None:
     path = DEFAULT_DESKTOP_PATH / cleaned
     if extension and path.suffix == "":
         path = path.with_suffix(extension)
+
+    # A requested ".bat"/".exe" used to pass straight through, because the
+    # default extension was only applied when the suffix was EMPTY. That let
+    # NOVA write a runnable file and then launch it. Writing a document is a
+    # reasonable thing to ask for; writing a program is not.
+    if not is_launchable(path):
+        path = path.with_suffix(path.suffix + (extension or ".txt"))
 
     return path
 

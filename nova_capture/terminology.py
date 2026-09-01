@@ -34,8 +34,18 @@ class TerminologyInterpreter:
         terms: list[str] | tuple[str, ...],
         *,
         threshold: float = 0.78,
+        corrections: list[tuple[str, str]] | tuple[tuple[str, str], ...] = (),
     ) -> None:
         self.threshold = min(0.95, max(0.74, float(threshold)))
+        # Ground truth from the person who was in the room. Unlike the fuzzy
+        # repair below, these are exact and may span several words, which is
+        # the only way to reach spoken mathematics ("n zero" -> "n_0").
+        self._corrections = tuple(
+            (" ".join(str(heard).split()), " ".join(str(actual).split()))
+            for heard, actual in corrections
+            if str(heard).strip() and str(actual).strip()
+        )
+        self._correction_pattern = self._build_correction_pattern()
         values: list[str] = []
         seen: set[str] = set()
         for value in terms:
@@ -51,6 +61,40 @@ class TerminologyInterpreter:
         self._single_terms = tuple(values)
         self._term_by_key = {value.casefold(): value for value in values}
 
+    def _build_correction_pattern(self) -> re.Pattern[str] | None:
+        """One alternation, longest phrase first, so the longest rule wins.
+
+        Sorting by length here is what stops "city presentation" from eating
+        half of "important city presentation" -- Python's ``|`` is first-match,
+        not longest-match, so the ordering has to be built in.
+        """
+        if not self._corrections:
+            return None
+        ordered = sorted(self._corrections, key=lambda rule: -len(rule[0]))
+        # \b would not anchor a rule ending in punctuation, so require a
+        # non-word neighbour explicitly. This keeps "a low" out of "allow".
+        alternation = "|".join(re.escape(heard) for heard, _ in ordered)
+        return re.compile(rf"(?<!\w)(?:{alternation})(?!\w)", re.IGNORECASE)
+
+    def _apply_corrections(
+        self,
+        text: str,
+        corrections: list[tuple[str, str]],
+    ) -> str:
+        if self._correction_pattern is None:
+            return text
+        replacements = {heard.casefold(): actual for heard, actual in self._corrections}
+
+        def replace(match: re.Match[str]) -> str:
+            found = match.group(0)
+            actual = replacements.get(" ".join(found.split()).casefold())
+            if actual is None or actual == found:
+                return found
+            corrections.append((found, actual))
+            return actual
+
+        return self._correction_pattern.sub(replace, text)
+
     @staticmethod
     def _preserve_case(source: str, target: str) -> str:
         if source.isupper():
@@ -61,10 +105,18 @@ class TerminologyInterpreter:
 
     def interpret(self, text: str) -> TerminologyInterpretation:
         raw = " ".join((text or "").split()).strip()
-        if not raw or not self._single_terms:
+        if not raw:
             return TerminologyInterpretation(raw, raw)
 
         corrections: list[tuple[str, str]] = []
+
+        # Ahmed's rules are authoritative, so they run first and the fuzzy pass
+        # below then works on already-corrected text. Doing it the other way
+        # round would let a near-miss guess overwrite a known-correct answer.
+        working = self._apply_corrections(raw, corrections)
+
+        if not self._single_terms:
+            return TerminologyInterpretation(raw, working, tuple(corrections))
 
         def replace(match: re.Match[str]) -> str:
             token = match.group(0)
@@ -99,5 +151,5 @@ class TerminologyInterpreter:
             corrections.append((token, replacement))
             return replacement
 
-        interpreted = _WORD.sub(replace, raw)
+        interpreted = _WORD.sub(replace, working)
         return TerminologyInterpretation(raw, interpreted, tuple(corrections))

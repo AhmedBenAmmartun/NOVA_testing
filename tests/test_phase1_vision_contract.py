@@ -17,7 +17,19 @@ def text(path: str) -> str:
 
 
 def active_python_sources() -> list[pathlib.Path]:
-    blocked = {"tests", "venv", ".venv", "Dashboard", ".nova-backups", "NOVA-Agent-pending"}
+    # ".claude" holds git worktrees of *other* branches checked out inside the
+    # project (Claude Code creates them under .claude/worktrees/). A sibling
+    # checkout of an older commit is not active NOVA source, and scanning it
+    # made this contract fail on retired code that the live tree no longer has.
+    blocked = {
+        "tests",
+        "venv",
+        ".venv",
+        "Dashboard",
+        ".nova-backups",
+        "NOVA-Agent-pending",
+        ".claude",
+    }
     paths: list[pathlib.Path] = []
     for path in ROOT.rglob("*.py"):
         if any(part in blocked for part in path.parts):

@@ -9,7 +9,7 @@ from ctypes import wintypes
 import psutil
 from livekit.agents import RunContext, function_tool
 
-from nova_policy import permission_engine
+from nova_policy import Principal, permission_engine
 
 from .common import logger
 
@@ -573,6 +573,10 @@ async def close_app(
             f"Close application: {app_name}"
         ),
         session_id="voice",
+        # Invoked from a tool the user is talking to. When the orchestrator
+        # spawns workers, it passes a worker principal here instead.
+        principal=Principal.user(),
+
         executor=lambda: _close_app_impl(
             app_name
         ),
@@ -611,6 +615,10 @@ async def restart_app(
             f"Restart application: {app_name}"
         ),
         session_id="voice",
+        # Invoked from a tool the user is talking to. When the orchestrator
+        # spawns workers, it passes a worker principal here instead.
+        principal=Principal.user(),
+
         executor=execute_restart,
     )
 

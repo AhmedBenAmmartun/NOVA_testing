@@ -21,7 +21,7 @@ import requests
 from ddgs import DDGS
 from livekit.agents import RunContext, function_tool
 
-from nova_policy import ActionPolicy, PermissionLevel, permission_engine
+from nova_policy import ActionPolicy, PermissionLevel, Principal, permission_engine
 
 from .common import logger
 
@@ -571,6 +571,9 @@ async def web_download(context: RunContext, url: str) -> str:
         f"Download a public web resource into {DOWNLOAD_DIR}",
         executor,
         session_id="voice",
+        # Invoked from a tool the user is talking to. When the orchestrator
+        # spawns workers, it passes a worker principal here instead.
+        principal=Principal.user(),
     )
 
 

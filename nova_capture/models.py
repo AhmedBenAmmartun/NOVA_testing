@@ -13,6 +13,9 @@ def utc_now() -> datetime:
 class SpeakerRole(StrEnum):
     PROFESSOR = "professor"
     STUDENT = "student"
+    # A guest lecturer can out-talk the professor for a whole class, so talk
+    # time alone must never promote them; they get their own role instead.
+    GUEST = "guest"
     USER = "user"
     UNKNOWN = "unknown"
 
@@ -109,6 +112,27 @@ class ClassSessionMetadata:
     live_answers_enabled: bool = True
     postprocess_enabled: bool = True
     postprocess_pid: int | None = None
+    # --- V1.3.7 durable-capture evidence ---------------------------------
+    # update_metadata() rejects unknown field names on purpose, so every
+    # keyword class_capture.finalize() passes must exist here. It did not on
+    # 2026-08-28: finalize() raised AttributeError on `stt_restarts` and the
+    # whole session.json was left saying status="recording" with zero counts.
+    stt_restarts: int = 0
+    audio_chunks: int = 0
+    audio_seconds: float = 0.0
+    audio_integrity_ok: bool = False
+    pipeline: str = "livekit"
+    recorder_mode: str = "none"
+    recorder_isolated: bool = False
+    #: Every field above this line from `transcript_segment_count` down is a
+    #: FINALIZATION OUTPUT: it only holds a real measurement once finalize()
+    #: has run. Until then they are dataclass defaults, and a reader cannot
+    #: tell "measured as zero" from "never measured" -- which is how a live
+    #: COT3400 session reported `audio_integrity_ok: false` and
+    #: `recorder_mode: "none"` while health.json showed 84 chunks from a
+    #: healthy isolated recorder. Read them through
+    #: `nova_capture.status.session_metrics()`, never raw.
+    metrics_finalized: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         value = asdict(self)

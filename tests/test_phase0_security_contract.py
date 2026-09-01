@@ -65,9 +65,57 @@ def test_prompt_uses_live_vision_and_one_specialist_tool() -> None:
 
 
 def test_session_cleanup_removes_pending_state() -> None:
-    text = _read("nova_policy/engine.py")
-    assert "pending.session_id == session_id" in text
-    assert "self._pending.pop(action_id, None)" in text
+    """Behavioral, not source-matching.
+
+    This previously asserted the literal source text
+    ``"pending.session_id == session_id"``, which broke the moment grant keys
+    became principal-scoped -- and, worse, would have kept passing if cleanup
+    were behaviorally broken while the string survived. The property that
+    actually matters is that clearing a session drops its pending actions and
+    its standing grants, so assert that instead.
+    """
+    import asyncio
+
+    from nova_policy.engine import (
+        ActionPolicy,
+        PermissionEngine,
+        PermissionLevel,
+        Principal,
+    )
+
+    engine = PermissionEngine()
+    engine.register(
+        ActionPolicy(
+            name="cleanup_probe",
+            level=PermissionLevel.SENSITIVE,
+            confirmation_message="Confirm?",
+            allow_session_approval=True,
+        )
+    )
+
+    async def _work() -> str:
+        return "executed"
+
+    user = Principal.user()
+    pending = asyncio.run(
+        engine.run("cleanup_probe", "probe", _work, principal=user)
+    )
+    assert "executed" not in pending
+    assert engine._pending
+
+    asyncio.run(engine.approve(scope="session", principal=user))
+    assert engine._session_grants
+
+    engine.clear_session("voice")
+
+    assert not engine._pending
+    assert not engine._session_grants
+
+    # And the standing grant really is gone: the action confirms again.
+    again = asyncio.run(
+        engine.run("cleanup_probe", "probe", _work, principal=user)
+    )
+    assert "executed" not in again
 
 
 def test_agent_registers_shutdown_permission_cleanup() -> None:

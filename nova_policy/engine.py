@@ -24,6 +24,69 @@ class PermissionLevel(IntEnum):
     RESTRICTED = 3
 
 
+#: The only actor kinds NOVA recognizes. Anything else is a forgery attempt.
+_PRINCIPAL_KINDS = frozenset({"user", "worker", "system"})
+
+
+@dataclass(frozen=True, slots=True)
+class Principal:
+    """WHO is asking for an action.
+
+    The permission engine used to have no notion of an actor: every call site
+    passed the literal string ``"voice"``, so a request from an internal worker
+    would have been byte-for-byte indistinguishable from Ahmed asking. That
+    matters most for session grants -- keyed only by action name, one human
+    approval would have silently authorized unlimited worker invocations of
+    that action for the rest of the session -- and for the audit log, which
+    could not attribute anything after an incident.
+
+    A Principal is minted by TRUSTED CODE through the constructors below. It
+    must never be built from model output or a tool argument: if the model
+    could hand over ``principal="user"``, the whole boundary would be
+    decorative. That is why ``kind`` is validated against a closed set rather
+    than accepted as free text.
+    """
+
+    kind: str
+    id: str
+    #: Which principal spawned this one, for the delegation chain in the audit
+    #: log. Attribution needs the chain, not just the leaf.
+    parent: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in _PRINCIPAL_KINDS:
+            raise ValueError(
+                f"Unknown principal kind {self.kind!r}. "
+                f"Expected one of {sorted(_PRINCIPAL_KINDS)}."
+            )
+        if not str(self.id).strip():
+            raise ValueError("A principal must have an id.")
+
+    @classmethod
+    def user(cls, id: str = "ahmed") -> "Principal":
+        """The human at the keyboard or microphone. The only approver."""
+        return cls(kind="user", id=id)
+
+    @classmethod
+    def worker(cls, id: str, *, parent: str | None = None) -> "Principal":
+        """An internal NOVA worker. Never an approver, never a default."""
+        return cls(kind="worker", id=id, parent=parent)
+
+    @classmethod
+    def system(cls, id: str) -> "Principal":
+        """Scheduled or background NOVA machinery acting on its own."""
+        return cls(kind="system", id=id)
+
+    @property
+    def is_user(self) -> bool:
+        return self.kind == "user"
+
+    @property
+    def key(self) -> str:
+        """Stable identity for grant keying and audit records."""
+        return f"{self.kind}:{self.id}"
+
+
 @dataclass(frozen=True, slots=True)
 class ActionPolicy:
     """Security policy assigned to one NOVA action."""
@@ -33,6 +96,10 @@ class ActionPolicy:
     confirmation_message: str = ""
     timeout_seconds: int = 60
     allow_session_approval: bool = False
+    #: Whether a non-user principal may invoke this action at all.
+    #: Default False on purpose: a policy that has not thought about workers
+    #: has not authorized them. Opting in must be a deliberate act.
+    worker_invocable: bool = False
 
 
 @dataclass(slots=True)
@@ -58,13 +125,13 @@ class PendingAction:
 class PermissionEngine:
     """Authorize, confirm, deny, execute, and audit NOVA actions."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, audit_path: Path | str | None = None) -> None:
         project_root = Path(__file__).resolve().parent.parent
 
         self.audit_path = (
-            project_root
-            / "audit_logs"
-            / "nova_actions.jsonl"
+            Path(audit_path)
+            if audit_path is not None
+            else project_root / "audit_logs" / "nova_actions.jsonl"
         )
 
         self.audit_path.parent.mkdir(
@@ -100,6 +167,7 @@ class PermissionEngine:
         summary: str,
         executor: AsyncAction,
         *,
+        principal: Principal,
         session_id: str = "voice",
     ) -> str:
         """
@@ -154,8 +222,27 @@ class PermissionEngine:
                 "by default."
             )
 
+        # A non-user principal may only touch actions that deliberately opted
+        # in. Checked BEFORE session grants, so no amount of prior human
+        # approval can promote a worker into an action it was never allowed.
+        if not principal.is_user and not policy.worker_invocable:
+            self._audit(
+                action=action_name,
+                status="denied",
+                summary=summary,
+                reason="Principal is not permitted to invoke this action",
+                principal=principal,
+            )
+            return (
+                f"NOVA refused '{action_name}': it may only be performed at "
+                "Ahmed's request, not by an internal worker."
+            )
+
+        # Grants are keyed by PRINCIPAL, not by a shared session string. When
+        # every caller passed the literal "voice", one human approval would
+        # have silently authorized every worker for the rest of the session.
         session_key = (
-            session_id,
+            f"{session_id}|{principal.key}",
             action_name,
         )
 
@@ -171,13 +258,17 @@ class PermissionEngine:
                 action_name=action_name,
                 summary=summary,
                 executor=executor,
+                principal=principal,
             )
 
+        # Carry the principal-scoped key onto the pending action, so that an
+        # approval grants authority to the principal who asked -- and to nobody
+        # else.
         return self._create_confirmation(
             policy=policy,
             summary=summary,
             executor=executor,
-            session_id=session_id,
+            session_id=session_key[0],
         )
 
     async def approve(
@@ -185,8 +276,29 @@ class PermissionEngine:
         action_id: str = "latest",
         *,
         scope: str = "once",
+        principal: Principal | None = None,
     ) -> str:
-        """Approve and execute a pending action."""
+        """Approve and execute a pending action.
+
+        Only a user principal may approve. Enforced here in trusted code rather
+        than by leaving the method undecorated: a worker that could approve its
+        own request would make every confirmation tier decorative, and the
+        absence of a ``@function_tool`` is a convention, not a boundary.
+        """
+
+        actor = principal or Principal.user()
+        if not actor.is_user:
+            self._audit(
+                action="approve",
+                status="denied",
+                summary=f"Approval attempted for {action_id}",
+                reason="Only a user principal may approve an action",
+                principal=actor,
+            )
+            return (
+                "NOVA refused that approval: only Ahmed can approve a pending "
+                "action, not an internal worker."
+            )
 
         pending = self._resolve_pending(action_id)
 
@@ -375,16 +487,23 @@ class PermissionEngine:
     ) -> None:
         """Remove temporary approvals and pending actions for one session."""
 
+        # Grant keys are "<session>|<principal>", so clearing a session must
+        # match on the session half and drop every principal's grants within
+        # it. Comparing the whole key would silently leak grants across a
+        # session boundary.
+        def _same_session(key: str) -> bool:
+            return key.split("|", 1)[0] == session_id
+
         with self._lock:
             self._session_grants = {
                 grant
                 for grant in self._session_grants
-                if grant[0] != session_id
+                if not _same_session(grant[0])
             }
             pending_ids = [
                 action_id
                 for action_id, pending in self._pending.items()
-                if pending.session_id == session_id
+                if _same_session(pending.session_id)
             ]
             for action_id in pending_ids:
                 self._pending.pop(action_id, None)
@@ -447,12 +566,14 @@ class PermissionEngine:
         summary: str,
         executor: AsyncAction,
         action_id: str | None = None,
+        principal: Principal | None = None,
     ) -> str:
         self._audit(
             action=action_name,
             status="started",
             summary=summary,
             action_id=action_id,
+            principal=principal,
         )
 
         try:
@@ -463,6 +584,7 @@ class PermissionEngine:
                 status="completed",
                 summary=summary,
                 action_id=action_id,
+                principal=principal,
             )
 
             return result
@@ -473,6 +595,7 @@ class PermissionEngine:
                 status="failed",
                 summary=summary,
                 action_id=action_id,
+                principal=principal,
                 reason=type(error).__name__,
             )
 
@@ -584,6 +707,7 @@ class PermissionEngine:
         action_id: str | None = None,
         reason: str | None = None,
         approval_scope: str | None = None,
+        principal: Principal | None = None,
     ) -> None:
         """Write action metadata without saving private contents."""
 
@@ -599,6 +723,10 @@ class PermissionEngine:
             "action_id": action_id,
             "reason": reason,
             "approval_scope": approval_scope,
+            # Without an actor and its delegation chain, a post-incident review
+            # cannot say who caused an action -- only that it happened.
+            "principal": principal.key if principal else None,
+            "principal_parent": principal.parent if principal else None,
         }
 
         try:
