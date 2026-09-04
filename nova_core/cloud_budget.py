@@ -244,6 +244,70 @@ class CloudUsageBudget:
                 limit=self.daily_request_limit,
             )
 
+    def release(
+        self,
+        provider: str,
+    ) -> None:
+        """
+        Give back one reservation that produced no answer.
+
+        try_consume() reserves before the provider is called so the
+        daily cap stays a real ceiling when requests overlap. That
+        ordering is only honest if a failed call hands its reservation
+        back, or an unreachable provider is billed for answers it
+        never gave.
+        """
+
+        if not self.enabled:
+            return
+
+        if self.daily_request_limit < 0:
+            return
+
+        with self._lock:
+            state = self._load_state()
+
+            provider_counts = state.setdefault(
+                "providers",
+                {},
+            )
+
+            reserved = int(
+                provider_counts.get(
+                    provider,
+                    0,
+                )
+            )
+
+            used = int(
+                state.get(
+                    "total_requests",
+                    0,
+                )
+            )
+
+            if reserved <= 0 or used <= 0:
+                # Either this provider holds no reservation, or the day
+                # rolled over and _load_state() already reset the
+                # ledger the reservation belonged to. Refunding now
+                # would drive the counter negative.
+                return
+
+            if reserved == 1:
+                provider_counts.pop(
+                    provider,
+                    None,
+                )
+
+            else:
+                provider_counts[provider] = (
+                    reserved - 1
+                )
+
+            state["total_requests"] = used - 1
+
+            self._save_state(state)
+
     def status(self) -> dict[str, Any]:
         """Return safe usage information."""
 
