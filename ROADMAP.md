@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-31_
+_Last updated: 2026-09-05_
 
 > **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
 > It is the authoritative handoff: exact Git state, verified test count (682),
@@ -24,6 +24,20 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **NOVA Lab V1A foundation** (2026-09-05, LAB only): added the
+      internal `LAB -> CANDIDATE -> ACTIVE -> RETIRED` lifecycle primitives,
+      local feature registry + recoverable append-only lifecycle journal,
+      constrained `lab/*` Git worktrees under `C:\Projects\NOVA-Labs`, and
+      an allow-listed test runner that refuses non-Git/non-Lab targets. Added
+      `pytest.ini` with `testpaths = tests` so ignored/pending repository copies
+      are not collected by a bare pytest run. No model-callable promotion,
+      retirement, production restart, rollback, arbitrary shell, or direct
+      production-worktree write exists in V1A. **18 focused Lab tests** after
+      hardening; pre-hardening verification was 14/14 focused plus **696/696**
+      full current tests and **696/696** bare pytest. One Windows recorder
+      isolation test flaked once during a full run, then passed 3/3 immediately;
+      production Class Capture code was unchanged. Next: V1B read/register
+      development capability, still without activation/restart authority.
 - [x] **SECURITY — unconfirmed code execution chain closed** (2026-08-31,
       *uncommitted*): found by the security threat-model worker, verified
       directly against source. `open_file_or_folder` called

@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-31_
+_Last updated: 2026-09-05_
 
 ## What this is
 
@@ -50,6 +50,10 @@ nova_runtime/       job + task-state foundation (BackgroundJobManager,
                     TaskSnapshot, JobState, EventBus).
                     NOT wired into agent.py -- only nova_school/automation.py
                     and cli.py consume it. See ROADMAP before extending
+nova_lab/           internal development lifecycle primitives: feature state,
+                    recoverable lifecycle journal, constrained Git worktrees,
+                    and allow-listed test profiles. Not a user-facing mode and
+                    not wired to production promotion/restart in V1A.
 nova_guardian/      guardian subsystem
 nova_integrations/  email/calendar + secrets
 tools/              ~80 @function_tool definitions across 15 modules;
@@ -68,6 +72,22 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
                     OBSIDIAN_VAULT_PATH (path to the Obsidian vault)
 .agents/skills/run-ai-agent/   run skill + driver.py test harness
 ```
+
+## NOVA Lab (internal development lifecycle, V1A)
+
+NOVA Lab is not a separate NOVA mode/persona. It is the internal lifecycle used
+to isolate experimental implementations from ACTIVE production behavior.
+
+`LAB -> CANDIDATE -> ACTIVE -> RETIRED`
+
+V1A contains only lifecycle state, an append-only/recoverable audit journal,
+constrained Git worktree creation, and named pytest profiles. Runtime state
+defaults to `%LOCALAPPDATA%\NOVA\Lab\`; managed worktrees must stay under
+`C:\Projects\NOVA-Labs\` and use `lab/*` branches. Promotion, retirement
+of ACTIVE code, restart, rollback, arbitrary shell, and direct production edits
+are deliberately absent. Future sensitive release operations must reuse
+`nova_policy` and trusted user approval rather than create a second authority
+system.
 
 ## Class Capture (capability of the one NOVA, V1.3.7)
 

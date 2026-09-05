@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-08-13_
+_Last updated: 2026-09-05_
 
 ## What this is
 
@@ -68,6 +68,17 @@ vision-client/       standalone Tauri 2 trusted camera/mic control surface;
 vision_token.py      backend-only short-lived LiveKit token/agent-dispatch helper
 Start-NOVA-Vision.ps1  launches agent worker + Vision client for development
 ```
+
+## NOVA Lab development lifecycle
+
+`nova_lab/` is NOVA's internal feature-development lifecycle, not a user-facing
+mode. Experiments live on `lab/*` branches/worktrees under
+`C:\Projects\NOVA-Labs\`. V1A may register/inspect lifecycle state and run
+allow-listed tests, but it has no model-callable production promotion, ACTIVE
+retirement, restart, rollback, arbitrary shell, or direct production-worktree
+write. Future release actions must go through `nova_policy`; the model never
+receives an approval tool and cannot self-approve. Retired implementations are
+preserved unless Ahmed explicitly approves deletion.
 
 ## Run & test (all verified)
 
