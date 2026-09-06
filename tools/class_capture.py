@@ -13,6 +13,8 @@ from pathlib import Path
 
 from livekit.agents import function_tool
 
+from nova_verification import verify_fields
+
 from nova_capture.control import (
     close_capture_launcher_tree,
     close_legacy_launcher_after_save,
@@ -136,8 +138,68 @@ def _launch_capture_worker(course: str | None = None) -> int:
     return int(process.pid)
 
 
+def _verify_class_start_artifacts(active, expected_course: str | None = None):
+    if active is None:
+        return verify_fields(
+            "class_capture_start",
+            expected={"active_session": True},
+            observed={"active_session": False},
+        )
+
+    root = Path(active.session_path).expanduser().resolve()
+    health_path = root / "health.json"
+    health = None
+    if health_path.exists():
+        try:
+            value = json.loads(health_path.read_text(encoding="utf-8"))
+            if isinstance(value, dict):
+                health = value
+        except (OSError, json.JSONDecodeError):
+            health = None
+
+    workers = health.get("workers", {}) if isinstance(health, dict) else {}
+    audio = workers.get("audio", {}) if isinstance(workers, dict) else {}
+    audio_status = audio.get("status") if isinstance(audio, dict) else None
+
+    expected = {
+        "active_session": True,
+        "session_path_exists": True,
+        "session_json": True,
+        "transcript_jsonl": True,
+        "transcript_txt": True,
+        "health_json": True,
+        "health_session_id": str(active.session_id),
+        "audio_status": "recording",
+    }
+    observed = {
+        "active_session": True,
+        "session_path_exists": root.is_dir(),
+        "session_json": (root / "session.json").is_file(),
+        "transcript_jsonl": (root / "transcript.jsonl").is_file(),
+        "transcript_txt": (root / "transcript.txt").is_file(),
+        "health_json": health is not None,
+        "health_session_id": (
+            str(health.get("session_id"))
+            if isinstance(health, dict) and health.get("session_id") is not None
+            else None
+        ),
+        "audio_status": audio_status,
+    }
+
+    if expected_course is not None:
+        expected["course"] = expected_course
+        observed["course"] = str(active.course)
+
+    return verify_fields(
+        "class_capture_start",
+        expected=expected,
+        observed=observed,
+    )
+
+
 def _wait_for_active_capture(
     worker_pid: int | None = None,
+    expected_course: str | None = None,
     timeout_seconds: float = 12.0,
     poll_seconds: float = 0.20,
 ):
@@ -145,7 +207,12 @@ def _wait_for_active_capture(
     while time.monotonic() < deadline:
         active = read_active_session(clean_stale=True)
         if active is not None:
-            return active
+            verification = _verify_class_start_artifacts(
+                active,
+                expected_course=expected_course,
+            )
+            if verification.ok:
+                return active
 
         if worker_pid:
             try:
@@ -265,6 +332,7 @@ async def start_class_capture(course: str = "") -> str:
         active = await asyncio.to_thread(
             _wait_for_active_capture,
             worker_pid,
+            canonical_course,
         )
     except Exception as exc:
         cleanup = ""
@@ -284,19 +352,27 @@ async def start_class_capture(course: str = "") -> str:
             close_capture_launcher_tree,
             worker_pid,
         )
+        observed = read_active_session(clean_stale=True)
+        verification = _verify_class_start_artifacts(
+            observed,
+            expected_course=canonical_course,
+        )
         tail = _launcher_log_tail() if "_launcher_log_tail" in globals() else ""
         detail = f"\nStartup log:\n{tail}" if tail else ""
         return (
             f"I resolved this as {canonical_course} ({reason}) and launched the "
             "recorder, but it did not become healthy. I am not claiming recording "
-            f"succeeded. Worker PID: {worker_pid}. Launch cleanup: {cleanup}."
+            f"succeeded. Worker PID: {worker_pid}. Launch cleanup: {cleanup}. "
+            + verification.render()
             + detail
         )
 
     return (
         f"Class recording is active for {active.course} ({reason}). "
         f"Session: {active.session_id}. I can keep talking with you and use my "
-        "other capabilities while it records."
+        "other capabilities while it records. "
+        "Verification: VERIFIED — class_capture_start: active session, session "
+        "metadata, transcript stores, health record, and audio=recording were observed."
     )
 
 @function_tool()
@@ -391,6 +467,22 @@ async def end_class_capture() -> str:
         active,
     )
 
+    persistence_verification = verify_fields(
+        "class_capture_stop",
+        expected={
+            "inactive": True,
+            "session_finalized": True,
+            "transcript_saved": True,
+            "audio_saved": True,
+        },
+        observed={
+            "inactive": bool(completed),
+            "session_finalized": status not in {"unknown", "idle", "active", "starting"},
+            "transcript_saved": transcript_ok,
+            "audio_saved": audio_ok,
+        },
+    )
+
     verification = [
         "transcript saved" if transcript_ok else "transcript needs verification",
         (
@@ -402,6 +494,7 @@ async def end_class_capture() -> str:
     return (
         f"{active.course} class recording finalized with status {status}. "
         + ", ".join(verification)
+        + f". {persistence_verification.render()}"
         + f". Capture cleanup: {launcher_cleanup}. "
         + f"Session: {active.session_path}. NOVA is still running normally."
     )

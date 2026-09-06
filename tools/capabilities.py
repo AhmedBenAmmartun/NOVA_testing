@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from livekit.agents import RunContext, function_tool
 
+from nova_verification import verify_fields
+
 
 def _manager_from_context(context: RunContext):
     session = getattr(context, "session", None)
@@ -19,6 +21,33 @@ def _manager_from_context(context: RunContext):
     if manager is None:
         raise RuntimeError("NOVA capability manager is not attached to the active agent.")
     return agent, manager
+
+
+def _verify_capability_state(manager, capability_id: str, *, expected_active: bool):
+    spec = manager.registry.get(capability_id)
+    if spec is None:
+        return verify_fields(
+            "capability_activation",
+            expected={"known_capability": True},
+            observed={"known_capability": False},
+        )
+
+    toolset_id = f"nova_{spec.capability_id}"
+    tool_context = manager.build_tool_context()
+    exposed = any(getattr(item, "id", None) == toolset_id for item in tool_context)
+    expected_exposed = bool(spec.tools) and bool(expected_active)
+
+    return verify_fields(
+        "capability_activation",
+        expected={
+            "active": bool(expected_active),
+            "toolset_exposed": expected_exposed,
+        },
+        observed={
+            "active": manager.is_active(spec.capability_id),
+            "toolset_exposed": exposed,
+        },
+    )
 
 
 @function_tool()
@@ -56,6 +85,25 @@ async def activate_capability(context: RunContext, capability_id: str) -> str:
     result = manager.activate(capability_id)
     if result.startswith("Activated capability"):
         await agent.update_tools(manager.build_tool_context())
+        verification = _verify_capability_state(
+            manager,
+            capability_id,
+            expected_active=True,
+        )
+        if not verification.ok:
+            return (
+                result
+                + " "
+                + verification.render()
+                + " I am not claiming the runtime tool exposure succeeded."
+            )
+        return (
+            result
+            + " "
+            + verification.render()
+            + " The updated runtime tool context is observed; same-turn model "
+              "re-planning is not claimed by this contract."
+        )
     return result
 
 
@@ -66,6 +114,19 @@ async def deactivate_capability(context: RunContext, capability_id: str) -> str:
     result = manager.deactivate(capability_id)
     if result.startswith("Deactivated capability"):
         await agent.update_tools(manager.build_tool_context())
+        verification = _verify_capability_state(
+            manager,
+            capability_id,
+            expected_active=False,
+        )
+        if not verification.ok:
+            return (
+                result
+                + " "
+                + verification.render()
+                + " I am not claiming the runtime tool removal succeeded."
+            )
+        return result + " " + verification.render()
     return result
 
 

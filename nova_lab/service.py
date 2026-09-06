@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from nova_os.capabilities import CANONICAL_CAPABILITY_IDS
 from nova_runtime import JobState
+from nova_verification import verify_fields
 
 from .evidence import TestEvidenceRecord, TestEvidenceStore, now_iso, summarize_test_output
 from .models import FeatureRecord, FeatureState
@@ -218,11 +219,42 @@ class DevelopmentService:
             test_profile=profile,
         )
         self.registry.register(feature)
+        observed_feature = self.registry.get(feature_id)
+        verification = verify_fields(
+            "nova_lab_register",
+            expected={
+                "feature_id": feature_id,
+                "capability_id": capability_id,
+                "status": FeatureState.LAB.value,
+                "branch": branch,
+                "worktree": str(worktree_path),
+                "base_ref": resolved_base,
+                "test_profile": profile,
+            },
+            observed=(
+                None
+                if observed_feature is None
+                else {
+                    "feature_id": observed_feature.feature_id,
+                    "capability_id": observed_feature.capability_id,
+                    "status": observed_feature.status.value,
+                    "branch": observed_feature.branch,
+                    "worktree": observed_feature.worktree,
+                    "base_ref": observed_feature.base_ref,
+                    "test_profile": observed_feature.test_profile,
+                }
+            ),
+        )
+        if not verification.ok:
+            return (
+                f"NOVA Lab metadata write for '{feature_id}' occurred, but "
+                f"{verification.render()} I am not claiming registration succeeded."
+            )
 
         return (
             f"Registered NOVA Lab feature '{feature_id}' in LAB state. "
             "This changed Lab metadata only; it did not promote, restart, "
-            "modify production, or run tests."
+            f"modify production, or run tests. {verification.render()}"
         )
 
     async def dispatch_test_job(self, feature_id: str, test_profile: str) -> str:
@@ -313,6 +345,31 @@ class DevelopmentService:
                 job_id=public_job_id,
             )
             self._evidence.record(evidence)
+            stored_evidence = self._evidence.get(evidence.evidence_id)
+            verification = verify_fields(
+                "nova_lab_test_evidence",
+                expected={
+                    "evidence_id": evidence.evidence_id,
+                    "commit_sha": head_before,
+                    "test_profile": profile,
+                    "passed": result.passed,
+                },
+                observed=(
+                    None
+                    if stored_evidence is None
+                    else {
+                        "evidence_id": stored_evidence.evidence_id,
+                        "commit_sha": stored_evidence.commit_sha,
+                        "test_profile": stored_evidence.test_profile,
+                        "passed": stored_evidence.passed,
+                    }
+                ),
+            )
+            if not verification.ok:
+                raise RuntimeError(
+                    "NOVA Lab test finished but durable evidence verification failed: "
+                    + verification.render()
+                )
             return evidence.evidence_id
 
         runtime_job_id = await self.runtime.jobs.start(
@@ -320,13 +377,25 @@ class DevelopmentService:
             awaitable=_run(),
         )
         self._job_index[public_job_id] = runtime_job_id
+        snapshot = self.runtime.jobs.snapshot(runtime_job_id)
+        verification = verify_fields(
+            "nova_lab_test_job_start",
+            expected={"job_registered": True},
+            observed={"job_registered": snapshot is not None},
+        )
+        if not verification.ok:
+            return (
+                f"NOVA Lab requested test job '{public_job_id}', but "
+                f"{verification.render()} I am not claiming the job started."
+            )
 
         return (
             f"Started NOVA Lab test job '{public_job_id}' for feature "
             f"'{feature_id}' (profile '{profile}', commit "
             f"{head_before[:12]}). This runs in the background and does not "
             "block this conversation. Check "
-            f"get_lab_test_job_status('{public_job_id}') for progress."
+            f"get_lab_test_job_status('{public_job_id}') for progress. "
+            f"{verification.render()}"
         )
 
     async def job_status_text(self, job_id: str) -> str:
@@ -444,11 +513,35 @@ class DevelopmentService:
             candidate_commit=current_head,
             candidate_evidence_id=evidence.evidence_id,
         )
+        observed_candidate = self.registry.get(feature_id)
+        verification = verify_fields(
+            "nova_lab_candidate",
+            expected={
+                "status": FeatureState.CANDIDATE.value,
+                "candidate_commit": current_head,
+                "candidate_evidence_id": evidence.evidence_id,
+            },
+            observed=(
+                None
+                if observed_candidate is None
+                else {
+                    "status": observed_candidate.status.value,
+                    "candidate_commit": observed_candidate.candidate_commit,
+                    "candidate_evidence_id": observed_candidate.candidate_evidence_id,
+                }
+            ),
+        )
+        if not verification.ok:
+            return (
+                f"NOVA Lab candidate write for '{feature_id}' occurred, but "
+                f"{verification.render()} I am not claiming candidate preparation succeeded."
+            )
 
         return (
             f"Feature '{feature_id}' is now a CANDIDATE at commit "
             f"{current_head[:12]} (evidence {evidence.evidence_id}). This "
             "makes it eligible to be presented to Ahmed for a future release "
             "decision; it does not activate, restart, or roll back "
-            "production, and NOVA cannot approve that step itself."
+            "production, and NOVA cannot approve that step itself. "
+            f"{verification.render()}"
         )

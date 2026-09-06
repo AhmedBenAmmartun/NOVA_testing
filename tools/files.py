@@ -5,6 +5,8 @@ from datetime import datetime
 
 from livekit.agents import RunContext, function_tool
 
+from nova_verification import verify_text_write
+
 from .common import (
     COURSE_MATERIALS_DENIED,
     DEFAULT_DESKTOP_PATH,
@@ -580,17 +582,21 @@ async def create_file(
             exist_ok=True,
         )
 
-        path.write_text(
-            content,
-            encoding="utf-8",
-        )
+        path.write_bytes(content.encode("utf-8"))
+        verification = verify_text_write(path, content)
+        if not verification.ok:
+            logger.error("create_file post-write verification failed: %s", path)
+            return (
+                f"I wrote {path}, but {verification.render()} "
+                "I am not claiming the file was saved correctly."
+            )
 
         logger.info(
             "create_file: %s",
             path,
         )
 
-        return f"Created file: {path}"
+        return f"Created file: {path}. {verification.render()}"
 
     except Exception:
         logger.exception("create_file failed")
@@ -633,9 +639,19 @@ async def create_desktop_file(
         if path.exists():
             return "That Desktop file already exists. I will not overwrite it."
 
-        path.write_text(content, encoding="utf-8")
+        path.write_bytes(content.encode("utf-8"))
+        verification = verify_text_write(path, content)
+        if not verification.ok:
+            logger.error(
+                "create_desktop_file post-write verification failed: %s",
+                path,
+            )
+            return (
+                f"I wrote {path}, but {verification.render()} "
+                "I am not claiming the Desktop file was saved correctly."
+            )
         logger.info("create_desktop_file: %s", path)
-        return f"Created Desktop file: {path}"
+        return f"Created Desktop file: {path}. {verification.render()}"
 
     except Exception:
         logger.exception("create_desktop_file failed")
