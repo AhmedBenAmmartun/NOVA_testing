@@ -47,3 +47,18 @@ def test_retired_feature_can_be_reopened_in_lab() -> None:
     reopened = feature.transition(FeatureState.LAB)
     assert reopened.status is FeatureState.LAB
     assert reopened.retired_at is None
+
+
+def test_rejected_candidate_clears_stale_commit_and_evidence() -> None:
+    from dataclasses import replace
+
+    candidate = replace(
+        _feature().transition(FeatureState.CANDIDATE),
+        candidate_commit="a" * 40,
+        candidate_evidence_id="ev1",
+    )
+
+    rejected = candidate.transition(FeatureState.LAB)
+
+    assert rejected.candidate_commit == ""
+    assert rejected.candidate_evidence_id == ""

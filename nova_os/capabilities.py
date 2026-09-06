@@ -12,6 +12,8 @@ from typing import Iterable, Sequence
 
 from livekit.agents.llm import Toolset
 
+from .capability_definitions import CANONICAL_CAPABILITY_IDS
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilitySpec:
@@ -41,30 +43,9 @@ class CapabilitySpec:
         return tuple(names)
 
 
-#: Canonical set of NOVA capability ids. This is the single source of truth
-#: for "which capability ids exist": nova_os.catalog.build_default_capability_manager()
-#: asserts its registered ids equal this set, so the tool-wired catalog and
-#: this identity-only list cannot silently drift apart. Lightweight callers
-#: that only need to validate an id -- e.g. NOVA Lab feature registration --
-#: import this constant directly instead of nova_os.catalog, which would
-#: pull in every tools/* module just to wire up concrete tool objects.
-CANONICAL_CAPABILITY_IDS: frozenset[str] = frozenset(
-    {
-        "system",
-        "web",
-        "desktop",
-        "files",
-        "media",
-        "class_intelligence",
-        "development",
-        "specialist",
-        "memory",
-        "email_calendar",
-        "guardian",
-        "skills",
-        "permissions",
-    }
-)
+# CANONICAL_CAPABILITY_IDS is re-exported (imported above) from
+# nova_os.capability_definitions, the single tool-free source of capability
+# identity. It is not redeclared here.
 
 
 class CapabilityRegistry:

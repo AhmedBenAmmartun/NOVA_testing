@@ -1,5 +1,6 @@
 """NOVA Lab: controlled feature-development lifecycle primitives."""
 
+from .evidence import TestEvidenceRecord, TestEvidenceStore
 from .history import LifecycleJournal
 from .models import FeatureRecord, FeatureState, InvalidTransitionError
 from .registry import FeatureRegistry, RegistryConflictError
@@ -17,6 +18,8 @@ __all__ = [
     "InvalidTransitionError",
     "LifecycleJournal",
     "RegistryConflictError",
+    "TestEvidenceRecord",
+    "TestEvidenceStore",
     "TestRunResult",
     "WorkspaceSafetyError",
     "default_labs_root",

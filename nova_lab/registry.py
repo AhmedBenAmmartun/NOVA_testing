@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import os
 import threading
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from .history import LifecycleJournal
-from .models import FeatureRecord, FeatureState
+from .models import FeatureRecord, FeatureState, InvalidTransitionError
 
 
 class RegistryConflictError(ValueError):
@@ -109,6 +110,58 @@ class FeatureRegistry:
                 feature_id=feature_id,
                 from_state=current.status.value,
                 to_state=updated.status.value,
+            )
+            records[feature_id] = updated
+            self._save(records, last_event=event)
+            self._append_journal_best_effort(event)
+
+        return updated
+
+    def enter_candidate(
+        self,
+        feature_id: str,
+        *,
+        candidate_commit: str,
+        candidate_evidence_id: str,
+    ) -> FeatureRecord:
+        """Transition a feature LAB -> CANDIDATE, stamping the exact commit and
+        evidence a future trusted release supervisor must reference.
+
+        Deliberately not a generic transition: this is the one and only way a
+        feature may enter CANDIDATE, it always records what was actually
+        gated, and it is meant to be called only by trusted NOVA Lab gating
+        code (never exposed to the model as `transition(feature_id, target)`).
+        """
+        with self._lock:
+            records = self._load()
+            current = records.get(feature_id)
+            if current is None:
+                raise KeyError(feature_id)
+
+            # FeatureRecord.transition() treats CANDIDATE -> CANDIDATE as a
+            # same-state no-op rather than an error, which would otherwise let
+            # this method silently re-stamp a new commit/evidence pair onto an
+            # already-established candidate without ever returning to LAB.
+            # Checked here so enter_candidate is safe on its own, not only
+            # when callers happen to pre-check status themselves.
+            if current.status is not FeatureState.LAB:
+                raise InvalidTransitionError(
+                    f"Invalid NOVA Lab transition: {current.status.value} -> "
+                    f"{FeatureState.CANDIDATE.value} (enter_candidate requires LAB)"
+                )
+
+            updated = current.transition(FeatureState.CANDIDATE)
+            updated = replace(
+                updated,
+                candidate_commit=candidate_commit,
+                candidate_evidence_id=candidate_evidence_id,
+            )
+            event = self.journal.build_event(
+                event="candidate_prepared",
+                feature_id=feature_id,
+                from_state=current.status.value,
+                to_state=updated.status.value,
+                detail=f"commit={candidate_commit} evidence={candidate_evidence_id}",
             )
             records[feature_id] = updated
             self._save(records, last_event=event)

@@ -78,8 +78,8 @@ def test_empty_status_is_truthful(tmp_path) -> None:
     text = service.status_text()
 
     assert "registered features: 0" in text
-    assert "test execution" in text
-    assert "promote" in text
+    assert "background job" in text
+    assert "self-approval" in text
 
 
 def test_register_existing_feature_enters_lab_only(tmp_path) -> None:

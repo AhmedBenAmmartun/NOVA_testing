@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-from nova_os.capabilities import (
-    CANONICAL_CAPABILITY_IDS,
-    CapabilityManager,
-    CapabilityRegistry,
-    CapabilitySpec,
-)
+from nova_os.capabilities import CapabilityManager, CapabilityRegistry, CapabilitySpec
+from nova_os.capability_definitions import CAPABILITY_DEFINITIONS
 from tools.capabilities import CAPABILITY_CONTROL_TOOLS
 from tools.class_capture import CLASS_CAPTURE_TOOLS
 from tools.conversations import read_conversation_history, search_conversation_history
@@ -70,212 +66,100 @@ from tools.web import WEB_RESEARCH_TOOLS
 
 
 def build_default_capability_manager(*, specialist_tool=ask_specialist) -> CapabilityManager:
+    """Wire NOVA's canonical capability identity to its concrete tool objects.
+
+    Capability identity/metadata (name, description, permissions, tags, risk,
+    default activation) lives in ``nova_os.capability_definitions`` and is not
+    repeated here. This function's only job is mapping each capability id to
+    the tool objects that implement it -- the one piece that genuinely
+    requires importing every ``tools/*`` module.
+    """
     registry = CapabilityRegistry()
 
-    specs = (
-        CapabilitySpec(
-            capability_id="system",
-            name="System Information",
-            description="Time, weather, CPU, RAM, disk, and battery information.",
-            tools=(get_weather, get_system_info, get_time),
-            permissions=("system_read", "internet_read"),
-            tags=("system", "weather", "time", "computer"),
-            risk="read_only",
-            default_active=True,
+    tools_by_id: dict[str, tuple[object, ...]] = {
+        "system": (get_weather, get_system_info, get_time),
+        "web": tuple(WEB_RESEARCH_TOOLS),
+        "desktop": (
+            open_website,
+            open_app,
+            is_app_running,
+            control_window,
+            open_notifications,
+            open_quick_settings,
+            manage_virtual_desktop,
+            close_app,
+            restart_app,
         ),
-        CapabilitySpec(
-            capability_id="web",
-            name="Web Research",
-            description="Search, read, inspect, extract from, and safely download public web resources.",
-            tools=tuple(WEB_RESEARCH_TOOLS),
-            permissions=("internet_read", "downloads_write"),
-            tags=("internet", "search", "research", "browser", "download"),
-            risk="mixed",
-            default_active=True,
+        "files": (
+            save_note,
+            read_notes,
+            find_user_file,
+            list_files,
+            open_file_or_folder,
+            create_desktop_file,
+            create_desktop_folder,
+            read_course_material,
+            read_file,
+            create_file,
         ),
-        CapabilitySpec(
-            capability_id="desktop",
-            name="Windows Desktop",
-            description="Open approved apps/sites and manage visible Windows desktop state.",
-            tools=(
-                open_website,
-                open_app,
-                is_app_running,
-                control_window,
-                open_notifications,
-                open_quick_settings,
-                manage_virtual_desktop,
-                close_app,
-                restart_app,
-            ),
-            permissions=("desktop_read", "desktop_change"),
-            tags=("windows", "apps", "desktop", "window"),
-            risk="mixed",
-            default_active=True,
+        "media": (
+            play_youtube_song,
+            control_music,
+            change_volume,
+            get_current_song,
+            play_spotify_song,
         ),
-        CapabilitySpec(
-            capability_id="files",
-            name="Files and Notes",
-            description="Find, read, open, and create files in NOVA-approved locations.",
-            tools=(
-                save_note,
-                read_notes,
-                find_user_file,
-                list_files,
-                open_file_or_folder,
-                create_desktop_file,
-                create_desktop_folder,
-                read_course_material,
-                read_file,
-                create_file,
-            ),
-            permissions=("files_read", "files_write_approved"),
-            tags=("files", "folders", "notes", "documents"),
-            risk="mixed",
-            default_active=True,
+        "class_intelligence": tuple(CLASS_CAPTURE_TOOLS),
+        "development": tuple(DEVELOPMENT_TOOLS),
+        "specialist": (specialist_tool,),
+        "memory": (
+            second_brain_status,
+            list_vault_files,
+            read_vault_file,
+            save_vault_file,
+            search_memory,
+            read_memory_note,
+            save_memory_note,
+            search_conversation_history,
+            read_conversation_history,
         ),
-        CapabilitySpec(
-            capability_id="media",
-            name="Media Control",
-            description="Spotify, YouTube, media keys, volume, and current-song controls.",
-            tools=(
-                play_youtube_song,
-                control_music,
-                change_volume,
-                get_current_song,
-                play_spotify_song,
-            ),
-            permissions=("media_control",),
-            tags=("music", "spotify", "youtube", "volume", "media"),
-            risk="reversible",
-            default_active=True,
+        "email_calendar": (
+            list_connected_accounts,
+            sync_email_calendar,
+            get_unread_emails,
+            read_email,
+            get_calendar_agenda,
+            get_next_event,
+            find_calendar_conflicts,
+            get_daily_briefing,
         ),
-        CapabilitySpec(
-            capability_id="class_intelligence",
-            name="Class Intelligence",
-            description=(
-                "Record lectures in the background, inspect the active transcript, "
-                "mark important moments, and gracefully finalize class sessions while "
-                "the same NOVA agent remains conversational."
-            ),
-            tools=tuple(CLASS_CAPTURE_TOOLS),
-            permissions=("microphone_capture", "class_notes_write"),
-            tags=("class", "lecture", "record", "transcript", "notes", "school", "questions", "multitasking"),
-            risk="mixed",
-            default_active=True,
-        ),
-        CapabilitySpec(
-            capability_id="development",
-            name="NOVA Lab Development",
-            description=(
-                "Inspect and register existing isolated NOVA Lab experiments. "
-                "V1B cannot promote, retire, restart, roll back, delete, run shell "
-                "commands, edit production, or execute tests."
-            ),
-            tools=tuple(DEVELOPMENT_TOOLS),
-            permissions=("lab_read", "lab_registry_write"),
-            tags=(
-                "nova lab",
-                "lab feature",
-                "experiment registry",
-                "feature lifecycle",
-                "candidate preparation",
-            ),
-            risk="mixed",
-            default_active=False,
-        ),
-        CapabilitySpec(
-            capability_id="specialist",
-            name="Specialist Models",
-            description="Route substantial coding, architecture, analysis, or private local work to a specialist model.",
-            tools=(specialist_tool,),
-            permissions=("model_routing",),
-            tags=("coding", "reasoning", "specialist", "ollama", "openai", "groq"),
-            risk="mixed",
-            default_active=True,
-        ),
-        CapabilitySpec(
-            capability_id="memory",
-            name="Memory and Conversation History",
-            description="NOVA Vault second brain: search, read, organize, and safely save persistent knowledge and text files.",
-            tools=(
-                second_brain_status,
-                list_vault_files,
-                read_vault_file,
-                save_vault_file,
-                search_memory,
-                read_memory_note,
-                save_memory_note,
-                search_conversation_history,
-                read_conversation_history,
-            ),
-            permissions=("memory_read", "memory_write"),
-            tags=("memory", "obsidian", "second brain", "vault", "history", "notes", "projects", "decisions"),
-            risk="mixed",
-            default_active=True,
-        ),
-        CapabilitySpec(
-            capability_id="email_calendar",
-            name="Email and Calendar",
-            description="Read-only connected email/calendar synchronization, search, agenda, and briefing tools.",
-            tools=(
-                list_connected_accounts,
-                sync_email_calendar,
-                get_unread_emails,
-                read_email,
-                get_calendar_agenda,
-                get_next_event,
-                find_calendar_conflicts,
-                get_daily_briefing,
-            ),
-            permissions=("account_metadata_read", "private_content_read"),
-            tags=("gmail", "outlook", "email", "calendar", "agenda"),
-            risk="sensitive_read",
-            default_active=False,
-        ),
-        CapabilitySpec(
-            capability_id="guardian",
-            name="Guardian Security",
-            description="Read NOVA Guardian status and security alerts without screenshot capture.",
-            tools=(check_guardian_security, get_guardian_alerts, get_guardian_status),
-            permissions=("security_read",),
-            tags=("security", "guardian", "alerts"),
-            risk="read_only",
-            default_active=False,
-        ),
-        CapabilitySpec(
-            capability_id="skills",
-            name="Skills Engine",
-            description="Load reusable workflows and explicitly save/update user-authored declarative skills.",
-            tools=tuple(SKILL_CONTROL_TOOLS),
-            permissions=("skills_read", "skills_write_user"),
-            tags=("skills", "learn", "workflow", "reuse", "research"),
-            risk="mixed",
-            default_active=True,
-        ),
-        CapabilitySpec(
-            capability_id="permissions",
-            name="Permission Controls",
-            description="List/deny pending actions and enable Safe Mode. Approval is never model-callable.",
-            tools=(list_pending_actions, enable_nova_safe_mode, deny_action),
-            permissions=("permission_read", "permission_restrict"),
-            tags=("permissions", "safe mode", "security", "approval"),
-            risk="restrictive_only",
-            default_active=True,
-            locked_active=True,
-        ),
-    )
+        "guardian": (check_guardian_security, get_guardian_alerts, get_guardian_status),
+        "skills": tuple(SKILL_CONTROL_TOOLS),
+        "permissions": (list_pending_actions, enable_nova_safe_mode, deny_action),
+    }
 
-    for spec in specs:
-        registry.register(spec)
-
-    registered_ids = frozenset(spec.capability_id for spec in specs)
-    if registered_ids != CANONICAL_CAPABILITY_IDS:
+    defined_ids = frozenset(definition.capability_id for definition in CAPABILITY_DEFINITIONS)
+    if frozenset(tools_by_id) != defined_ids:
         raise RuntimeError(
-            "nova_os.catalog's registered capability ids do not match "
-            "nova_os.capabilities.CANONICAL_CAPABILITY_IDS. Update both "
-            "together -- that constant is the single source of truth other "
-            "code (e.g. NOVA Lab feature registration) validates against."
+            "nova_os.catalog's tool wiring does not match "
+            "nova_os.capability_definitions.CAPABILITY_DEFINITIONS. Every "
+            "canonical capability id must have exactly one tool-wiring entry, "
+            "and vice versa -- update both together."
+        )
+
+    for definition in CAPABILITY_DEFINITIONS:
+        registry.register(
+            CapabilitySpec(
+                capability_id=definition.capability_id,
+                name=definition.name,
+                description=definition.description,
+                tools=tools_by_id[definition.capability_id],
+                permissions=definition.permissions,
+                tags=definition.tags,
+                risk=definition.risk,
+                default_active=definition.default_active,
+                locked_active=definition.locked_active,
+            )
         )
 
     return CapabilityManager(

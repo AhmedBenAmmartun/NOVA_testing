@@ -22,7 +22,7 @@ def test_development_capability_exists_and_is_inactive_by_default() -> None:
     assert manager.is_active("development") is False
 
 
-def test_development_capability_has_only_v1b_tools() -> None:
+def test_development_capability_has_only_approved_v1c_tools() -> None:
     manager = build_default_capability_manager()
     spec = manager.registry.get("development")
     assert spec is not None
@@ -33,6 +33,10 @@ def test_development_capability_has_only_v1b_tools() -> None:
         "get_lab_feature",
         "list_lab_test_profiles",
         "register_lab_feature",
+        "start_lab_test_job",
+        "get_lab_test_job_status",
+        "get_lab_test_evidence",
+        "prepare_lab_candidate",
     }
 
 
@@ -81,5 +85,13 @@ def test_development_tool_module_has_no_execution_or_approval_primitive() -> Non
         "FeatureState.ACTIVE",
         "FeatureState.RETIRED",
         "run_lab_tests",
+        # No V1C tool may claim to be Ahmed: policy-gated Lab actions must
+        # always mint a worker principal in trusted code, never accept one
+        # from a tool argument, and never impersonate the user.
+        "Principal.user()",
+        "principal: str",
+        "principal=principal",
     ):
         assert forbidden not in text
+
+    assert text.count("Principal.worker(id=\"nova_lab\")") == 2

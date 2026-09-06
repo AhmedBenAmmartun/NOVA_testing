@@ -48,6 +48,14 @@ class FeatureRecord:
     promoted_at: str | None = None
     retired_at: str | None = None
     rollback_ref: str = ""
+    #: The exact commit SHA that passed the required trusted gates when this
+    #: feature entered CANDIDATE. Frozen at that moment -- a later change to
+    #: the Lab worktree must never be mistaken for what was actually gated.
+    candidate_commit: str = ""
+    #: The TestEvidenceRecord.evidence_id that justified the LAB -> CANDIDATE
+    #: transition, so a future trusted release supervisor can trace exactly
+    #: which gate run approved this candidate.
+    candidate_evidence_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.feature_id.strip():
@@ -74,6 +82,13 @@ class FeatureRecord:
             changes["retired_at"] = now
         if target is FeatureState.LAB and self.status is FeatureState.RETIRED:
             changes["retired_at"] = None
+        if target is FeatureState.LAB and self.status is FeatureState.CANDIDATE:
+            # A rejected candidate returns to LAB with a clean slate: the old
+            # commit/evidence pairing is stale and must not be mistaken for a
+            # still-valid candidate designation if this feature re-enters
+            # CANDIDATE later with fresh evidence.
+            changes["candidate_commit"] = ""
+            changes["candidate_evidence_id"] = ""
 
         return replace(self, **changes)
 

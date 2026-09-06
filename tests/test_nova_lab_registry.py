@@ -5,7 +5,7 @@ import json
 import pytest
 
 from nova_lab.history import LifecycleJournal
-from nova_lab.models import FeatureRecord, FeatureState
+from nova_lab.models import FeatureRecord, FeatureState, InvalidTransitionError
 from nova_lab.registry import FeatureRegistry, RegistryConflictError
 
 
@@ -83,6 +83,51 @@ def test_journal_redacts_obvious_secret_language(tmp_path) -> None:
 
     record = json.loads(history.read_text(encoding="utf-8"))
     assert record["detail"] == "[sensitive lifecycle detail redacted]"
+
+
+def test_enter_candidate_transitions_and_stamps_immutable_commit(tmp_path) -> None:
+    registry = FeatureRegistry(
+        tmp_path / "features.json",
+        journal=LifecycleJournal(tmp_path / "history.jsonl"),
+    )
+    registry.register(_record("granola"))
+
+    updated = registry.enter_candidate(
+        "granola", candidate_commit="a" * 40, candidate_evidence_id="ev1"
+    )
+
+    assert updated.status is FeatureState.CANDIDATE
+    assert updated.candidate_commit == "a" * 40
+    assert updated.candidate_evidence_id == "ev1"
+    assert registry.get("granola").candidate_commit == "a" * 40
+
+
+def test_enter_candidate_rejects_a_feature_that_is_not_lab(tmp_path) -> None:
+    registry = FeatureRegistry(
+        tmp_path / "features.json",
+        journal=LifecycleJournal(tmp_path / "history.jsonl"),
+    )
+    registry.register(_record("granola"))
+    registry.enter_candidate(
+        "granola", candidate_commit="a" * 40, candidate_evidence_id="ev1"
+    )
+
+    with pytest.raises(InvalidTransitionError):
+        registry.enter_candidate(
+            "granola", candidate_commit="b" * 40, candidate_evidence_id="ev2"
+        )
+
+
+def test_enter_candidate_unknown_feature_raises(tmp_path) -> None:
+    registry = FeatureRegistry(
+        tmp_path / "features.json",
+        journal=LifecycleJournal(tmp_path / "history.jsonl"),
+    )
+
+    with pytest.raises(KeyError):
+        registry.enter_candidate(
+            "missing", candidate_commit="a" * 40, candidate_evidence_id="ev1"
+        )
 
 
 def test_missing_journal_event_is_reconciled_from_authoritative_state(tmp_path) -> None:

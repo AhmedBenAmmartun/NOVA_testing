@@ -6,11 +6,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_memory_capability_is_default_active_second_brain() -> None:
-    text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8-sig")
-    start = text.index('capability_id="memory"')
-    end = text.find("CapabilitySpec(", start + 1)
-    block = text[start:end if end >= 0 else None]
-    assert "default_active=True" in block
+    # Metadata (default_active) lives in nova_os.capability_definitions; tool
+    # wiring lives in nova_os.catalog. Both must agree for this to be true.
+    definitions_text = (ROOT / "nova_os" / "capability_definitions.py").read_text(
+        encoding="utf-8-sig"
+    )
+    start = definitions_text.index('capability_id="memory"')
+    end = definitions_text.find("CapabilityDefinition(", start + 1)
+    metadata_block = definitions_text[start : end if end >= 0 else None]
+    assert "default_active=True" in metadata_block
+
+    catalog_text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8-sig")
+    wiring_start = catalog_text.index('"memory": (')
+    wiring_end = catalog_text.find("),", wiring_start)
+    wiring_block = catalog_text[wiring_start : wiring_end if wiring_end >= 0 else None]
     for name in (
         "second_brain_status",
         "list_vault_files",
@@ -20,7 +29,7 @@ def test_memory_capability_is_default_active_second_brain() -> None:
         "read_memory_note",
         "save_memory_note",
     ):
-        assert name in block
+        assert name in wiring_block
 
 
 def test_second_brain_prompt_is_retrieval_first() -> None:

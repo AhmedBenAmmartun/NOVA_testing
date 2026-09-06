@@ -15,6 +15,7 @@ from prompts import SYSTEM_PROMPT
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools.specialist import ask_specialist
+from nova_lab.service import DevelopmentService
 from nova_policy import permission_engine
 from nova_os import build_default_capability_manager, build_default_skill_registry
 from nova_learning.runtime import LearningSessionRecorder
@@ -479,7 +480,7 @@ def _install_vision_transport_monitor(ctx: agents.JobContext) -> set:
 class Assistant(Agent):
     """NOVA realtime agent backed by the NOVA OS capability kernel."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, runtime: NovaRuntime | None = None) -> None:
         manager = build_default_capability_manager(specialist_tool=ask_specialist)
         skills = build_default_skill_registry()
         super().__init__(
@@ -488,6 +489,14 @@ class Assistant(Agent):
         )
         self.capability_manager = manager
         self.skill_registry = skills
+        # Per-session, injected by trusted code -- never a process-global
+        # singleton that could mix background jobs across sessions. `runtime`
+        # is the same NovaRuntime this LiveKit job already constructed; V1C's
+        # NOVA Lab background test jobs run through it, not a second job
+        # system. None (e.g. the text-chat driver) still works: the
+        # inspection/registration tools need no runtime, and the job/candidate
+        # tools raise a clear error instead of touching a missing one.
+        self.nova_lab_service = DevelopmentService(runtime=runtime)
 
 
 server = AgentServer()
@@ -583,7 +592,7 @@ async def my_agent(ctx: agents.JobContext):
     # survive into a later session.
     ctx.add_shutdown_callback(_clear_voice_permissions)
 
-    assistant = Assistant()
+    assistant = Assistant(runtime=runtime)
     _personality_tasks = _install_personality_stream(ctx, assistant)
 
     _vision_transport_tasks = _install_vision_transport_monitor(ctx)

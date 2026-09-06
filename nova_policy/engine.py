@@ -807,6 +807,24 @@ DEFAULT_POLICIES = (
         timeout_seconds=60,
     ),
     ActionPolicy(
+        name="nova_lab_run_test_job",
+        level=PermissionLevel.REVERSIBLE,
+        # NOVA Lab test execution is the agent's own internal development
+        # automation (an isolated, allow-listed test run inside a verified
+        # lab/* worktree), not a direct command from Ahmed's conversation --
+        # it must opt in to worker invocation like any other automated action.
+        worker_invocable=True,
+    ),
+    ActionPolicy(
+        name="nova_lab_prepare_candidate",
+        level=PermissionLevel.REVERSIBLE,
+        # Preparing a CANDIDATE only records that one exact commit passed
+        # NOVA's trusted gates; it is not production activation and grants no
+        # release authority, so it may run as the same kind of internal,
+        # worker-invocable automation as test execution.
+        worker_invocable=True,
+    ),
+    ActionPolicy(
         name="permanent_delete",
         level=PermissionLevel.RESTRICTED,
     ),

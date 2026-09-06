@@ -66,7 +66,15 @@ def test_skill_tools_use_current_livekit_agent() -> None:
 
 
 def test_catalog_registers_skills_capability() -> None:
-    text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8")
-    assert 'capability_id="skills"' in text
-    assert "SKILL_CONTROL_TOOLS" in text
-    assert "default_active=True" in text
+    # Tool wiring lives in nova_os.catalog; identity/metadata (default_active)
+    # lives in nova_os.capability_definitions. Both must agree.
+    catalog_text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8")
+    assert '"skills": tuple(SKILL_CONTROL_TOOLS)' in catalog_text
+
+    definitions_text = (ROOT / "nova_os" / "capability_definitions.py").read_text(
+        encoding="utf-8"
+    )
+    start = definitions_text.index('capability_id="skills"')
+    end = definitions_text.find("CapabilityDefinition(", start + 1)
+    metadata_block = definitions_text[start : end if end >= 0 else None]
+    assert "default_active=True" in metadata_block

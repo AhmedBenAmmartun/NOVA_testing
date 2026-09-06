@@ -21,7 +21,11 @@ APPROVED_TEST_PROFILES: dict[str, tuple[str, ...]] = {
         "tests/test_nova_lab_workspace.py",
         "tests/test_nova_lab_testing.py",
         "tests/test_nova_lab_service.py",
+        "tests/test_nova_lab_service_jobs.py",
+        "tests/test_nova_lab_evidence.py",
         "tests/test_nova_lab_development_capability.py",
+        "tests/test_nova_os_capability_definitions.py",
+        "tests/test_nova_policy_lab_actions.py",
     ),
 }
 

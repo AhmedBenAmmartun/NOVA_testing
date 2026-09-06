@@ -64,8 +64,16 @@ def test_capability_prompt_has_untrusted_web_rule() -> None:
 
 
 def test_permission_capability_is_locked() -> None:
-    text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8-sig")
-    permission_block = text[text.index('capability_id="permissions"'):]
+    # Capability identity/metadata (locked_active, risk, etc.) lives in
+    # nova_os.capability_definitions; nova_os.catalog only maps ids to tool
+    # objects. Both must agree for "permissions" to actually be locked.
+    definitions_text = (ROOT / "nova_os" / "capability_definitions.py").read_text(
+        encoding="utf-8-sig"
+    )
+    permission_block = definitions_text[definitions_text.index('capability_id="permissions"'):]
     assert "locked_active=True" in permission_block
-    assert "enable_nova_safe_mode" in permission_block
-    assert "approve_action" not in permission_block
+
+    catalog_text = (ROOT / "nova_os" / "catalog.py").read_text(encoding="utf-8-sig")
+    permissions_wiring = catalog_text[catalog_text.index('"permissions": ('):]
+    assert "enable_nova_safe_mode" in permissions_wiring
+    assert "approve_action" not in permissions_wiring
