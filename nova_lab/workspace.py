@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -73,6 +74,85 @@ class GitWorkspace:
     def list_worktrees(self) -> str:
         return self._git("worktree", "list", "--porcelain")
 
+    def resolve_commit(self, base_ref: str) -> str:
+        """Resolve a validated ref to an exact commit SHA."""
+        base_ref = self.validate_base_ref(base_ref)
+        return self._git(
+            "rev-parse",
+            "--verify",
+            f"{base_ref}^{{commit}}",
+        ).strip()
+
+    def git_common_dir(self, *, cwd: Path | str | None = None) -> Path:
+        """Return the normalized common Git directory for a repo/worktree."""
+        base = Path(cwd).resolve() if cwd is not None else self.repo_root
+        raw = self._git("rev-parse", "--git-common-dir", cwd=base).strip()
+        path = Path(raw)
+        if not path.is_absolute():
+            path = base / path
+        return path.resolve()
+
+    def is_ancestor(
+        self,
+        ancestor_ref: str,
+        *,
+        cwd: Path | str,
+    ) -> bool:
+        """Return whether a validated NOVA commit is an ancestor of HEAD."""
+        ancestor_sha = self.resolve_commit(ancestor_ref)
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor_sha, "HEAD"],
+            cwd=Path(cwd).resolve(),
+            capture_output=True,
+            text=True,
+            shell=False,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return True
+        if result.returncode == 1:
+            return False
+        message = (result.stderr or result.stdout).strip()
+        raise RuntimeError(f"Git ancestry check failed: {message}")
+
+    def verify_existing_lab_worktree(
+        self,
+        path: Path | str,
+        *,
+        expected_branch: str | None = None,
+    ) -> Path:
+        """Verify an existing path is exactly a lab/* worktree root."""
+        candidate = self.require_lab_path(path)
+        if not candidate.is_dir():
+            raise WorkspaceSafetyError(f"Lab worktree does not exist: {candidate}")
+
+        actual = Path(
+            self._git("rev-parse", "--show-toplevel", cwd=candidate).strip()
+        ).resolve()
+        if actual != candidate:
+            raise WorkspaceSafetyError(
+                "Registered Lab worktree paths must point to the Git worktree root."
+            )
+
+        candidate_common = os.path.normcase(str(self.git_common_dir(cwd=candidate)))
+        nova_common = os.path.normcase(str(self.git_common_dir(cwd=self.repo_root)))
+        if candidate_common != nova_common:
+            raise WorkspaceSafetyError(
+                "Registered Lab worktrees must belong to the same NOVA Git repository."
+            )
+
+        branch = self.current_branch(cwd=candidate)
+        self.validate_lab_branch_name(branch)
+
+        if expected_branch is not None:
+            expected = self.validate_lab_branch_name(expected_branch)
+            if branch != expected:
+                raise WorkspaceSafetyError(
+                    f"Lab worktree branch mismatch: expected {expected}, got {branch}."
+                )
+
+        return candidate
+
     def create_lab_worktree(
         self,
         *,
@@ -88,7 +168,7 @@ class GitWorkspace:
 
         # Verify the supplied ref resolves to a commit before creating folders
         # or asking worktree-add to interpret it.
-        self._git("rev-parse", "--verify", f"{base_ref}^{{commit}}")
+        self.resolve_commit(base_ref)
 
         destination.parent.mkdir(parents=True, exist_ok=True)
         self._git(

@@ -52,8 +52,10 @@ nova_runtime/       job + task-state foundation (BackgroundJobManager,
                     and cli.py consume it. See ROADMAP before extending
 nova_lab/           internal development lifecycle primitives: feature state,
                     recoverable lifecycle journal, constrained Git worktrees,
-                    and allow-listed test profiles. Not a user-facing mode and
-                    not wired to production promotion/restart in V1A.
+                    allow-listed test profiles, and (V1B) service.py, the
+                    safe bridge the model-facing `development` capability
+                    calls into. Not a user-facing mode and not wired to
+                    production promotion/restart.
 nova_guardian/      guardian subsystem
 nova_integrations/  email/calendar + secrets
 tools/              ~80 @function_tool definitions across 15 modules;
@@ -73,10 +75,11 @@ requirements.txt    deps (venv\ is the provisioned Python 3.14 venv; pypdf
 .agents/skills/run-ai-agent/   run skill + driver.py test harness
 ```
 
-## NOVA Lab (internal development lifecycle, V1A)
+## NOVA Lab (internal development lifecycle, V1A + V1B — LAB checkpoint)
 
 NOVA Lab is not a separate NOVA mode/persona. It is the internal lifecycle used
 to isolate experimental implementations from ACTIVE production behavior.
+"development" is a capability of the one NOVA agent, not a separate agent.
 
 `LAB -> CANDIDATE -> ACTIVE -> RETIRED`
 
@@ -88,6 +91,62 @@ of ACTIVE code, restart, rollback, arbitrary shell, and direct production edits
 are deliberately absent. Future sensitive release operations must reuse
 `nova_policy` and trusted user approval rather than create a second authority
 system.
+
+V1B (2026-09-05) adds the first model-facing surface: an inactive-by-default
+(`default_active=False`) `development` NOVA OS capability
+(`nova_os/catalog.py`) with exactly five tools (`tools/development.py`):
+`lab_status`, `list_lab_features`, `get_lab_feature`,
+`list_lab_test_profiles`, `register_lab_feature`. All five are
+inspection/registration-metadata only — no test execution, lifecycle
+transition, promotion, retirement, restart, rollback, deletion, shell, or
+approval tool exists. `DevelopmentService.register_existing_feature`
+(`nova_lab/service.py`) keeps every V1A provenance check (safe ids, `lab/*`
+branch, exact worktree root under the approved Labs root, same Git
+repository, clean worktree, branch match, approved test profile, base_ref
+resolved to an immutable SHA, that SHA verified as an ancestor of Lab HEAD,
+LAB-only entry, no silent overwrite) and adds one more: `capability_id` must
+be a real NOVA capability, checked against
+`nova_os.capabilities.CANONICAL_CAPABILITY_IDS`. That constant is the single
+canonical source of capability identity — `nova_os.catalog
+.build_default_capability_manager()` asserts its registered, tool-wired
+capabilities equal it (drift raises `RuntimeError` immediately), and NOVA Lab
+validates against the same constant rather than maintaining a second
+hard-coded list. To avoid a `nova_os` <-> `nova_lab` import cycle (`nova_os
+.catalog` imports `tools.development`, which imports `nova_lab.service`) and
+avoid pulling in every `tools/*` module just to check an id,
+`nova_os/__init__.py` now resolves `build_default_capability_manager` lazily
+via `__getattr__` (PEP 562); `from nova_os import build_default_capability
+_manager` (as `agent.py` does) is unaffected, but merely importing
+`nova_os.capabilities` no longer imports `nova_os.catalog`.
+
+**Known limitation, verified against the real runtime**
+(`livekit-agents==1.6.6`, `livekit-plugins-google==1.6.6`): in a live
+Assistant session, `activate_capability("development")` reports success and
+does update `Agent._tools`, but the model calling a newly-activated tool
+(e.g. `list_lab_test_profiles`) within the SAME `session.run()` tool-calling
+chain gets LiveKit's "Unknown function" error. Root cause, traced directly in
+the installed `livekit-agents` source: `voice/agent_activity.py` snapshots
+the tool list once per turn (`all_tools = self.tools.copy()` in
+`_generate_reply()` for the text/pipeline path; `tool_ctx =
+llm.ToolContext(self.tools)` per realtime `GenerationCreatedEvent` for the
+production voice path), and a same-turn recursive tool-response continuation
+reuses that original snapshot rather than re-reading the now-updated tool
+list. The production voice path is further gated by Gemini Live only
+learning a new tool schema after a full session reconnect
+(`realtime_api.py`'s `_mark_restart_needed()`). VERIFIED: same-turn use
+fails. NEEDS VERIFICATION: whether the tools work on the *following* turn —
+blocked on Gemini free-tier daily quota, not on this codebase. Do not claim
+next-turn activation works or that this is fixed; it is a NOVA OS
+capability-kernel property (every optional capability, not just
+`development`), and its resolution (most likely a stable dispatcher/gateway
+tool, or gating always-registered tools through `CapabilityManager`/
+`nova_policy` instead of the runtime tool schema) is a separate future
+architecture decision. Full trace: `docs/NOVA-LAB-LIFECYCLE.md`.
+
+V1B verified: focused NOVA Lab suite 38/38 (36 carried over from V1A
+hardening + 2 new tests for capability_id rejection and for `"development"`
+being canonical), full current suite 720/720, bare `pytest -q` 720/720,
+`git diff --check` clean, NOVA local tools driver 35/35.
 
 ## Class Capture (capability of the one NOVA, V1.3.7)
 

@@ -73,12 +73,30 @@ Start-NOVA-Vision.ps1  launches agent worker + Vision client for development
 
 `nova_lab/` is NOVA's internal feature-development lifecycle, not a user-facing
 mode. Experiments live on `lab/*` branches/worktrees under
-`C:\Projects\NOVA-Labs\`. V1A may register/inspect lifecycle state and run
-allow-listed tests, but it has no model-callable production promotion, ACTIVE
-retirement, restart, rollback, arbitrary shell, or direct production-worktree
-write. Future release actions must go through `nova_policy`; the model never
-receives an approval tool and cannot self-approve. Retired implementations are
-preserved unless Ahmed explicitly approves deletion.
+`C:\Projects\NOVA-Labs\`. V1A has no model-callable production promotion,
+ACTIVE retirement, restart, rollback, arbitrary shell, or direct
+production-worktree write. V1B (2026-09-05, LAB checkpoint) adds an
+inactive-by-default `development` NOVA OS capability exposing exactly
+`lab_status`, `list_lab_features`, `get_lab_feature`, `list_lab_test_profiles`,
+and `register_lab_feature` (`tools/development.py`) — inspection and
+registration-metadata only, still with no test execution, transition,
+promotion, retirement, restart, rollback, deletion, or approval tool.
+`register_lab_feature` validates `capability_id` against
+`nova_os.capabilities.CANONICAL_CAPABILITY_IDS`, the same canonical set
+`nova_os.catalog` asserts its tool-wired capabilities against, so a Lab
+feature can't be registered against a capability that doesn't exist. Future
+release actions must go through `nova_policy`; the model never receives an
+approval tool and cannot self-approve. Retired implementations are preserved
+unless Ahmed explicitly approves deletion.
+
+**Known limitation** (verified against `livekit-agents==1.6.6`,
+`livekit-plugins-google==1.6.6`): activating `development` mid-conversation
+does not make its tools callable within that SAME `session.run()` turn —
+LiveKit snapshots the active tool list once per turn, so a chained tool call
+in the same turn gets "Unknown function". Whether the tools become usable on
+the FOLLOWING turn is not yet verified (blocked on Gemini free-tier quota).
+See `docs/NOVA-LAB-LIFECYCLE.md` for the full root-cause trace. Do not assume
+dynamic capability activation works intra-turn.
 
 ## Run & test (all verified)
 

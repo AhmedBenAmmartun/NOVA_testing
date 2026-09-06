@@ -24,6 +24,73 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **NOVA Lab V1B — model-facing `development` capability (LAB checkpoint)**
+      (2026-09-05, VERIFIED CURRENT): added an inactive-by-default
+      (`default_active=False`) `development` NOVA OS capability
+      (`nova_os/catalog.py`, `tools/development.py`, `nova_lab/service.py`)
+      giving the model exactly five tools — `lab_status`,
+      `list_lab_features`, `get_lab_feature`, `list_lab_test_profiles`,
+      `register_lab_feature` — all inspection/registration-metadata only. No
+      model-callable test execution, lifecycle transition, promotion,
+      retirement, restart, rollback, deletion, shell, or approval exists.
+      This is a LAB checkpoint, not a production-ready or ACTIVE milestone.
+      `register_lab_feature` keeps every V1A provenance check (safe
+      feature/capability ids, `lab/*` branch, exact worktree root under the
+      approved NOVA Labs root, same Git repository, clean worktree, branch
+      match, an approved named test profile, `base_ref` resolved to an
+      immutable commit SHA, that SHA verified as an ancestor of Lab HEAD,
+      LAB-only entry, no silent feature-id overwrite) and adds one more:
+      `capability_id` must be a real NOVA capability. Validated against
+      `nova_os.capabilities.CANONICAL_CAPABILITY_IDS`, the single canonical
+      capability-id set that `nova_os.catalog
+      .build_default_capability_manager()` asserts its tool-wired
+      capabilities equal (drift raises `RuntimeError` immediately) — NOVA Lab
+      reads the same constant rather than maintaining a second hard-coded
+      list. Avoided a `nova_os` <-> `nova_lab` import cycle (`nova_os.catalog`
+      imports `tools.development`, which imports `nova_lab.service`) and
+      avoided pulling in every `tools/*` module just to validate an id by
+      making `nova_os/__init__.py` resolve `build_default_capability_manager`
+      lazily via `__getattr__` (PEP 562); existing callers
+      (`from nova_os import build_default_capability_manager` in `agent.py`)
+      are unaffected. Verified this run: focused NOVA Lab suite **38/38**
+      (36 carried over from V1A hardening + 2 new regression tests — unknown
+      `capability_id` rejection, and `"development"` being a canonical id),
+      full current suite **720/720**, bare `pytest -q` **720/720**,
+      `git diff --check` clean (informational CRLF notices only), NOVA local
+      tools driver **35/35**.
+
+      **KNOWN LIMITATION (NEEDS VERIFICATION), verified against the real
+      runtime** (`livekit-agents==1.6.6`, `livekit-plugins-google==1.6.6`):
+      in a live Assistant session, `search_capabilities` ->
+      `activate_capability("development")` reports success and does update
+      `Agent._tools`, but the model calling a newly-activated tool (e.g.
+      `list_lab_test_profiles`) within the SAME `session.run()` tool-calling
+      chain gets LiveKit's "Unknown function" error. Traced directly in the
+      installed `livekit-agents` source (`voice/agent_activity.py`): the tool
+      list for an in-progress turn is snapshotted once
+      (`all_tools = self.tools.copy()` in `_generate_reply()` for the
+      text/pipeline path, or `tool_ctx = llm.ToolContext(self.tools)` per
+      realtime `GenerationCreatedEvent` for the production voice path), and a
+      same-turn recursive tool-response continuation reuses that original
+      snapshot instead of re-reading the already-updated tool list. The
+      production voice path is further gated by Gemini Live only learning a
+      new tool schema after a full session reconnect
+      (`realtime_api.py`'s `_mark_restart_needed()`). VERIFIED: same-turn use
+      of a newly activated capability's tools fails. NEEDS VERIFICATION:
+      whether those tools become usable on the FOLLOWING `session.run()`
+      turn — the two-turn diagnostic is blocked on Gemini free-tier daily
+      quota, not on anything in this codebase. Do not claim next-turn
+      activation works, and do not claim dynamic activation is fixed; no
+      workaround was added in V1B. This is a NOVA OS capability-kernel
+      property affecting every optional capability, not just `development`;
+      its resolution (most likely a stable dispatcher/gateway tool that never
+      changes the model-visible schema, or gating always-registered tools
+      through `CapabilityManager`/`nova_policy` instead of the runtime tool
+      list) is a separate future architecture decision, out of scope for this
+      LAB checkpoint. Full trace: `docs/NOVA-LAB-LIFECYCLE.md`. Next: V1C
+      trusted candidate gating and `nova_policy` integration; background Lab
+      test execution through `NovaRuntime` with durable test evidence;
+      separately evaluate the capability-kernel dispatcher/gateway redesign.
 - [x] **NOVA Lab V1A foundation** (2026-09-05, LAB only): added the
       internal `LAB -> CANDIDATE -> ACTIVE -> RETIRED` lifecycle primitives,
       local feature registry + recoverable append-only lifecycle journal,

@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
-from nova_os.capabilities import CapabilityManager, CapabilityRegistry, CapabilitySpec
+from nova_os.capabilities import (
+    CANONICAL_CAPABILITY_IDS,
+    CapabilityManager,
+    CapabilityRegistry,
+    CapabilitySpec,
+)
 from tools.capabilities import CAPABILITY_CONTROL_TOOLS
 from tools.class_capture import CLASS_CAPTURE_TOOLS
 from tools.conversations import read_conversation_history, search_conversation_history
+from tools.development import DEVELOPMENT_TOOLS
 from tools.desktop import (
     close_app,
     control_window,
@@ -159,6 +165,26 @@ def build_default_capability_manager(*, specialist_tool=ask_specialist) -> Capab
             default_active=True,
         ),
         CapabilitySpec(
+            capability_id="development",
+            name="NOVA Lab Development",
+            description=(
+                "Inspect and register existing isolated NOVA Lab experiments. "
+                "V1B cannot promote, retire, restart, roll back, delete, run shell "
+                "commands, edit production, or execute tests."
+            ),
+            tools=tuple(DEVELOPMENT_TOOLS),
+            permissions=("lab_read", "lab_registry_write"),
+            tags=(
+                "nova lab",
+                "lab feature",
+                "experiment registry",
+                "feature lifecycle",
+                "candidate preparation",
+            ),
+            risk="mixed",
+            default_active=False,
+        ),
+        CapabilitySpec(
             capability_id="specialist",
             name="Specialist Models",
             description="Route substantial coding, architecture, analysis, or private local work to a specialist model.",
@@ -242,6 +268,15 @@ def build_default_capability_manager(*, specialist_tool=ask_specialist) -> Capab
 
     for spec in specs:
         registry.register(spec)
+
+    registered_ids = frozenset(spec.capability_id for spec in specs)
+    if registered_ids != CANONICAL_CAPABILITY_IDS:
+        raise RuntimeError(
+            "nova_os.catalog's registered capability ids do not match "
+            "nova_os.capabilities.CANONICAL_CAPABILITY_IDS. Update both "
+            "together -- that constant is the single source of truth other "
+            "code (e.g. NOVA Lab feature registration) validates against."
+        )
 
     return CapabilityManager(
         registry,
