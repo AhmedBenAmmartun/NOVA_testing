@@ -15,6 +15,7 @@ from prompts import SYSTEM_PROMPT
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools.specialist import ask_specialist
+from nova_intelligence.context_broker import ContextBroker
 from nova_lab.service import DevelopmentService
 from nova_policy import permission_engine
 from nova_os import build_default_capability_manager, build_default_skill_registry
@@ -489,6 +490,7 @@ class Assistant(Agent):
         )
         self.capability_manager = manager
         self.skill_registry = skills
+        self.core_intelligence = ContextBroker()
         # Per-session, injected by trusted code -- never a process-global
         # singleton that could mix background jobs across sessions. `runtime`
         # is the same NovaRuntime this LiveKit job already constructed; V1C's

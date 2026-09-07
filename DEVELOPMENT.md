@@ -578,3 +578,19 @@ ask Ahmed for confirmation first. `create_file` never overwrites.
   models. `tests/test_nova_no_duplicate_runtime.py` fails the build if anything
   imports `core.*`. Deleting the directory is still Ahmed's call; the guard
   test makes leaving it on disk safe in the meantime.
+<!-- NOVA-A1-CORE-INTELLIGENCE BEGIN -->
+## A1 Core Intelligence implementation — 2026-09-06
+
+New runtime package: `nova_intelligence/` with ProjectState, provenance,
+freshness, conservative resolver, failed-approach index, shadow evaluation, and
+two-tier ContextBroker.
+
+Integration:
+- `agent.py`: one `ContextBroker` per Assistant session.
+- `nova_os/catalog.py`: intrinsic `CORE_INTELLIGENCE_TOOLS` joins the
+  always-present control tool surface; no capability identity is added.
+- `prompts.py`: A1 source-priority, UNKNOWN, SHADOW_ONLY, and no-authority rules.
+- local shadow/test evidence lives outside the repository by default.
+
+A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+<!-- NOVA-A1-CORE-INTELLIGENCE END -->

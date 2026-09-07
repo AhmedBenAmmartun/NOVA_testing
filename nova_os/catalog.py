@@ -5,6 +5,7 @@ from __future__ import annotations
 from nova_os.capabilities import CapabilityManager, CapabilityRegistry, CapabilitySpec
 from nova_os.capability_definitions import CAPABILITY_DEFINITIONS
 from tools.capabilities import CAPABILITY_CONTROL_TOOLS
+from tools.core_intelligence import CORE_INTELLIGENCE_TOOLS
 from tools.class_capture import CLASS_CAPTURE_TOOLS
 from tools.conversations import read_conversation_history, search_conversation_history
 from tools.development import DEVELOPMENT_TOOLS
@@ -164,5 +165,5 @@ def build_default_capability_manager(*, specialist_tool=ask_specialist) -> Capab
 
     return CapabilityManager(
         registry,
-        control_tools=CAPABILITY_CONTROL_TOOLS,
+        control_tools=(*CAPABILITY_CONTROL_TOOLS, *CORE_INTELLIGENCE_TOOLS),
     )

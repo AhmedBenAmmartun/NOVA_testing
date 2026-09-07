@@ -1412,3 +1412,20 @@ When Ahmed says a feature is done:
 3. Add the next recommended step.
 4. Update the "Last updated" date here and in `DEVELOPMENT.md` if the stack or
    rules changed.
+<!-- NOVA-A1-CORE-INTELLIGENCE BEGIN -->
+## A1 Core Intelligence — Lab checkpoint (2026-09-06)
+
+A1 scope:
+- generated ProjectState v1
+- provenance and freshness
+- UNKNOWN-safe project resolver
+- bounded failed-approach awareness
+- tiny base + relevant project context packets
+- shadow evaluation with >=50 evaluable turns, >=95% precision, <=2%
+  confident-wrong rate, and zero wrong-project protected-action injections
+- one intrinsic read-only Core Intelligence tool
+
+A1 does not automate REMEMBER/write-back; that remains A2.
+
+A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+<!-- NOVA-A1-CORE-INTELLIGENCE END -->

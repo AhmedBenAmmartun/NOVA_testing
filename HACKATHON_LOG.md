@@ -1180,3 +1180,17 @@ license or terms are documented.
   or third-party logos unless permission is documented.
 - Keep the demo under the official time limit and explain what development assistant and
   GPT-5.6 added during Build Week.
+<!-- NOVA-A1-CORE-INTELLIGENCE BEGIN -->
+## 2026-09-06 — A1 Core Intelligence package
+
+Built A1 as a full guarded package rather than a direct production patch.
+The implementation adds read-only ProjectState/provenance/freshness/resolution,
+failed-approach awareness, two-tier context, and shadow evaluation. Integration
+preserves the existing capability kernel and A0 verification contracts.
+
+Development assistant work included architecture review against the exact A0
+Git checkpoint, implementation, tests/simulations, package integrity guards,
+rollback support, and stop-before-commit verification gates.
+
+A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+<!-- NOVA-A1-CORE-INTELLIGENCE END -->

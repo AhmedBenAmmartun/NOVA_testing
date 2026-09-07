@@ -251,3 +251,20 @@ future WinUI 3/Valo surface can reuse the same behavior. Camera and microphone
 must start OFF. Frontend code must never receive `LIVEKIT_API_SECRET`;
 `vision_token.py` generates a short-lived token in the trusted backend.
 Guardian screenshot/ambient pixel capture is retired.
+<!-- NOVA-A1-CORE-INTELLIGENCE BEGIN -->
+## Core Intelligence A1 — 2026-09-06
+
+A1 adds intrinsic read-only project awareness to the same unified NOVA agent.
+`Assistant` owns one per-session `ContextBroker`; `get_nova_core_context` is
+always present without creating a new capability ID or user-facing mode.
+
+A1 ProjectState uses current repository/Git evidence, provenance, freshness,
+UNKNOWN-safe resolution, bounded failed-approach awareness, and shadow
+evaluation. Project packets remain `SHADOW_ONLY` unless the evaluation
+graduation bar passes and trusted runtime configuration explicitly opts in.
+
+A1 grants no approval, Safe Mode bypass, release, production, arbitrary shell,
+or Git-write authority. Automatic REMEMBER/dedupe remains A2 work.
+
+A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+<!-- NOVA-A1-CORE-INTELLIGENCE END -->
