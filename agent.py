@@ -4,17 +4,16 @@ import secrets
 import time
 
 from dotenv import load_dotenv
-from google.genai import types
-
 from livekit import rtc
 from livekit import agents
 from livekit.agents import AgentServer, AgentSession, Agent, TurnHandlingOptions, room_io
-from livekit.plugins import ai_coustics, google
+from livekit.plugins import ai_coustics
 
 from prompts import SYSTEM_PROMPT
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools.specialist import ask_specialist
+from nova_core import build_realtime_model
 from nova_intelligence.context_broker import ContextBroker
 from nova_lab.service import DevelopmentService
 from nova_policy import permission_engine
@@ -506,41 +505,19 @@ server = AgentServer()
 
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: agents.JobContext):
+    realtime_model, realtime_selection = build_realtime_model()
+    nova_logger.info(
+        "realtime provider selected provider=%s model=%s route=%s",
+        realtime_selection.provider.value,
+        realtime_selection.model,
+        realtime_selection.route,
+    )
+
     session = AgentSession(
         turn_handling=CONVERSATION_MODE_TURN_HANDLING,
         aec_warmup_duration=CONVERSATION_MODE_AEC_WARMUP_SECONDS,
-        llm=google.realtime.RealtimeModel(
-            model="gemini-2.5-flash-native-audio-preview-12-2025",
-            voice="Puck",
-            temperature=0.5,
-
-            input_audio_transcription=types.AudioTranscriptionConfig(),
-            output_audio_transcription=types.AudioTranscriptionConfig(),
-
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=0,
-                include_thoughts=False,
-            ),
-
-            realtime_input_config=types.RealtimeInputConfig(
-                turn_coverage=types.TurnCoverage.TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO,
-                activity_handling=types.ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
-                automatic_activity_detection=types.AutomaticActivityDetection(
-                    disabled=False,
-                    # Keep start-of-speech HIGH so Ahmed can still barge in
-                    # quickly when NOVA is talking. End-of-speech was HIGH
-                    # with only 350ms of silence required, which read normal
-                    # mid-sentence pauses as "done talking" and cut Ahmed
-                    # off - lowered plus a longer silence window so NOVA
-                    # waits for an actual pause before responding.
-                    start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                    prefix_padding_ms=120,
-                    silence_duration_ms=400,
-                ), # <--- Closes AutomaticActivityDetection
-            ), # <--- Closes RealtimeInputConfig
-        ), # <--- Closes RealtimeModel
-    ) # <--- Closes AgentSession
+        llm=realtime_model,
+    )
 
     # Historical variable name retained only for the existing Phase 0/1
     # security contract. This is now just a per-session permission ID;
@@ -549,8 +526,8 @@ async def my_agent(ctx: agents.JobContext):
     _install_conversation_mode_logging(session)
     SessionConversationRecorder().attach(session)
     LearningSessionRecorder(
-        route="gemini_realtime",
-        model="gemini-2.5-flash-native-audio-preview-12-2025",
+        route=realtime_selection.route,
+        model=realtime_selection.model,
         strategy_versions={
             "learning_runtime": "v1.1",
             "capability_kernel": "nova_os",

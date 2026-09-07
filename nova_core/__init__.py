@@ -23,6 +23,14 @@ from .router import (
     RoutingAttempt,
     create_model_router,
 )
+from .realtime import (
+    RealtimeProviderError,
+    RealtimeProviderNotConfiguredError,
+    RealtimeProviderUnsupportedError,
+    RealtimeSelection,
+    build_realtime_model,
+    load_realtime_selection,
+)
 
 
 __all__ = [
@@ -38,9 +46,15 @@ __all__ = [
     "RouterError",
     "NoProviderAvailableError",
     "RoutingAttempt",
+    "RealtimeProviderError",
+    "RealtimeProviderNotConfiguredError",
+    "RealtimeProviderUnsupportedError",
+    "RealtimeSelection",
     "load_configuration",
     "parse_profile",
     "parse_provider_name",
     "create_provider_registry",
     "create_model_router",
+    "build_realtime_model",
+    "load_realtime_selection",
 ]

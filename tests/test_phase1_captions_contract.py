@@ -16,9 +16,9 @@ def text(path: str) -> str:
 
 
 def test_gemini_transcription_requested() -> None:
-    agent = text("agent.py")
-    assert "input_audio_transcription=types.AudioTranscriptionConfig()" in agent
-    assert "output_audio_transcription=types.AudioTranscriptionConfig()" in agent
+    realtime = text("nova_core/realtime.py")
+    assert "input_audio_transcription=types.AudioTranscriptionConfig()" in realtime
+    assert "output_audio_transcription=types.AudioTranscriptionConfig()" in realtime
 
 
 def test_captions_are_inside_preview_ui() -> None:

@@ -10,11 +10,11 @@ def read(path: str) -> str:
 
 
 def test_gemini_turn_includes_all_live_video() -> None:
-    agent = read("agent.py")
+    realtime = read("nova_core/realtime.py")
     assert (
         "types.TurnCoverage."
         "TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO"
-        in agent
+        in realtime
     )
 
 
