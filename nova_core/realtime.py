@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from google.genai import types
@@ -34,6 +35,88 @@ class RealtimeProviderUnsupportedError(RealtimeProviderError):
 
 class RealtimeProviderNotConfiguredError(RealtimeProviderError):
     """Raised when the selected native realtime provider is not configured."""
+
+
+class RealtimeFailureKind(StrEnum):
+    """Safe classification of native realtime provider failures."""
+
+    AUTHENTICATION = "authentication"
+    RATE_LIMIT = "rate_limit"
+    UNAVAILABLE = "unavailable"
+    REQUEST = "request"
+    UNKNOWN = "unknown"
+
+
+def classify_realtime_error(
+    error: BaseException | None,
+) -> RealtimeFailureKind:
+    """Classify a realtime failure without returning its raw message.
+
+    The realtime lane does not raise NOVA's own provider errors -- failures
+    arrive from LiveKit/Gemini as whatever the transport produced. Only the
+    resulting category and the exception class name are safe to keep.
+
+    Callers must pass the *provider* exception, not LiveKit's
+    `RealtimeModelError` wrapper: the wrapper has no status code and a single
+    fixed class name, so classifying it would report every failure as
+    `unknown`. See `agent._unwrap_realtime_error`.
+    """
+
+    if error is None:
+        return RealtimeFailureKind.UNKNOWN
+
+    status_code = getattr(error, "status_code", None)
+
+    if status_code in {401, 403}:
+        return RealtimeFailureKind.AUTHENTICATION
+
+    if status_code == 429:
+        return RealtimeFailureKind.RATE_LIMIT
+
+    if status_code == 408 or (
+        isinstance(status_code, int) and status_code >= 500
+    ):
+        return RealtimeFailureKind.UNAVAILABLE
+
+    if isinstance(status_code, int) and 400 <= status_code < 500:
+        return RealtimeFailureKind.REQUEST
+
+    name = type(error).__name__.lower()
+    message = str(error).lower()
+
+    def _matches(*tokens: str) -> bool:
+        return any(
+            token in name or token in message
+            for token in tokens
+        )
+
+    if _matches(
+        "ratelimit",
+        "rate limit",
+        "quota",
+        "resource_exhausted",
+    ):
+        return RealtimeFailureKind.RATE_LIMIT
+
+    if _matches(
+        "authentication",
+        "permission",
+        "api key",
+        "unauthorized",
+        "forbidden",
+    ):
+        return RealtimeFailureKind.AUTHENTICATION
+
+    if _matches(
+        "timeout",
+        "deadline",
+        "connection",
+        "unavailable",
+        "gateway",
+    ):
+        return RealtimeFailureKind.UNAVAILABLE
+
+    return RealtimeFailureKind.UNKNOWN
 
 
 @dataclass(frozen=True, slots=True)

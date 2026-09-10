@@ -18,6 +18,10 @@ from .configuration import (
     load_configuration,
     parse_provider_name,
 )
+from .provider_health import (
+    ProviderHealthTracker,
+    create_provider_health_tracker,
+)
 
 
 class ProviderRegistryError(RuntimeError):
@@ -40,8 +44,18 @@ class ProviderRegistry:
     def __init__(
         self,
         configuration: NovaConfiguration,
+        health_tracker: ProviderHealthTracker | None = None,
     ) -> None:
         self.configuration = configuration
+
+        # One tracker, shared with ModelRouter through the default factory
+        # path. Two independent trackers would mean a provider marked
+        # unhealthy by a probe still looked healthy to routed traffic.
+        self.health_tracker = (
+            health_tracker
+            if health_tracker is not None
+            else create_provider_health_tracker()
+        )
 
         self._providers: dict[
             ProviderName,
@@ -169,6 +183,7 @@ class ProviderRegistry:
                 for name, provider
                 in self._providers.items()
             },
+            "health": self.health_tracker.safe_summary(),
         }
 
     async def health_check(
@@ -180,13 +195,26 @@ class ProviderRegistry:
         provider = self.get(name)
 
         if not provider.configured:
+            self.health_tracker.record_probe_result(
+                name,
+                reachable=False,
+                configured=False,
+            )
             return False
 
         try:
-            return await provider.health_check()
+            reachable = await provider.health_check()
 
         except Exception:
-            return False
+            reachable = False
+
+        self.health_tracker.record_probe_result(
+            name,
+            reachable=reachable,
+            configured=True,
+        )
+
+        return reachable
 
     async def health_check_all(
         self,
@@ -202,6 +230,11 @@ class ProviderRegistry:
             provider: ModelProvider,
         ) -> tuple[str, dict[str, Any]]:
             if not provider.configured:
+                self.health_tracker.record_probe_result(
+                    name,
+                    reachable=False,
+                    configured=False,
+                )
                 return (
                     name.value,
                     {
@@ -212,11 +245,9 @@ class ProviderRegistry:
                     },
                 )
 
-            try:
-                reachable = await provider.health_check()
-
-            except Exception:
-                reachable = False
+            # Delegate so a bulk sweep records health exactly the same way a
+            # single probe does, instead of quietly bypassing the tracker.
+            reachable = await self.health_check(name)
 
             return (
                 name.value,
@@ -240,6 +271,7 @@ class ProviderRegistry:
 
 def create_provider_registry(
     configuration: NovaConfiguration | None = None,
+    health_tracker: ProviderHealthTracker | None = None,
 ) -> ProviderRegistry:
     """
     Create NOVA's default provider registry.
@@ -255,7 +287,8 @@ def create_provider_registry(
     )
 
     registry = ProviderRegistry(
-        active_configuration
+        active_configuration,
+        health_tracker=health_tracker,
     )
 
     openai_configuration = (

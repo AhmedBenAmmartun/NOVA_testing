@@ -13,6 +13,7 @@ from nova_core.configuration import ProviderConfiguration
 
 from .base import (
     ModelProvider,
+    ProviderRateLimitError,
     ProviderRequestError,
     ProviderResponse,
     ProviderUnavailableError,
@@ -199,6 +200,27 @@ class OllamaProvider(ModelProvider):
                 if status_code is not None
                 else ""
             )
+
+            # Same classification contract as the OpenAI and Groq adapters.
+            # Ollama is usually local, but an Ollama-compatible proxy or a
+            # hosted endpoint can rate-limit, and that must reach the circuit
+            # breaker as a rate limit rather than as a bad request.
+            if status_code == 429:
+                raise ProviderRateLimitError(
+                    "Ollama is currently rate-limited."
+                    f"{detail}"
+                ) from error
+
+            # A server that answers with 5xx/408 is a provider availability
+            # problem, not a bad request.
+            if status_code == 408 or (
+                isinstance(status_code, int)
+                and status_code >= 500
+            ):
+                raise ProviderUnavailableError(
+                    "Ollama is temporarily unavailable."
+                    f"{detail}"
+                ) from error
 
             raise ProviderRequestError(
                 "Ollama rejected the generation request."

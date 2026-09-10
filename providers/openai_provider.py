@@ -18,6 +18,7 @@ from nova_core.configuration import ProviderConfiguration
 from .base import (
     ModelProvider,
     ProviderNotConfiguredError,
+    ProviderRateLimitError,
     ProviderRequestError,
     ProviderResponse,
     ProviderUnavailableError,
@@ -213,7 +214,7 @@ class OpenAIProvider(ModelProvider):
             ) from error
 
         except RateLimitError as error:
-            raise ProviderUnavailableError(
+            raise ProviderRateLimitError(
                 "OpenAI is currently rate-limited or the configured "
                 "project has reached its available usage limit."
             ) from error
@@ -252,6 +253,26 @@ class OpenAIProvider(ModelProvider):
                 if request_id
                 else ""
             )
+
+            # Provider-level failures must reach the circuit breaker as
+            # such; an ordinary 4xx rejection is this request's problem, not
+            # OpenAI's availability.
+            if status_code == 429:
+                raise ProviderRateLimitError(
+                    "OpenAI is currently rate-limited."
+                    f"{detail}"
+                    f"{request_detail}"
+                ) from error
+
+            if status_code == 408 or (
+                isinstance(status_code, int)
+                and status_code >= 500
+            ):
+                raise ProviderUnavailableError(
+                    "OpenAI is temporarily unavailable."
+                    f"{detail}"
+                    f"{request_detail}"
+                ) from error
 
             raise ProviderRequestError(
                 "OpenAI rejected the request."

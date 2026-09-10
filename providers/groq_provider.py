@@ -18,6 +18,7 @@ from nova_core.configuration import ProviderConfiguration
 from .base import (
     ModelProvider,
     ProviderNotConfiguredError,
+    ProviderRateLimitError,
     ProviderRequestError,
     ProviderResponse,
     ProviderUnavailableError,
@@ -149,7 +150,7 @@ class GroqProvider(ModelProvider):
                 "Groq authentication failed. Check GROQ_API_KEY without sharing the key."
             ) from error
         except RateLimitError as error:
-            raise ProviderUnavailableError(
+            raise ProviderRateLimitError(
                 "Groq is currently rate-limited or the account reached its available usage limit."
             ) from error
         except APITimeoutError as error:
@@ -159,7 +160,21 @@ class GroqProvider(ModelProvider):
         except APIStatusError as error:
             status_code = getattr(error, "status_code", None)
             detail = f" Status code: {status_code}." if status_code is not None else ""
-            raise ProviderRequestError(f"Groq rejected the request.{detail}") from error
+            # Provider-level failures must reach the circuit breaker as such;
+            # an ordinary 4xx rejection is this request's problem, not Groq's.
+            if status_code == 429:
+                raise ProviderRateLimitError(
+                    f"Groq is currently rate-limited.{detail}"
+                ) from error
+            if status_code == 408 or (
+                isinstance(status_code, int) and status_code >= 500
+            ):
+                raise ProviderUnavailableError(
+                    f"Groq is temporarily unavailable.{detail}"
+                ) from error
+            raise ProviderRequestError(
+                f"Groq rejected the request.{detail}"
+            ) from error
         except Exception as error:
             raise ProviderRequestError("Groq could not complete the generation request.") from error
 

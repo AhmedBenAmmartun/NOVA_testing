@@ -21,6 +21,11 @@ from .configuration import (
     load_configuration,
     parse_provider_name,
 )
+from .provider_health import (
+    ProviderFailureKind,
+    ProviderHealthTracker,
+    create_provider_health_tracker,
+)
 from .provider_registry import (
     ProviderRegistry,
     create_provider_registry,
@@ -70,9 +75,19 @@ class ModelRouter:
         configuration: NovaConfiguration,
         registry: ProviderRegistry,
         cloud_budget: CloudUsageBudget | None = None,
+        health_tracker: ProviderHealthTracker | None = None,
     ) -> None:
         self.configuration = configuration
         self.registry = registry
+
+        # Default to the registry's tracker rather than building a second one:
+        # the router and the registry must agree about which providers are
+        # currently unhealthy.
+        self.provider_health = (
+            health_tracker
+            if health_tracker is not None
+            else registry.health_tracker
+        )
         self.cloud_budget = (
             cloud_budget
             if cloud_budget is not None
@@ -213,11 +228,32 @@ class ModelRouter:
             )
 
             if not provider.configured:
+                self.provider_health.record_failure_kind(
+                    provider_name,
+                    ProviderFailureKind.NOT_CONFIGURED,
+                    error_type="NotConfigured",
+                )
                 attempts.append(
                     RoutingAttempt(
                         provider=provider_name,
                         succeeded=False,
                         reason="not_configured",
+                    )
+                )
+                continue
+
+            # Skip a provider NOVA already knows is failing instead of paying
+            # its full timeout and cloud-budget allowance again.
+            circuit = self.provider_health.acquire(
+                provider_name
+            )
+
+            if not circuit.allowed:
+                attempts.append(
+                    RoutingAttempt(
+                        provider=provider_name,
+                        succeeded=False,
+                        reason=circuit.reason,
                     )
                 )
                 continue
@@ -238,6 +274,13 @@ class ModelRouter:
                         budget_decision.used,
                         budget_decision.limit,
                         budget_decision.reason,
+                    )
+
+                    # The circuit admitted this attempt but the budget
+                    # refused it. Give the probe slot back or a half-open
+                    # provider could never recover.
+                    self.provider_health.release_attempt(
+                        provider_name
                     )
 
                     attempts.append(
@@ -269,10 +312,16 @@ class ModelRouter:
                 )
 
             except ProviderError as error:
+                failure_kind = self.provider_health.record_failure(
+                    provider_name,
+                    error,
+                )
+
                 logger.warning(
-                    "NOVA provider failed: provider=%s error=%s",
+                    "NOVA provider failed: provider=%s error=%s kind=%s",
                     provider_name.value,
                     type(error).__name__,
+                    failure_kind.value,
                 )
 
                 attempts.append(
@@ -285,6 +334,12 @@ class ModelRouter:
                 continue
 
             except Exception as error:
+                self.provider_health.record_failure_kind(
+                    provider_name,
+                    ProviderFailureKind.UNEXPECTED,
+                    error_type=type(error).__name__,
+                )
+
                 logger.exception(
                     "Unexpected provider failure: provider=%s",
                     provider_name.value,
@@ -298,6 +353,10 @@ class ModelRouter:
                     )
                 )
                 continue
+
+            self.provider_health.record_success(
+                provider_name
+            )
 
             attempts.append(
                 RoutingAttempt(
@@ -325,6 +384,9 @@ class ModelRouter:
                     ],
                     "cloud_budget": (
                         self.cloud_budget.status()
+                    ),
+                    "provider_health": (
+                        self.provider_health.safe_summary()
                     ),
                 }
             )
@@ -412,6 +474,9 @@ class ModelRouter:
             "cloud_budget": (
                 self.cloud_budget.status()
             ),
+            "provider_health": (
+                self.provider_health.safe_summary()
+            ),
             "registry": (
                 self.registry.safe_summary()
             ),
@@ -422,6 +487,7 @@ def create_model_router(
     configuration: NovaConfiguration | None = None,
     registry: ProviderRegistry | None = None,
     cloud_budget: CloudUsageBudget | None = None,
+    health_tracker: ProviderHealthTracker | None = None,
 ) -> ModelRouter:
     """Create NOVA's default specialist model router."""
 
@@ -431,11 +497,30 @@ def create_model_router(
         else load_configuration()
     )
 
+    # ProviderHealthTracker
+    #   |
+    #   +---- ProviderRegistry
+    #   |
+    #   +---- ModelRouter
+    #
+    # Resolve the tracker once, before the registry is built, so the default
+    # factory path can never end up with two independent trackers.
+    active_health_tracker = (
+        health_tracker
+        if health_tracker is not None
+        else (
+            registry.health_tracker
+            if registry is not None
+            else create_provider_health_tracker()
+        )
+    )
+
     active_registry = (
         registry
         if registry is not None
         else create_provider_registry(
-            active_configuration
+            active_configuration,
+            health_tracker=active_health_tracker,
         )
     )
 
@@ -443,4 +528,5 @@ def create_model_router(
         configuration=active_configuration,
         registry=active_registry,
         cloud_budget=cloud_budget,
+        health_tracker=active_health_tracker,
     )

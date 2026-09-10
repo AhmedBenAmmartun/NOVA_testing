@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-05_
+_Last updated: 2026-09-09_
 
 ## What this is
 
@@ -37,8 +37,11 @@ nova_os/            capability kernel: catalog.py registers 12 capabilities
                     CapabilityManager.build_tool_context() (the ONLY tool
                     surface agent.py consumes); skills.py the skill registry
 nova_core/          model routing: router.py + configuration.py +
-                    provider_registry.py + cloud_budget.py. fallback_order is
-                    env-driven; providers/ holds the concrete adapters
+                    provider_registry.py + cloud_budget.py +
+                    provider_health.py + realtime.py. fallback_order is
+                    env-driven; providers/ holds the concrete adapters.
+                    realtime.py owns the native (Gemini) realtime boundary;
+                    provider_health.py owns the text-provider circuit breaker
 nova_policy/        permission engine (capability != permission)
 nova_capture/       Class Capture runtime (see its own section below)
 nova_school/        course registry, path authority, material context,
@@ -443,6 +446,52 @@ See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
    honestly — including failures.
 5. Update `AGENTS.md` and `DEVELOPMENT.md` only if the stack, layout, tool count,
    or rules changed.
+
+## Provider resilience (LAB — Provider Resilience P1, not ACTIVE)
+
+Text providers go through one process-local circuit breaker,
+`nova_core/provider_health.py:ProviderHealthTracker`. Three rules matter when
+touching routing:
+
+- **One tracker, not two.** `ProviderRegistry` and `ModelRouter` must share the
+  same `ProviderHealthTracker`. `create_model_router()` resolves it *before*
+  building the registry and passes the same instance to both; `ModelRouter`
+  otherwise defaults to `registry.health_tracker`. Two trackers would let a
+  provider a probe already marked unhealthy still look healthy to routed
+  traffic.
+- **A request-specific 4xx must never open a circuit.** It proves the provider
+  is reachable; only `not_configured`, `rate_limit`, `unavailable`, and
+  `unexpected` affect availability. Rate limits open immediately with a longer
+  cooldown; transient failures open at `NOVA_PROVIDER_FAILURE_THRESHOLD`.
+- **Health output is safe by construction.** The tracker stores a failure
+  category and an exception class name — never prompts, responses, keys, or raw
+  provider error text. Keep it that way; `safe_summary()` is surfaced in router
+  response metadata.
+- **A generic probe cannot clear a rate-limit circuit.**
+  `ProviderRegistry.health_check()` lists models; a rate-limited provider
+  answers that happily while still refusing completions. While a rate-limit
+  circuit stands, `record_probe_result()` ignores generic probes in both
+  directions and returns `False`. Only the routed HALF_OPEN generation attempt
+  after the cooldown proves recovery.
+- **All three adapters must classify `APIStatusError` identically** (429 ->
+  rate limit, 408/5xx -> unavailable, other 4xx -> request). Ollama shipped
+  without the 429 branch and silently denied the breaker its clearest signal.
+
+The Gemini native realtime lane is separate. `agent.py` records its health into
+the **existing** `NovaRuntime` health registry as `provider:<name>:realtime`
+and publishes safe state on the `nova.provider-status` topic. Do not add a
+second runtime health system, and do not write LiveKit's `recoverable` flag —
+the observer reads it.
+
+**Always unwrap before classifying.** LiveKit hands the observer a
+`livekit.agents.llm.RealtimeModelError`, not the provider's exception. The
+wrapper owns `recoverable` and carries the real error in `.error`. It has no
+`status_code` and one fixed class name, so classifying it reports `unknown`
+for everything — and its pydantic repr embeds the raw provider message, so the
+message-token fallback reads text that must never be stored. Use
+`agent._unwrap_realtime_error()`. Groq/OpenAI/Ollama are text adapters and are not native
+realtime replacements; degraded voice fallback remains an explicit, deferred
+STT -> ModelRouter -> TTS design. See `docs/PROVIDER-RESILIENCE-P1.md`.
 
 ## Non-obvious facts (learned the hard way)
 

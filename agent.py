@@ -13,13 +13,13 @@ from prompts import SYSTEM_PROMPT
 from tools.conversations import SessionConversationRecorder
 from tools.common import logger as nova_logger
 from tools.specialist import ask_specialist
-from nova_core import build_realtime_model
+from nova_core import build_realtime_model, classify_realtime_error
 from nova_intelligence.context_broker import ContextBroker
 from nova_lab.service import DevelopmentService
 from nova_policy import permission_engine
 from nova_os import build_default_capability_manager, build_default_skill_registry
 from nova_learning.runtime import LearningSessionRecorder
-from nova_runtime import NovaRuntime
+from nova_runtime import HealthState, NovaRuntime
 from nova_runtime.store import TaskStore
 
 load_dotenv(".env.local")
@@ -476,6 +476,173 @@ def _install_vision_transport_monitor(ctx: agents.JobContext) -> set:
 # === NOVA VISION TRANSPORT V3.2 END ===
 
 
+async def _send_provider_status(
+    ctx: agents.JobContext,
+    provider: str,
+    state: str,
+    *,
+    lane: str = "realtime",
+    failure_kind: str | None = None,
+    recoverable: bool | None = None,
+    detail: str = "",
+) -> None:
+    """Publish safe provider health metadata without raw provider errors."""
+
+    payload = {
+        "provider": provider,
+        "lane": lane,
+        "state": state,
+        "failure_kind": failure_kind,
+        "recoverable": recoverable,
+        "detail": detail[:120],
+    }
+
+    try:
+        await ctx.room.local_participant.send_text(
+            json.dumps(payload),
+            topic="nova.provider-status",
+        )
+    except Exception as error:
+        nova_logger.debug(
+            "provider status send skipped provider=%s state=%s error=%s",
+            provider,
+            state,
+            type(error).__name__,
+        )
+
+
+def _unwrap_realtime_error(error) -> tuple[BaseException | None, bool]:
+    """Split a LiveKit realtime error into (provider exception, recoverable).
+
+    LiveKit does not hand the observer the provider's exception directly. It
+    wraps it in `llm.RealtimeModelError`, which owns the `recoverable` flag and
+    carries the real exception in `.error`.
+
+    Classifying the wrapper is useless: it has no `status_code`, and its class
+    name is always `RealtimeModelError`, so every failure would report as
+    `unknown:RealtimeModelError`. Classify the inner exception, but keep the
+    wrapper's `recoverable` flag -- that flag is LiveKit's judgment, not the
+    provider's, and it is the only place it exists.
+    """
+
+    recoverable = bool(getattr(error, "recoverable", False))
+
+    if error is None:
+        return None, recoverable
+
+    inner = getattr(error, "error", None)
+
+    if isinstance(inner, BaseException):
+        return inner, recoverable
+
+    if isinstance(error, BaseException):
+        return error, recoverable
+
+    # Neither a wrapper nor an exception. Report it, but never as a real error
+    # class name that could mislead a reader.
+    return None, recoverable
+
+
+def _install_realtime_provider_health(
+    ctx: agents.JobContext,
+    session: AgentSession,
+    runtime: NovaRuntime,
+    realtime_selection,
+    realtime_model,
+) -> tuple[set, str]:
+    """Observe LiveKit realtime errors without changing recovery semantics.
+
+    This reuses the NovaRuntime health registry NOVA already has rather than
+    inventing a second runtime health system. One realtime provider going
+    DEGRADED or FAILED is one component being unwell -- it is deliberately not
+    a statement that NOVA as a whole is dead.
+
+    LiveKit's own `recoverable` flag stays authoritative; this observer reads
+    it and never writes it.
+    """
+
+    active_tasks: set = set()
+    provider_name = realtime_selection.provider.value
+    component_name = f"provider:{provider_name}:realtime"
+
+    runtime.health.set(
+        component_name,
+        HealthState.HEALTHY,
+        "configured",
+    )
+
+    def spawn(coro) -> None:
+        task = asyncio.create_task(coro)
+        active_tasks.add(task)
+        task.add_done_callback(active_tasks.discard)
+
+    @session.on("error")
+    def _realtime_provider_error(event) -> None:
+        source = getattr(event, "source", None)
+        source_name = type(source).__name__.lower()
+
+        # Only the native realtime lane feeds this component. A tool or STT
+        # error is somebody else's health story.
+        if (
+            source is not realtime_model
+            and "realtimemodel" not in source_name
+        ):
+            return
+
+        error = getattr(event, "error", None)
+
+        if error is None:
+            return
+
+        # `recoverable` comes from LiveKit's wrapper; the category comes from
+        # the provider exception the wrapper carries.
+        provider_error, recoverable = _unwrap_realtime_error(error)
+
+        failure_kind = classify_realtime_error(provider_error)
+        error_class = (
+            type(provider_error).__name__
+            if provider_error is not None
+            else "UnknownRealtimeError"
+        )
+        state = (
+            HealthState.DEGRADED
+            if recoverable
+            else HealthState.FAILED
+        )
+
+        # Category plus exception class name only. Never the provider's
+        # message, which can quote prompt or response text.
+        detail = f"{failure_kind.value}:{error_class}"
+
+        runtime.health.set(
+            component_name,
+            state,
+            detail,
+        )
+
+        nova_logger.warning(
+            "realtime provider health provider=%s state=%s kind=%s "
+            "recoverable=%s error=%s",
+            provider_name,
+            state.value,
+            failure_kind.value,
+            recoverable,
+            error_class,
+        )
+
+        spawn(
+            _send_provider_status(
+                ctx,
+                provider_name,
+                state.value,
+                failure_kind=failure_kind.value,
+                recoverable=recoverable,
+                detail=error_class,
+            )
+        )
+
+    return active_tasks, component_name
+
 
 class Assistant(Agent):
     """NOVA realtime agent backed by the NOVA OS capability kernel."""
@@ -536,6 +703,20 @@ async def my_agent(ctx: agents.JobContext):
     # The one NOVA task runtime. `nova_school` has consumed it for a while; the
     # agent Ahmed actually talks to had no task layer at all until now.
     runtime = NovaRuntime()
+
+    # The realtime lane gets a health component before any traffic runs,
+    # so a provider failure later reads as a state change instead of an
+    # unexplained silence.
+    (
+        _realtime_provider_tasks,
+        realtime_health_component,
+    ) = _install_realtime_provider_health(
+        ctx,
+        session,
+        runtime,
+        realtime_selection,
+        realtime_model,
+    )
 
     # Recover durable task state before anything new is dispatched. This is
     # also what reinterprets a task left RUNNING by a process that died -- the
@@ -599,8 +780,25 @@ async def my_agent(ctx: agents.JobContext):
             ),
         )
     except Exception as error:
+        runtime.health.set(
+            realtime_health_component,
+            HealthState.FAILED,
+            f"startup:{type(error).__name__}",
+        )
         nova_logger.exception("agent startup failed: %s", type(error).__name__)
         raise
+
+    runtime.health.set(
+        realtime_health_component,
+        HealthState.HEALTHY,
+        "session_started",
+    )
+    await _send_provider_status(
+        ctx,
+        realtime_selection.provider.value,
+        HealthState.HEALTHY.value,
+        detail="session_started",
+    )
 
     await ctx.connect()
     nova_logger.info("vision transport: job context connected")

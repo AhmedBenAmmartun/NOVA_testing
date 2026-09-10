@@ -10,6 +10,14 @@ from .configuration import (
     parse_profile,
     parse_provider_name,
 )
+from .provider_health import (
+    ProviderAttemptDecision,
+    ProviderCircuitState,
+    ProviderFailureKind,
+    ProviderHealthTracker,
+    classify_provider_error,
+    create_provider_health_tracker,
+)
 from .provider_registry import (
     ProviderNotRegisteredError,
     ProviderRegistry,
@@ -24,11 +32,13 @@ from .router import (
     create_model_router,
 )
 from .realtime import (
+    RealtimeFailureKind,
     RealtimeProviderError,
     RealtimeProviderNotConfiguredError,
     RealtimeProviderUnsupportedError,
     RealtimeSelection,
     build_realtime_model,
+    classify_realtime_error,
     load_realtime_selection,
 )
 
@@ -39,6 +49,10 @@ __all__ = [
     "NovaProfile",
     "ProviderConfiguration",
     "ProviderName",
+    "ProviderAttemptDecision",
+    "ProviderCircuitState",
+    "ProviderFailureKind",
+    "ProviderHealthTracker",
     "ProviderRegistry",
     "ProviderRegistryError",
     "ProviderNotRegisteredError",
@@ -46,6 +60,7 @@ __all__ = [
     "RouterError",
     "NoProviderAvailableError",
     "RoutingAttempt",
+    "RealtimeFailureKind",
     "RealtimeProviderError",
     "RealtimeProviderNotConfiguredError",
     "RealtimeProviderUnsupportedError",
@@ -53,6 +68,9 @@ __all__ = [
     "load_configuration",
     "parse_profile",
     "parse_provider_name",
+    "classify_provider_error",
+    "classify_realtime_error",
+    "create_provider_health_tracker",
     "create_provider_registry",
     "create_model_router",
     "build_realtime_model",

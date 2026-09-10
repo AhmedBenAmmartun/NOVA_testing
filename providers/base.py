@@ -19,6 +19,15 @@ class ProviderUnavailableError(ProviderError):
     """Raised when a configured provider cannot currently be reached."""
 
 
+class ProviderRateLimitError(ProviderUnavailableError):
+    """Raised when a provider is rate-limited or quota-blocked.
+
+    This stays a subtype of ProviderUnavailableError so existing callers keep
+    working, while Provider Resilience P1 can give quota failures their own,
+    longer circuit-breaker cooldown.
+    """
+
+
 class ProviderRequestError(ProviderError):
     """Raised when a provider rejects or fails a generation request."""
 

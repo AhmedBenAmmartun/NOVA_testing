@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-05_
+_Last updated: 2026-09-09_
 
 > **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
 > It is the authoritative handoff: exact Git state, verified test count (682),
@@ -23,6 +23,43 @@ calendar, files, and daily productivity. This LiveKit + Gemini Realtime repo
 is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
+
+- [x] **Provider Resilience P1 — provider health, circuit breaking, and
+      realtime health reporting (LAB, not checkpointed)** (2026-09-09,
+      VERIFIED IMPLEMENTATION / NO GIT CHECKPOINT YET): built on the frozen P0
+      checkpoint `b8f59e1` in the isolated worktree
+      `C:\Projects\NOVA-Labs\nova-provider-resilience-p1`
+      (`lab/nova-provider-resilience-p1-20260907`). Adds
+      `nova_core/provider_health.py` (`ProviderHealthTracker`: closed /
+      open / half-open circuit, per-category cooldowns, one probe at a time),
+      `ProviderRateLimitError`, 429/408/5xx classification in the OpenAI, Groq,
+      and Ollama adapters, and `RealtimeFailureKind` +
+      `classify_realtime_error` for the native realtime lane. `ProviderRegistry`
+      and `ModelRouter` share exactly ONE tracker through the default factory
+      path; the router skips a provider whose circuit is open instead of paying
+      its timeout and cloud-budget allowance again. Request-specific 4xx
+      failures deliberately never poison a reachable provider. `agent.py`
+      records realtime health into the EXISTING `NovaRuntime` health registry
+      (`provider:<name>:realtime`, HEALTHY/DEGRADED/FAILED) and publishes safe
+      state on the `nova.provider-status` topic — no second runtime health
+      system, no mutation of LiveKit's `recoverable` flag, and a realtime
+      failure never means the whole system is dead. Gemini remains the only
+      native audio/video realtime lane; degraded voice fallback stays an
+      explicit, still-deferred STT → ModelRouter → TTS design. Verified: full
+      suite **880 passed** (frozen-P0 baseline 823, +57 new P1 tests, no
+      regressions), tools driver 35/35, simulation 16/16, `git diff --check`
+      clean. A later review found three blockers, all fixed and covered by
+      tests confirmed to fail against the pre-fix behavior: LiveKit's
+      `RealtimeModelError` wrapper was classified instead of the provider
+      exception it carries (every status-code failure collapsed to `unknown`,
+      and the message fallback read the wrapper repr, which embeds the raw
+      provider message); a generic `ProviderRegistry.health_check()` could
+      close or shorten an active rate-limit circuit, so only a routed
+      HALF_OPEN generation now proves rate-limit recovery; and Ollama mapped
+      429 to `ProviderRequestError` instead of `ProviderRateLimitError`. Live
+      Gemini/LiveKit runtime behavior remains NEEDS VERIFICATION. See
+      `docs/PROVIDER-RESILIENCE-P1.md`. **Next step:** Ahmed's approval for a
+      Git checkpoint on this branch.
 
 - [x] **NOVA Lab V1B — model-facing `development` capability (LAB checkpoint)**
       (2026-09-05, VERIFIED CURRENT): added an inactive-by-default
