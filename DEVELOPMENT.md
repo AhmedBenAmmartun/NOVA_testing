@@ -49,13 +49,16 @@ nova_school/        course registry, path authority, material context,
 nova_knowledge/     course-material extraction + local retrieval index
 nova_learning/      experience capture: schema/store/evaluator/instrument.
                     Wired into agent.py via LearningSessionRecorder
-nova_runtime/       job + task-state foundation (BackgroundJobManager,
-                    TaskSnapshot, JobState, EventBus, TaskStore).
-                    Wired into agent.py per LiveKit session: NovaRuntime owns
-                    health/jobs, TaskStore recovery runs before new work, and
-                    runtime shutdown is registered with the job lifecycle.
-                    nova_school/automation.py and cli.py also consume it.
-                    U2 will make the local runtime persist beyond one session.
+nova_runtime/       persistent runtime + job/task-state foundation
+                    (NovaRuntime, BackgroundJobManager, TaskSnapshot, JobState,
+                    EventBus, TaskStore). U2.1 makes nova_startup.py own a
+                    provider-independent NovaRuntime for the local-core process;
+                    the persistent NOVA Core explicitly owns the canonical TaskStore and performs durable recovery before
+                    optional subsystems attach, and publishes local health/status.
+                    LiveKit agent sessions still create their own session-scoped
+                    NovaRuntime for isolation; cross-process attachment to the
+                    persistent core is NOT implemented yet. U3 will deepen durable
+                    task/job orchestration rather than creating a second runtime.
 nova_lab/           internal development lifecycle primitives: feature state,
                     recoverable lifecycle journal, constrained Git worktrees,
                     allow-listed test profiles, and (V1B) service.py, the

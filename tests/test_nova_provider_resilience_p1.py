@@ -738,22 +738,17 @@ def test_agent_realtime_health_uses_the_existing_runtime_registry() -> None:
     assert "HealthRegistry()" not in agent
 
 
-def test_agent_installs_health_after_runtime_and_keeps_task_recovery() -> None:
+def test_agent_installs_health_after_session_runtime_without_owning_task_store() -> None:
     agent = (ROOT / "agent.py").read_text(encoding="utf-8-sig")
 
     runtime_index = agent.index("runtime = NovaRuntime()")
-    install_index = agent.index("_install_realtime_provider_health(\n        ctx,")
-    recovery_index = agent.index("TaskStore().recover()")
-
-    assert runtime_index < install_index < recovery_index
-
-    # The durable-task recovery comment the v1.0.2 installer mis-anchored on
-    # is still the full multiline version, untouched.
-    assert (
-        "# Recover durable task state before anything new is dispatched. This is"
-        in agent
+    install_index = agent.index(
+        "_install_realtime_provider_health(\n        ctx,"
     )
-    assert "durable task recovery failed; starting with none" in agent
+
+    assert runtime_index < install_index
+    assert "TaskStore(" not in agent
+    assert "task_store.recover()" not in agent
 
 
 def test_p1_keeps_p0_native_realtime_boundary_and_video_contracts() -> None:

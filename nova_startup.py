@@ -19,18 +19,29 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENV_PATH = PROJECT_ROOT / ".env"
 
-LOG_DIRECTORY = PROJECT_ROOT / "logs"
-LOG_PATH = LOG_DIRECTORY / "nova_startup.log"
-STATUS_PATH = LOG_DIRECTORY / "nova_status.json"
-
-LOG_DIRECTORY.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
 load_dotenv(
     ENV_PATH,
     override=True,
+)
+
+
+# Import runtime-owned subsystems only after loading .env.
+from nova_guardian import get_guardian_runtime  # noqa: E402
+from nova_integrations.startup_hook import (  # noqa: E402
+    start_integrations_safely,
+    stop_integrations_safely,
+)
+from nova_runtime import HealthState, NovaRuntime, TaskStore  # noqa: E402
+from nova_runtime.store import runtime_root  # noqa: E402
+
+
+RUNTIME_DIRECTORY = runtime_root() / "runtime"
+LOG_PATH = RUNTIME_DIRECTORY / "nova_startup.log"
+STATUS_PATH = RUNTIME_DIRECTORY / "nova_status.json"
+
+RUNTIME_DIRECTORY.mkdir(
+    parents=True,
+    exist_ok=True,
 )
 
 
@@ -45,14 +56,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(
     "nova.startup"
-)
-
-
-# Import Guardian only after loading .env.
-from nova_guardian import get_guardian_runtime  # noqa: E402
-from nova_integrations.startup_hook import (  # noqa: E402
-    start_integrations_safely,
-    stop_integrations_safely,
 )
 
 
@@ -131,7 +134,6 @@ def acquire_single_instance() -> bool:
             "NOVA could not create its single-instance lock."
         )
 
-        # Do not block startup if the mutex fails.
         return True
 
 
@@ -173,10 +175,182 @@ def utc_timestamp() -> str:
     ).isoformat()
 
 
+def runtime_health_summary(
+    core_runtime: NovaRuntime,
+) -> dict[str, dict[str, str]]:
+    """Return safe, JSON-ready local runtime health metadata."""
+
+    summary: dict[str, dict[str, str]] = {}
+
+    for name, component in core_runtime.health.snapshot().items():
+        summary[name] = {
+            "state": component.state.value,
+            "detail": component.detail,
+            "updated_at": component.updated_at.isoformat(),
+        }
+
+    return summary
+
+
+def build_core_runtime() -> NovaRuntime:
+    """Build the persistent NOVA Core with its canonical durable task store."""
+    return NovaRuntime(task_store=TaskStore())
+
+
+def recover_runtime_tasks(
+    core_runtime: NovaRuntime,
+) -> int:
+    """Recover durable local task state without making startup depend on it."""
+
+    store = core_runtime.task_store
+
+    if store is None:
+        core_runtime.health.set(
+            "task_store",
+            HealthState.FAILED,
+            "not_configured",
+        )
+        logger.error(
+            "Persistent NOVA Core started without its canonical task store."
+        )
+        return 0
+
+    try:
+        recovered = store.recover()
+
+    except Exception as error:
+        core_runtime.health.set(
+            "task_store",
+            HealthState.DEGRADED,
+            f"recovery:{type(error).__name__}",
+        )
+        logger.exception(
+            "Durable task recovery failed; NOVA core remains available."
+        )
+        return 0
+
+    core_runtime.health.set(
+        "task_store",
+        HealthState.HEALTHY,
+        f"recovered:{len(recovered)}",
+    )
+
+    return len(recovered)
+
+
+async def start_guardian_safely(
+    core_runtime: NovaRuntime,
+) -> tuple[Any | None, bool, bool]:
+    """Attach Guardian without making NOVA Core depend on Guardian startup."""
+
+    guardian_runtime: Any | None = None
+
+    try:
+        guardian_runtime = get_guardian_runtime()
+        started = await guardian_runtime.start()
+
+    except Exception as error:
+        core_runtime.health.set(
+            "guardian",
+            HealthState.DEGRADED,
+            f"start:{type(error).__name__}",
+        )
+        logger.exception(
+            "Guardian could not start; NOVA core remains available."
+        )
+        return guardian_runtime, False, False
+
+    core_runtime.health.set(
+        "guardian",
+        HealthState.HEALTHY,
+        "started" if started else "available",
+    )
+
+    return guardian_runtime, True, started
+
+
+def guardian_summary_safely(
+    guardian_runtime: Any | None,
+    core_runtime: NovaRuntime,
+) -> dict[str, Any]:
+    """Read Guardian status without allowing a summary failure to kill core."""
+
+    if guardian_runtime is None:
+        return {
+            "available": False,
+            "running": False,
+        }
+
+    try:
+        return dict(guardian_runtime.safe_summary())
+
+    except Exception as error:
+        core_runtime.health.set(
+            "guardian",
+            HealthState.DEGRADED,
+            f"summary:{type(error).__name__}",
+        )
+        logger.exception(
+            "Guardian status could not be read; NOVA core remains available."
+        )
+        return {
+            "available": True,
+            "running": False,
+            "summary_error": type(error).__name__,
+        }
+
+
+async def stop_guardian_safely(
+    guardian_runtime: Any | None,
+    core_runtime: NovaRuntime,
+) -> bool:
+    """Stop Guardian without masking an earlier degraded state."""
+
+    if guardian_runtime is None:
+        return False
+
+    try:
+        stopped = bool(
+            await guardian_runtime.stop()
+        )
+
+    except Exception as error:
+        core_runtime.health.set(
+            "guardian",
+            HealthState.DEGRADED,
+            f"shutdown:{type(error).__name__}",
+        )
+        logger.exception(
+            "Guardian did not stop normally."
+        )
+        return False
+
+    component = core_runtime.health.get(
+        "guardian"
+    )
+
+    if (
+        component is None
+        or component.state
+        not in {
+            HealthState.DEGRADED,
+            HealthState.FAILED,
+        }
+    ):
+        core_runtime.health.set(
+            "guardian",
+            HealthState.STOPPED,
+            "shutdown",
+        )
+
+    return stopped
+
+
 def write_status(
     *,
     state: str,
     guardian: dict[str, Any] | None = None,
+    core_runtime: NovaRuntime | None = None,
     error: str | None = None,
 ) -> None:
     """Write NOVA's current status to a local JSON file."""
@@ -187,6 +361,11 @@ def write_status(
         "state": state,
         "mode": "standby",
         "updated_at": utc_timestamp(),
+        "core": (
+            runtime_health_summary(core_runtime)
+            if core_runtime is not None
+            else None
+        ),
         "guardian": guardian,
         "error": error,
     }
@@ -218,26 +397,46 @@ def write_status(
 
 async def run_startup_check() -> int:
     """
-    Run Guardian for three seconds and stop.
+    Run NOVA Core for three seconds, with Guardian attached when available.
 
-    This tests the supervisor without leaving it active.
+    The check succeeds when the provider-independent local core can start and
+    stop. Guardian failure is reported as degraded subsystem health, not as a
+    dead NOVA process.
     """
 
-    runtime = get_guardian_runtime()
+    core_runtime = build_core_runtime()
+    recover_runtime_tasks(core_runtime)
+
+    guardian_runtime: Any | None = None
 
     try:
-        started = await runtime.start()
+        (
+            guardian_runtime,
+            guardian_available,
+            guardian_started,
+        ) = await start_guardian_safely(
+            core_runtime
+        )
 
-        status = runtime.safe_summary()
+        status = guardian_summary_safely(
+            guardian_runtime,
+            core_runtime,
+        )
 
         write_status(
             state="startup_check_running",
             guardian=status,
+            core_runtime=core_runtime,
         )
 
         print(
-            "Started:",
-            started,
+            "Guardian available:",
+            guardian_available,
+        )
+
+        print(
+            "Guardian newly started:",
+            guardian_started,
         )
 
         print(
@@ -247,16 +446,24 @@ async def run_startup_check() -> int:
 
         await asyncio.sleep(3)
 
-        stopped = await runtime.stop()
-        final_status = runtime.safe_summary()
+        stopped = await stop_guardian_safely(
+            guardian_runtime,
+            core_runtime,
+        )
+
+        final_status = guardian_summary_safely(
+            guardian_runtime,
+            core_runtime,
+        )
 
         write_status(
             state="startup_check_complete",
             guardian=final_status,
+            core_runtime=core_runtime,
         )
 
         print(
-            "Stopped:",
+            "Guardian stopped:",
             stopped,
         )
 
@@ -268,12 +475,23 @@ async def run_startup_check() -> int:
         return 0
 
     except Exception as error:
+        core_runtime.health.set(
+            "runtime",
+            HealthState.FAILED,
+            f"startup_check:{type(error).__name__}",
+        )
+
         logger.exception(
-            "NOVA startup check failed."
+            "NOVA local-core startup check failed."
         )
 
         write_status(
             state="startup_check_failed",
+            guardian=guardian_summary_safely(
+                guardian_runtime,
+                core_runtime,
+            ),
+            core_runtime=core_runtime,
             error=(
                 f"{type(error).__name__}: "
                 f"{error}"
@@ -281,59 +499,106 @@ async def run_startup_check() -> int:
         )
 
         print(
-            "Startup check failed:",
+            "Local-core startup check failed:",
             type(error).__name__,
             error,
         )
 
         return 1
 
+    finally:
+        await stop_guardian_safely(
+            guardian_runtime,
+            core_runtime,
+        )
+        await core_runtime.shutdown()
+
 
 async def run_standby() -> int:
     """
-    Run NOVA's lightweight local standby process.
+    Run NOVA's provider-independent local core process.
 
-    Guardian window and security monitoring stay active.
-    Gemini Live, microphone streaming, and screen vision stay off.
+    The process owns NovaRuntime for its full lifetime. Guardian window/security
+    monitoring and local integrations attach as failure-isolated subsystems.
+    Gemini Live, microphone streaming, and screen vision stay optional and are
+    not required for this process to remain alive.
     """
 
-    runtime = get_guardian_runtime()
+    core_runtime = build_core_runtime()
+    recover_runtime_tasks(core_runtime)
+
+    guardian_runtime: Any | None = None
 
     try:
-        started = await runtime.start()
+        (
+            guardian_runtime,
+            guardian_available,
+            guardian_started,
+        ) = await start_guardian_safely(
+            core_runtime
+        )
 
         integrations_started = start_integrations_safely()
 
+        core_runtime.health.set(
+            "integrations",
+            (
+                HealthState.HEALTHY
+                if integrations_started
+                else HealthState.DEGRADED
+            ),
+            (
+                "started"
+                if integrations_started
+                else "unavailable"
+            ),
+        )
+
         logger.info(
-            "NOVA entered standby mode. "
-            "Guardian newly started: %s",
-            started,
+            "NOVA local core is running. "
+            "Guardian available: %s; newly started: %s",
+            guardian_available,
+            guardian_started,
         )
 
         while True:
-            status = runtime.safe_summary()
+            status = guardian_summary_safely(
+                guardian_runtime,
+                core_runtime,
+            )
 
             write_status(
                 state="standby",
                 guardian=status,
+                core_runtime=core_runtime,
             )
 
             await asyncio.sleep(10)
 
     except asyncio.CancelledError:
         logger.info(
-            "NOVA standby was cancelled."
+            "NOVA local core was cancelled."
         )
         return 0
 
     except Exception as error:
+        core_runtime.health.set(
+            "runtime",
+            HealthState.FAILED,
+            f"loop:{type(error).__name__}",
+        )
+
         logger.exception(
-            "NOVA standby encountered an error."
+            "NOVA local core encountered an error."
         )
 
         write_status(
             state="standby_error",
-            guardian=runtime.safe_summary(),
+            guardian=guardian_summary_safely(
+                guardian_runtime,
+                core_runtime,
+            ),
+            core_runtime=core_runtime,
             error=(
                 f"{type(error).__name__}: "
                 f"{error}"
@@ -345,21 +610,30 @@ async def run_standby() -> int:
     finally:
         stop_integrations_safely()
 
-        try:
-            await runtime.stop()
+        core_runtime.health.set(
+            "integrations",
+            HealthState.STOPPED,
+            "shutdown",
+        )
 
-        except Exception:
-            logger.exception(
-                "Guardian did not stop normally."
-            )
+        await stop_guardian_safely(
+            guardian_runtime,
+            core_runtime,
+        )
+
+        await core_runtime.shutdown()
 
         write_status(
             state="stopped",
-            guardian=runtime.safe_summary(),
+            guardian=guardian_summary_safely(
+                guardian_runtime,
+                core_runtime,
+            ),
+            core_runtime=core_runtime,
         )
 
         logger.info(
-            "NOVA standby stopped."
+            "NOVA local core stopped."
         )
 
 
@@ -368,7 +642,7 @@ def parse_arguments() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Launch NOVA in local standby mode."
+            "Launch NOVA's provider-independent local core."
         )
     )
 
@@ -376,7 +650,7 @@ def parse_arguments() -> argparse.Namespace:
         "--check",
         action="store_true",
         help=(
-            "Run a short startup test and exit."
+            "Run a short local-core startup test and exit."
         ),
     )
 
@@ -384,18 +658,18 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Start NOVA's standby supervisor."""
+    """Start NOVA's persistent local core supervisor."""
 
     arguments = parse_arguments()
 
     if not acquire_single_instance():
         logger.info(
-            "Another NOVA standby process "
+            "Another NOVA local core process "
             "is already running."
         )
 
         print(
-            "NOVA standby is already running."
+            "NOVA local core is already running."
         )
 
         return 0
@@ -412,7 +686,7 @@ def main() -> int:
 
     except KeyboardInterrupt:
         logger.info(
-            "NOVA standby was stopped manually."
+            "NOVA local core was stopped manually."
         )
 
         return 0

@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-12_
+_Last updated: 2026-09-13_
 
 > **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
 > It is the authoritative handoff: exact Git state, verified test count,
@@ -15,12 +15,18 @@ _Last updated: 2026-09-12_
 > the implemented database schema, known blockers, and the exact next executable
 > step. If it disagrees with the repository, the repository wins — fix the file.
 >
-> **VERIFIED CURRENT (2026-09-12): full suite 914 passed** on the Unified
-> Persistent U1 checkpoint (`lab/nova-unified-persistent-u1-20260910`).
-> Implementation checkpoint: `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`; docs-only closeout:
-> `0274574ae45b350d76603f6199b85fd6bdfe1613`; testing remote only; not promoted to production/main.
-> The earlier counts — 682 at the `cd6e8d0` handoff and 692 after Class
-> cloud-first Phase 1 — are **HISTORICAL**, not current.
+> **VERIFIED CURRENT DEVELOPMENT (2026-09-13): U2.1 local candidate.**
+> Branch: `lab/nova-persistent-runtime-u2-20260912`; base/final U1 HEAD:
+> `0ea0e6158b50d144738ebe5ce852573d9efee0a2`. U2.1 is **not committed or
+> pushed** and is not production/ACTIVE.
+> Verified after the durable-ownership correction: targeted ownership gate
+> **92 passed / 0 failed** and full NOVA suite **924 passed / 0 failed**.
+> The Windows provider-independent startup, live standby health, and
+> single-instance mutex gate also passed.
+> The persistent NOVA Core explicitly owns the canonical durable `TaskStore`;
+> generic/session/worker `NovaRuntime` instances do not implicitly own
+> durable state. U1 remains the latest remote checkpoint until Ahmed approves
+> the U2.1 checkpoint.
 
 ## Mission
 
@@ -30,6 +36,35 @@ calendar, files, and daily productivity. This LiveKit + Gemini Realtime repo
 is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
+
+- [ ] **Unified Persistent NOVA — U2: persistent local runtime/lifecycle
+      (IN PROGRESS; U2.1 VERIFIED LOCAL CANDIDATE / NOT CHECKPOINTED / NOT ACTIVE)** (2026-09-13):
+      U2.1 establishes the provider-independent local composition root in
+      `nova_startup.py`. The persistent NOVA Core explicitly owns the canonical
+      durable `TaskStore` and performs recovery before optional subsystems attach;
+      generic/session/worker `NovaRuntime` instances do not implicitly own
+      canonical durable state. Guardian and integrations are failure-isolated,
+      runtime status/logs live under `%LOCALAPPDATA%\NOVA\runtime`, and the
+      existing Windows mutex prevents duplicate local cores. Verified after the
+      ownership correction: **92 targeted tests passed**, full suite
+      **924 passed / 0 failed**, and the real Windows startup/live-standby/
+      single-instance gate passed. Remaining U2 work includes launcher integration,
+      Windows user-session lifecycle/autostart, longer-lived recovery acceptance,
+      and an explicit Core ↔ provider-session process boundary/IPC.
+      See `docs/UNIFIED-PERSISTENT-U2.md`.
+
+- [ ] **NOVA Engineering Agent V1 — early controlled self-engineering
+      (NEXT AFTER U2.1 CHECKPOINT / PLANNED)** (2026-09-13):
+      move the controlled engineering capability forward instead of waiting for U10.
+      NOVA may inspect an approved Lab/worktree, Git state, diffs, tests, logs,
+      documentation, and known issues; create or use an isolated Lab candidate;
+      modify candidate code; run approved test profiles; diagnose failures;
+      preserve evidence; update engineering documentation; and prepare a tested
+      candidate for Ahmed approval. It must NOT silently modify production, push
+      origin/main, delete branches/worktrees, expose secrets, bypass approval, or
+      promote its own candidate. Engineering Agent V1 should then help execute the
+      remaining U2, U3, U4, and later roadmap work through the same controlled
+      READ → VERIFY → WORK → TEST → LEARN → DOCUMENT → CHECKPOINT process.
 
 - [x] **Unified Persistent NOVA — U1: unify P1 + Class Intelligence (LAB, merge
       VERIFIED LAB CHECKPOINT / NOT ACTIVE)** (2026-09-12, VERIFIED CHECKPOINT): first phase of the Unified Persistent build order, in the

@@ -4,10 +4,16 @@ from .context import RuntimeContext
 from .events import EventBus
 from .health import HealthRegistry, HealthState
 from .jobs import BackgroundJobManager
+from .store import TaskStore
 
 
 class NovaRuntime:
-    def __init__(self, *, max_background_jobs: int = 8) -> None:
+    def __init__(
+        self,
+        *,
+        max_background_jobs: int = 8,
+        task_store: TaskStore | None = None,
+    ) -> None:
         self.events = EventBus()
         self.jobs = BackgroundJobManager(
             self.events,
@@ -15,6 +21,7 @@ class NovaRuntime:
         )
         self.context = RuntimeContext()
         self.health = HealthRegistry()
+        self.task_store: TaskStore | None = task_store
         self.health.set("runtime", HealthState.HEALTHY, "initialized")
         self._closed = False
 

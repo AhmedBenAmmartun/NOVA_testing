@@ -1,17 +1,8 @@
-"""The task runtime must actually be part of the running NOVA.
+"""LiveKit uses nova_runtime without owning canonical durable task state.
 
-`nova_runtime` has been on disk with a working job manager, an event bus, and a
-coherent state machine -- consumed only by `nova_school/automation.py` and the
-school CLI. `agent.py` never imported it, so the agent NOVA that Ahmed actually
-talks to had no task layer at all. Durable background work, restart recovery,
-and eventually the orchestrator all need it wired into the live agent.
-
-These are contract tests over the source, matching the existing convention in
-`tests/test_dashboard_detached_contract.py`: constructing a real LiveKit agent
-session needs a room, credentials, and a live Gemini connection, none of which
-belong in a unit test. What can be proven here is that the wiring exists, that
-it recovers durable state at startup, that it shuts down cleanly, and that it
-does not disturb the tokens the detached-dashboard contract pins.
+The persistent NOVA Core in nova_startup.py owns the canonical TaskStore and
+restart recovery. agent.py still owns its session-local NovaRuntime for jobs,
+events, context, and health, and shuts that runtime down with the LiveKit job.
 """
 
 from __future__ import annotations
@@ -48,13 +39,9 @@ def test_the_runtime_is_constructed_in_the_session() -> None:
     assert "NovaRuntime()" in AGENT_SOURCE
 
 
-def test_durable_task_state_is_recovered_at_startup() -> None:
-    """A restart must not silently forget work that was in flight.
-
-    Recovery is also what reinterprets a task left RUNNING by a process that
-    died -- without this call, that record stays RUNNING forever.
-    """
-    assert "recover()" in AGENT_SOURCE
+def test_session_runtime_does_not_own_canonical_durable_state() -> None:
+    assert "TaskStore(" not in AGENT_SOURCE
+    assert "task_store.recover()" not in AGENT_SOURCE
 
 
 def test_the_runtime_is_shut_down_with_the_job() -> None:
@@ -63,16 +50,6 @@ def test_the_runtime_is_shut_down_with_the_job() -> None:
     assert "runtime.shutdown" in AGENT_SOURCE or "_shutdown_runtime" in AGENT_SOURCE
 
 
-def test_recovery_failure_cannot_stop_nova_from_starting() -> None:
-    """Task state is valuable; being able to talk to NOVA is more valuable.
-
-    A corrupt or unreadable task store must degrade to "no recovered tasks",
-    never to an agent that will not start.
-    """
-    start = AGENT_SOURCE.index("NovaRuntime()")
-    window = AGENT_SOURCE[max(0, start - 800) : start + 1200]
-
-    assert "try:" in window and "except" in window
 
 
 @pytest.mark.parametrize(

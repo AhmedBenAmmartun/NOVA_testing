@@ -5,7 +5,82 @@ here disagrees with the repository, **the repository wins** — update this file
 
 ---
 
-# PART A — VERIFIED CURRENT (2026-09-12)
+# LATEST VERIFIED DEVELOPMENT STATE — U2.1 (2026-09-13)
+
+**Status:** VERIFIED LOCAL CANDIDATE / NOT COMMITTED / NOT PUSHED / NOT ACTIVE.
+
+```
+worktree: C:\Projects\NOVA-Labs\nova-persistent-runtime-u2
+branch:   lab/nova-persistent-runtime-u2-20260912
+base:     0ea0e6158b50d144738ebe5ce852573d9efee0a2
+remote:   none yet for U2.1
+```
+
+Latest remote checkpoint remains U1 on the `testing` remote. U1 final branch HEAD
+is `0ea0e6158b50d144738ebe5ce852573d9efee0a2`; runtime implementation landed at
+`8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`.
+
+## U2.1 verified implementation
+
+- the persistent NOVA Core explicitly owns the canonical durable `TaskStore`;
+  generic/session/worker `NovaRuntime` instances do not implicitly own durable state.
+- the LiveKit worker uses a session-local `NovaRuntime()` and does not recover or
+  write the canonical durable store.
+- `nova_startup.py` creates a provider-independent local `NovaRuntime` before
+  optional Guardian/integration attachment.
+- durable task recovery failure degrades task-store health without killing core.
+- Guardian startup/summary/shutdown failure is isolated and visible in health.
+- runtime logs/status moved out of Git to `%LOCALAPPDATA%\NOVA\runtime`.
+- the existing `Local\NOVAStandbySupervisor` mutex prevents duplicate local-core
+  processes.
+- no provider, LiveKit, Gemini, Groq, OpenAI, or `nova_core` dependency is
+  required for Tier-0 local-core startup.
+
+## U2.1 verification
+
+- pre-change focused runtime baseline: **81 passed**
+- hardened targeted runtime gate: **92 passed**
+- focused P1/U2 reconciliation: **12 passed**
+- final full NOVA suite: **924 passed / 0 failed**
+- real Windows `nova_startup.py --check`: exit **0**
+- duplicate local core: blocked; both process checks exited **0**
+- runtime status: `C:\Users\ahmed\AppData\Local\NOVA\runtime\nova_status.json`
+- `git diff --check`: clean
+- known non-blocking warning: `google.genai.types` Python 3.17 deprecation
+
+## Important boundary — what U2.1 does NOT finish
+
+U2 itself is not complete. Windows logon/autostart integration is not yet
+checkpointed; `Start-NOVA.ps1` has not yet been reconciled around the persistent
+core; the LiveKit worker still owns a session-scoped `NovaRuntime`; and no IPC
+or control plane currently makes an in-memory runtime object cross process
+boundaries. U3 durable Task Manager work remains deferred to U3.
+
+Live Gemini/LiveKit failure behavior remains **NEEDS VERIFICATION**.
+
+## Issues encountered and learned
+
+1. A Windows path-separator comparison in the first U2 patcher rejected the
+   correct worktree (`C:/...` vs `C:\...`). Fixed by resolving both as `Path`.
+2. A hardening guard used `.strip()` on `git status --porcelain`, deleting the
+   first line's leading status column and causing a false changed-path failure.
+   Fixed by preserving porcelain leading whitespace.
+3. P1 had tests pinned to the superseded session-owned durable-recovery mechanism.
+   The ownership correction moved canonical durable state to the persistent NOVA
+   Core; those stale tests were corrected or removed rather than forcing the
+   architecture backward.
+4. The first PowerShell duplicate-process harness returned a blank primary
+   `ExitCode` despite normal process output. The final gate uses
+   `System.Diagnostics.Process`, waits for exit, and reads the real exit code.
+5. The first U2.1 slice still wrote status/logs under repository `logs/` and
+   allowed Guardian startup to be too important. The hardening pass moved state
+   to local runtime storage and made Guardian failure-isolated.
+
+See `docs/UNIFIED-PERSISTENT-U2.md` for the phase record.
+
+---
+
+# PART A — PREVIOUS VERIFIED CHECKPOINT: U1 (2026-09-12)
 
 ## A1. Git state - Unified Persistent U1 checkpoint
 
@@ -30,6 +105,7 @@ cd6e8d0 -> 26adfda (V1A) -> 01409c9 (V1B) -> e1fdbea (V1C)
         -> 5a82049 (P1, checkpointed 2026-09-10, testing remote only)
         -> 8cd7bd1 (U1 implementation checkpoint, testing remote only)
         -> 0274574 (U1 docs-only closeout, no runtime/source changes)
+        -> 0ea0e61 (U1 final documentation reconciliation; final U1 branch HEAD)
 ```
 
 ## A2. Verified test count

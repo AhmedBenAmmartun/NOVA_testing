@@ -20,7 +20,6 @@ from nova_policy import permission_engine
 from nova_os import build_default_capability_manager, build_default_skill_registry
 from nova_learning.runtime import LearningSessionRecorder
 from nova_runtime import HealthState, NovaRuntime
-from nova_runtime.store import TaskStore
 
 load_dotenv(".env.local")
 load_dotenv(".env")
@@ -700,8 +699,9 @@ async def my_agent(ctx: agents.JobContext):
             "capability_kernel": "nova_os",
         },
     ).attach(session)
-    # The one NOVA task runtime. `nova_school` has consumed it for a while; the
-    # agent Ahmed actually talks to had no task layer at all until now.
+    # Session-local runtime for the LiveKit conversation.
+    # Canonical durable task state belongs to the persistent NOVA Core in
+    # nova_startup.py; this session must not become a second TaskStore owner.
     runtime = NovaRuntime()
 
     # The realtime lane gets a health component before any traffic runs,
@@ -718,21 +718,6 @@ async def my_agent(ctx: agents.JobContext):
         realtime_model,
     )
 
-    # Recover durable task state before anything new is dispatched. This is
-    # also what reinterprets a task left RUNNING by a process that died -- the
-    # same reader-verifies-liveness rule the postprocess status file follows.
-    #
-    # Task state is valuable; being able to talk to NOVA is more valuable. A
-    # corrupt or unreadable store degrades to "no recovered tasks", never to an
-    # agent that refuses to start.
-    try:
-        recovered = TaskStore().recover()
-        if recovered:
-            nova_logger.info(
-                "runtime recovered %s task(s) from durable state", len(recovered)
-            )
-    except Exception:
-        nova_logger.exception("durable task recovery failed; starting with none")
 
     async def _shutdown_runtime() -> None:
         await runtime.shutdown()
