@@ -116,6 +116,39 @@ class ClassCloudUsageBudget:
                 self.daily_request_limit,
             )
 
+    def release(self, provider: str) -> None:
+        """Give back one reservation that produced no answer.
+
+        try_consume() reserves before the provider is called, so the cap stays
+        a real ceiling while several class workers run at once. That ordering
+        is only honest if a failed call hands its reservation back. On
+        2026-09-01 it did not: 185 of 200 daily units were reserved while only
+        4 requests were answered, and because the cap is one global total, the
+        unreachable provider spent the healthy provider's share too.
+        """
+
+        if not self.enabled or self.daily_request_limit < 0:
+            # try_consume() wrote no ledger in either case, so there is
+            # nothing to give back and nothing to create.
+            return
+
+        with self._lock:
+            state = self._load_state()
+            providers = state.setdefault("providers", {})
+            reserved = int(providers.get(provider, 0))
+            used = int(state.get("total_requests", 0))
+            if reserved <= 0 or used <= 0:
+                # Either this provider holds no reservation, or the day rolled
+                # over and _load_state() already reset the ledger the
+                # reservation belonged to. Refunding would go negative.
+                return
+            if reserved == 1:
+                providers.pop(provider, None)
+            else:
+                providers[provider] = reserved - 1
+            state["total_requests"] = used - 1
+            self._save_state(state)
+
     def status(self) -> dict[str, Any]:
         with self._lock:
             state = self._load_state()

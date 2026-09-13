@@ -7,13 +7,19 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-09-10_
 
 > **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
-> It is the authoritative handoff: exact Git state, verified test count (682),
+> It is the authoritative handoff: exact Git state, verified test count,
 > architecture decisions, security invariants, the Knowledge/Truth architecture,
 > the implemented database schema, known blockers, and the exact next executable
 > step. If it disagrees with the repository, the repository wins — fix the file.
+>
+> **VERIFIED CURRENT (2026-09-12): full suite 914 passed** on the Unified
+> Persistent U1 candidate (`lab/nova-unified-persistent-u1-20260910`,
+> `HEAD=5a82049`, `MERGE_HEAD=3e53d33`, merge staged and not yet committed).
+> The earlier counts — 682 at the `cd6e8d0` handoff and 692 after Class
+> cloud-first Phase 1 — are **HISTORICAL**, not current.
 
 ## Mission
 
@@ -24,9 +30,43 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
+- [x] **Unified Persistent NOVA — U1: unify P1 + Class Intelligence (LAB, merge
+      staged, NOT committed)** (2026-09-10, VERIFIED IMPLEMENTATION / AWAITING
+      APPROVAL GATE): first phase of the Unified Persistent build order, in the
+      isolated worktree `C:\Projects\NOVA-Labs\nova-unified-persistent`
+      (`lab/nova-unified-persistent-u1-20260910`), based on the P1 checkpoint
+      `5a82049` with Class Intelligence `3e53d33` merged in over the common
+      ancestor `cd6e8d0`. Git reported zero conflicts — exactly one file
+      overlapped (`nova_core/router.py`, where P1's circuit breaker and Class's
+      budget refund had both edited the same two `except` blocks) — but a clean
+      textual merge proved nothing, and one Class test failed immediately
+      (`assert 2 == 10`). Reconciled semantically: the superseded expectation
+      that a dead provider receives all 10 calls was replaced (P1 stops it at
+      the failure threshold) while the actual invariant it protected — a dead
+      provider must not drain the shared class cap — is unchanged and still
+      asserted; Class Intelligence keeps its own `ProviderHealthTracker` as
+      approved internal isolation, pinned by a test; `FakeBudget.release()`
+      added where the merge made it necessary. New
+      `tests/test_nova_unified_budget_circuit.py` pins the reserve/refund/skip
+      contract against the REAL `CloudUsageBudget` and router, including the
+      reachable double-refund case (a provider that answered, then died, then
+      was skipped). Every fix was mutation-checked to confirm it fails against
+      the broken behavior. Verified: full suite **914 passed / 0 failed**
+      (682 ancestor + 198 P1 + 26 Class + 8 new U1 = 914, no regressions),
+      Class files back to their 26-passed pre-merge baseline, tools driver
+      35/35, simulation 16/16. Documentation reconciled three-way with the
+      uncommitted main-worktree docs (snapshotted read-only first; the main
+      worktree was never modified). Live Gemini/LiveKit runtime behavior
+      remains NEEDS VERIFICATION. See `docs/UNIFIED-PERSISTENT-U1.md`.
+      **Next step:** review, then Ahmed's approval to finalize the merge
+      commit. Then U2 (persistent NOVA runtime/lifecycle).
+
 - [x] **Provider Resilience P1 — provider health, circuit breaking, and
-      realtime health reporting (LAB, not checkpointed)** (2026-09-09,
-      VERIFIED IMPLEMENTATION / NO GIT CHECKPOINT YET): built on the frozen P0
+      realtime health reporting (VERIFIED LAB CHECKPOINT)** (2026-09-09,
+      checkpointed 2026-09-10 as commit
+      `5a820497310761056171f0d62ae6bfc41db58635` on
+      `lab/nova-provider-resilience-p1-20260907`, pushed to the `testing`
+      remote only — not origin, not merged, no PR): built on the frozen P0
       checkpoint `b8f59e1` in the isolated worktree
       `C:\Projects\NOVA-Labs\nova-provider-resilience-p1`
       (`lab/nova-provider-resilience-p1-20260907`). Adds
@@ -58,8 +98,9 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       HALF_OPEN generation now proves rate-limit recovery; and Ollama mapped
       429 to `ProviderRequestError` instead of `ProviderRateLimitError`. Live
       Gemini/LiveKit runtime behavior remains NEEDS VERIFICATION. See
-      `docs/PROVIDER-RESILIENCE-P1.md`. **Next step:** Ahmed's approval for a
-      Git checkpoint on this branch.
+      `docs/PROVIDER-RESILIENCE-P1.md`. P1 is checkpointed at
+      `5a820497310761056171f0d62ae6bfc41db58635`; it is now the base of the
+      Unified Persistent U1 candidate.
 
 - [x] **NOVA Lab V1B — model-facing `development` capability (LAB checkpoint)**
       (2026-09-05, VERIFIED CURRENT): added an inactive-by-default
@@ -142,6 +183,78 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       isolation test flaked once during a full run, then passed 3/3 immediately;
       production Class Capture code was unchanged. Next: V1B read/register
       development capability, still without activation/restart authority.
+- [x] **CLASS CLOUD-FIRST MIGRATION — Phase 1: no automatic local fallback**
+      (2026-09-01, *uncommitted*): active class intelligence no longer escalates
+      a cloud failure into heavy local Ollama inference. Root cause was **not**
+      the budget number (already raised 60 → 200 on 2026-08-28, which did not
+      help): `nova_capture/intelligence.py::_route` carried its own hardcoded
+      provider chain ending in `ollama`, and because Ollama is `is_local` the
+      router's cloud-budget gate never applies to it. Both failure modes ended
+      there. Verified from real session logs, not assumption: 2026-08-28 logged
+      215 budget skips for groq *and* openai (the class cap is a single global
+      total, so exhaustion blocks both cloud providers at once) followed by 86
+      ollama selections and 130 ollama failures; 2026-09-01 never reached the
+      cap but, with both cloud providers unreachable, still selected ollama 42
+      times.
+      The fix reuses what already existed rather than adding anything: the cloud
+      tier is now resolved by `ProviderConfiguration.is_local` (so no name-based
+      config can smuggle a local model back in), exhaustion returns `None`, and
+      the **existing** durable evidence queue + degraded status already treat
+      `None` as "keep the evidence, admit reduced intelligence". No new router,
+      queue, scheduler, or vault. `last_class_route_outcome()` now carries the
+      real reason (`class_cloud_budget_exhausted` vs
+      `cloud_providers_unavailable`) into the notes worker `detail`, replacing a
+      status line that claimed "no usable model response" when no model had been
+      called. `NOVA_CLASS_ALLOW_LOCAL_FALLBACK=1` keeps an explicit escape
+      hatch, off by default. **12 new tests; full suite 692 passing.**
+      NOT done at Phase 1, deliberately (**HISTORICAL — RESOLVED BY U1**,
+      2026-09-12): the budget was reserved *before* the provider call and never
+      refunded, and the cap is one global total across providers. On 2026-09-01
+      that burned ~180 of 200 daily units on calls that returned nothing. The
+      2026-09-01 incident evidence is preserved above as the reason the fix was
+      needed. Both halves now exist — Class Intelligence added refund-on-failure
+      and Provider Resilience P1 added the circuit breaker — and U1 reconciled
+      their interaction. See the Phase 2 entry below and
+      `docs/UNIFIED-PERSISTENT-U1.md`.
+- [x] **CLASS CLOUD-FIRST MIGRATION — Phase 2: budget truth — SUPERSEDED /
+      RESOLVED BY U1** (identified 2026-09-01; delivered 2026-09-12 in the
+      Unified Persistent U1 candidate): the original statement, preserved as
+      **HISTORICAL** — "`nova_core/router.py` calls `cloud_budget.try_consume()`
+      before `provider.generate()` and never refunds a failed call, and
+      `ClassCloudUsageBudget` caps on a single `total_requests` across all
+      providers. A permanently failing provider therefore drains the shared cap
+      and forces the (now correct) deferred state far too early. Evaluate a
+      refund-on-failure, per-provider accounting, and a circuit breaker that
+      stops attempting a provider after N consecutive failures."
+
+      **What actually shipped.** Two of the three evaluated items exist and are
+      verified: refund-on-failure (`ModelRouter._release_cloud_budget()`, from
+      the Class line) and the circuit breaker
+      (`nova_core/provider_health.py:ProviderHealthTracker`, from Provider
+      Resilience P1 — opens after `NOVA_PROVIDER_FAILURE_THRESHOLD` consecutive
+      failures, immediately on a rate limit). A permanently failing provider no
+      longer drains the shared cap: once its circuit opens it is skipped
+      *before* any reservation is taken, so it costs neither budget nor latency.
+
+      **Per-provider accounting was NOT adopted** and remains **PLANNED**. The
+      cap stays one global total across providers, which is now safe because a
+      failed or skipped call costs nothing.
+
+      U1 reconciled the interaction between the two halves — they had been
+      developed on separate branches and both edited the same two `except`
+      blocks in `nova_core/router.py`. The contract: a reservation is taken only
+      when NOVA actually calls a provider, so anything that stops NOVA before
+      the call must neither reserve nor refund. Pinned by
+      `tests/test_nova_unified_budget_circuit.py`. See
+      `docs/UNIFIED-PERSISTENT-U1.md` and
+      `[[ADR-006 - Per-Lane Provider Health Isolation]]`.
+- [ ] **CLASS — cloud providers were unreachable on 2026-09-01** (*needs
+      Ahmed's verification*): both `openai` and `groq` report `configured=True`
+      (keys present) but that session logged 46 openai and 38 groq
+      `ProviderUnavailableError`, plus 4 groq `ProviderRequestError`. No live API
+      call was made to diagnose this. Under the old behaviour this produced
+      fabricated local notes; under the new behaviour it means class
+      intelligence defers entirely, so it now needs fixing on its own merits.
 - [x] **SECURITY — unconfirmed code execution chain closed** (2026-08-31,
       *uncommitted*): found by the security threat-model worker, verified
       directly against source. `open_file_or_folder` called
@@ -1464,5 +1577,5 @@ A1 scope:
 
 A1 does not automate REMEMBER/write-back; that remains A2.
 
-A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->

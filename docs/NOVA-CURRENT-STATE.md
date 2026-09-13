@@ -1,12 +1,103 @@
 # NOVA — Authoritative Current State
 
-**Written 2026-08-31. This file is the handoff for the next engineering session.**
 Read this first, then verify it against the repo before trusting it. If anything
 here disagrees with the repository, **the repository wins** — update this file.
 
 ---
 
-## 1. Git state
+# PART A — VERIFIED CURRENT (2026-09-12)
+
+## A1. Git state — Unified Persistent U1 candidate
+
+```
+worktree:    C:\Projects\NOVA-Labs\nova-unified-persistent
+branch:      lab/nova-unified-persistent-u1-20260910
+HEAD:        5a820497310761056171f0d62ae6bfc41db58635
+             (Provider Resilience P1 — VERIFIED LAB CHECKPOINT)
+MERGE_HEAD:  3e53d33bcc49a707725a245d12395be85ba4daf6
+             (Class Intelligence: cloud-first + budget refunds)
+merge base:  cd6e8d00706c002538b1f47320e22a3c0461df44
+merge state: STAGED, NOT COMMITTED
+```
+
+`HEAD` is still P1 because the U1 merge commit has deliberately not been
+created. The merge lives in the index and working tree, awaiting Ahmed's
+approval gate. Nothing is committed or pushed from U1.
+
+Checkpoint lineage, verified with `git merge-base --is-ancestor`:
+
+```
+cd6e8d0 -> 26adfda (V1A) -> 01409c9 (V1B) -> e1fdbea (V1C)
+        -> f7bb1db (A0)  -> f9e4f46 (A1)   -> b8f59e1 (P0)
+        -> 5a82049 (P1, checkpointed 2026-09-10, testing remote only)
+```
+
+## A2. Verified test count
+
+```
+914  full suite on the U1 candidate (2026-09-12, 0 failures)
+```
+
+Arithmetic, all four terms measured rather than estimated:
+
+```
+ 682  common ancestor cd6e8d0
++198  Provider Resilience P1 lineage
+ +26  Class Intelligence
+  +8  new U1 budget x circuit integration tests
+----
+ 914
+```
+
+Lab worktrees have no `venv/` of their own. Run with the primary repo's
+interpreter from the candidate root:
+
+```
+$env:PYTHONIOENCODING = 'utf-8'
+& "C:\Projects\AI Agent\venv\Scripts\python.exe" -m pytest -q
+& "C:\Projects\AI Agent\venv\Scripts\python.exe" ".agents\skills\run-ai-agent\driver.py" tools
+```
+
+Also verified on the candidate: NOVA tools driver 35/35, router/provider
+simulation 16/16, `git diff --check` clean, no secrets staged or committed.
+
+## A3. What U1 changed
+
+Provider Resilience P1 and Class Intelligence had both edited the same two
+`except` blocks in `nova_core/router.py`. Git merged them with zero conflicts,
+which proved nothing — one Class test encoded a mechanism P1 had superseded and
+failed immediately. U1 reconciled that deliberately:
+
+- the obsolete "a dead provider is attempted 10 times" expectation is
+  SUPERSEDED; the invariant it protected (a dead provider must not drain the
+  shared class cap) is unchanged and still asserted;
+- Class Intelligence keeps its own `ProviderHealthTracker` — approved internal
+  isolation, recorded as ADR-006, never a user-facing mode;
+- `tests/test_nova_unified_budget_circuit.py` pins the reserve/refund/skip
+  contract against the real budget and router.
+
+See `docs/UNIFIED-PERSISTENT-U1.md` for the full phase record.
+
+## A4. NEEDS VERIFICATION
+
+- **Live Gemini/LiveKit runtime behavior** — all U1 and P1 evidence is static
+  and unit/integration-level. No live session or real Gemini failure has
+  exercised the realtime health observer.
+- Whether per-lane provider-health isolation survives U4's Intelligence Fabric.
+- Class-specific circuit cooldown tuning, pending real lecture evidence.
+- `test_nova_class_recovery` hard-crash flakiness under full-suite load.
+
+---
+
+# PART B — HISTORICAL (2026-08-31 handoff, SUPERSEDED by Part A)
+
+Preserved because it records how the project reached the current state. These
+numbers and this Git state are **no longer current**. Do not resume from them.
+
+**Written 2026-08-31. This file was the handoff for the next engineering
+session.**
+
+## B1. Git state (HISTORICAL)
 
 ```
 branch:  nova-nextgen-runtime-20260824
@@ -20,13 +111,12 @@ deliberately: the repo's convention is that Ahmed makes his own checkpoint
 commits. Nothing was pushed. `.env` and `.env.bak-121104` are gitignored
 (`.gitignore:2-3`); the only tracked env file is `.env.example`.
 
----
-
-## 2. Verified test count
+## B2. Verified test count (HISTORICAL)
 
 ```
 459  at session start   (this resolved a standing NEEDS VERIFICATION in ROADMAP)
 682  at handoff
+692  after class cloud-first Phase 1 (2026-09-01, uncommitted)
 ```
 
 **+223 tests, 0 failures.** Run with:
@@ -36,6 +126,7 @@ commits. Nothing was pushed. `.env` and `.env.bak-121104` are gitignored
 ```
 
 Every count in `ROADMAP.md` and in this file was observed, not estimated.
+The current verified count is **914** — see Part A2.
 
 ---
 
@@ -292,7 +383,7 @@ checkpoint commit (Ahmed's call — **do not push**).
 # fast affected set while working on ClassContext
 .\venv\Scripts\python.exe -m pytest tests\test_nova_correction_memory.py tests\test_nova_class_corrections.py tests\test_nova_note_review.py -q
 
-# full suite before any checkpoint  (expect 682 passing at handoff)
+# full suite before any checkpoint  (expect 914 as of 2026-09-12; 692 was 2026-09-01)
 .\venv\Scripts\python.exe -m pytest tests\ -q
 ```
 

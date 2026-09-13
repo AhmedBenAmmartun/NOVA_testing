@@ -6,6 +6,65 @@ V1.3.7 — Durable audio, session supervisor, live notes
 
 > Full reliability write-up: `docs/NOVA-CLASS-CAPTURE-RELIABILITY-REPORT.md`
 
+## Routing policy (2026-09-01 — supersedes every "Groq -> OpenAI -> Ollama" line below)
+
+Class Intelligence is **cloud-first and never automatically local**. Everything
+in this file dated before 2026-09-01 that describes a
+`Groq -> OpenAI -> Ollama` chain is HISTORICAL.
+
+```
+class request -> cloud tier (openai, groq) -> deferred
+                                              evidence stays queued
+                                              status says why
+                                              recording never involved
+```
+
+Why it changed: `_route` owned a hardcoded chain ending in `ollama`, and a local
+provider bypasses the router's cloud-budget gate entirely, so both budget
+exhaustion *and* plain provider unavailability escalated into heavy local
+inference during live lectures (2026-08-28: 86 ollama selections after the cap
+was hit; 2026-09-01: 42 ollama selections with the cap untouched and both cloud
+providers unreachable).
+
+Rules now in force, pinned by
+`tests/test_nova_class_cloud_first_intelligence.py`:
+
+- tier membership is decided by `ProviderConfiguration.is_local`, so no
+  configuration value can put a local model back into the automatic path;
+- cloud exhaustion returns `None`, which the existing durable evidence queue and
+  degraded status already handle — deferral is a first-class outcome, not an
+  error;
+- `last_class_route_outcome()` reports `class_cloud_budget_exhausted` or
+  `cloud_providers_unavailable` instead of a generic failure;
+- `NOVA_CLASS_ALLOW_LOCAL_FALLBACK=1` re-enables a local answer, off by default;
+- `NOVA_CLASS_CLOUD_PROVIDER_ORDER` reorders the cloud tier only.
+
+### Cloud budget behaviour (VERIFIED CURRENT, U1 — 2026-09-12)
+
+- a failed cloud call **is refunded**: `try_consume()` still reserves before
+  `provider.generate()` so the cap stays a real ceiling under concurrency, and
+  a call that produced no answer hands its reservation back;
+- a provider whose circuit is **open is skipped before any reservation is
+  taken**, so a dead provider costs neither budget nor latency — it never
+  reaches the ledger at all;
+- the daily cap **remains one global total** shared by all cloud providers.
+  That is now safe precisely because failed and skipped calls cost nothing.
+  Per-provider accounting was evaluated and is **PLANNED**, not required;
+- a request-specific rejection (ordinary 4xx) is refunded like any other
+  failure but deliberately does **not** open the circuit — the provider is
+  reachable, the prompt was the problem.
+
+**HISTORICAL (superseded 2026-09-12):** this section previously read "Still
+open: budget is reserved before the provider call and never refunded, and the
+daily cap is one global total shared by all cloud providers." The refund and
+the circuit breaker both landed; only the global cap remains, by choice.
+
+**NEEDS VERIFICATION:** Class-specific circuit cooldown tuning. Class
+Intelligence runs its own `ProviderHealthTracker` (approved internal isolation
+— see ADR-006), and the default cooldowns (30s transient, 120s rate-limit) have
+not been tuned against real lecture traffic. A long cooldown mid-lecture defers
+questions that a shorter one might have answered.
+
 ## Verified by automated tests
 
 - durable chunked audio in a separate OS process, surviving a hard kill of the

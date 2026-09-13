@@ -114,11 +114,24 @@ class FakeBudgetDecision:
 
 
 class FakeBudget:
-    """Cloud budget stub that always allows, so P1 tests isolate health."""
+    """Cloud budget stub that always allows, so P1 tests isolate health.
+
+    `release()` exists because U1 merged Class Intelligence's refund path into
+    the router: a failed provider now hands its reservation back. Without it
+    the router's `_release_cloud_budget` would raise AttributeError into a
+    defensive `except Exception` and these tests would pass while quietly
+    logging tracebacks.
+    """
+
+    def __init__(self) -> None:
+        self.released: list[str] = []
 
     def try_consume(self, provider: str) -> FakeBudgetDecision:
         _ = provider
         return FakeBudgetDecision()
+
+    def release(self, provider: str) -> None:
+        self.released.append(provider)
 
     def status(self) -> dict[str, object]:
         return {"enabled": True, "used": 0, "limit": 100}

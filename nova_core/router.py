@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from providers import (
+    ModelProvider,
     ProviderError,
     ProviderResponse,
 )
@@ -173,6 +174,41 @@ class ModelRouter:
             tuple(unique_candidates),
         )
 
+    def _release_cloud_budget(
+        self,
+        provider: ModelProvider,
+        provider_name: ProviderName,
+    ) -> None:
+        """
+        Give back an allowance reserved for a call that never answered.
+
+        The allowance is reserved before generate() runs so the daily
+        cap stays a real ceiling when requests overlap. The price of
+        reserving first is that a failed call must hand its
+        reservation back. Class Intelligence pays that price twice
+        over: it walks its cloud tier one provider at a time, so a
+        single question during an outage used to burn one unit per
+        provider and still return nothing.
+        """
+
+        if provider.is_local:
+            # Local providers never consumed the allowance, so there is
+            # nothing to give back.
+            return
+
+        try:
+            self.cloud_budget.release(
+                provider_name.value,
+            )
+
+        except Exception:
+            # A refund is best-effort bookkeeping. It must never turn a
+            # handled provider failure into an unhandled routing crash.
+            logger.exception(
+                "Could not release cloud budget: provider=%s",
+                provider_name.value,
+            )
+
     async def route(
         self,
         prompt: str,
@@ -324,6 +360,11 @@ class ModelRouter:
                     failure_kind.value,
                 )
 
+                self._release_cloud_budget(
+                    provider,
+                    provider_name,
+                )
+
                 attempts.append(
                     RoutingAttempt(
                         provider=provider_name,
@@ -343,6 +384,11 @@ class ModelRouter:
                 logger.exception(
                     "Unexpected provider failure: provider=%s",
                     provider_name.value,
+                )
+
+                self._release_cloud_budget(
+                    provider,
+                    provider_name,
                 )
 
                 attempts.append(

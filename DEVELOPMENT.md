@@ -223,7 +223,9 @@ current guard therefore enforces this invariant before every model call:
 The default envelope is 8,000 request tokens, a 4,000 output reservation and a
 500-token safety margin. Non-ASCII text is estimated conservatively, and the
 post-class process tracks the largest output reservation actually configured for
-its Groq/OpenAI/Ollama fallback path. If one semantic section is too large,
+any provider on its fallback path (the `*_MAX_TOKENS` variables still include
+`OLLAMA_MAX_TOKENS`, because the explicitly-enabled local path can still be
+asked for). If one semantic section is too large,
 `understanding.py` recursively reduces contiguous child groups and then merges
 bounded child summaries; it never sends the oversized parent request. A
 pathological synthetic 90-minute single-topic regression test pins this case.
@@ -242,6 +244,57 @@ generation is a tracked P1 follow-up, not current behaviour.
 **There is no `audio.wav` any more.** Read `audio/manifest.jsonl`, or use
 `nova_capture.audio_chunks.scan_audio_dir()`. Sessions recorded before V1.3.7
 still have `audio.wav` and are never migrated.
+
+### Class Intelligence is cloud-first: it defers, it never goes local
+
+Added 2026-09-01, pinned by `tests/test_nova_class_cloud_first_intelligence.py`.
+
+`nova_capture/intelligence.py::_route` used to carry its own provider chain
+ending in `ollama`. Because Ollama is `is_local`, `nova_core/router.py` skips the
+cloud-budget gate for it entirely, so *every* cloud failure — budget exhausted OR
+provider unreachable — escalated to heavy local inference on the class PC. Real
+sessions: 2026-08-28 logged 215 budget skips for groq *and* openai (the class cap
+is one global total, so it blocks both at once) then selected ollama 86 times;
+2026-09-01 never hit the cap but, with both cloud providers unreachable, still
+selected ollama 42 times.
+
+Current behaviour:
+
+```
+class request -> cloud tier (openai, groq) -> deferred
+                                              evidence stays queued
+                                              status says why
+                                              recording never involved
+```
+
+- The cloud tier is resolved by `ProviderConfiguration.is_local`, **not** a name
+  list, so a local provider cannot re-enter the automatic path — not via
+  `NOVA_CLASS_CLOUD_PROVIDER_ORDER`, and not via `nova_core`'s own
+  `fallback_order` (every class call passes `allow_fallback=False`).
+- `_route` returning `None` is load-bearing, not an error: `live_notes` keeps the
+  batch in its durable queue and goes `degraded`; `understanding` records
+  `degraded_windows`/`reduce_degraded`. Do not change it to raise.
+- `last_class_route_outcome()` carries the truthful reason
+  (`class_cloud_budget_exhausted` vs `cloud_providers_unavailable`);
+  `class_capture.py` puts it in the notes worker `detail` so status stops saying
+  "no usable model response" when no model was ever called.
+- `NOVA_CLASS_ALLOW_LOCAL_FALLBACK=1` re-enables a local answer. It is **off by
+  default and never automatic** — the redesigned emergency-only local path (a
+  much smaller model) is a later phase.
+
+Known amplifier — **HISTORICAL, RESOLVED BY U1 (2026-09-12)**. The incident is
+preserved because it is the evidence that motivated the fix: on 2026-09-01,
+`try_consume` reserved budget *before* the provider call and never refunded it,
+with the cap one global total across providers, and that burned ~180 of 200
+daily units on calls that returned nothing.
+
+Both halves of the fix now exist and are verified. A failed cloud call refunds
+its reservation (`ModelRouter._release_cloud_budget()`), and a provider whose
+circuit has opened is skipped *before* any reservation is taken, so it costs
+neither budget nor latency. The cap is still one global total across providers
+— that is now safe, and per-provider accounting remains PLANNED rather than
+required. See "Budget x circuit interaction" below and
+`docs/UNIFIED-PERSISTENT-U1.md`.
 
 ```powershell
 .\Start-NOVA-Class.ps1 -Course COP3710         # start
@@ -447,6 +500,45 @@ See `.agents/skills/run-ai-agent/SKILL.md` for gotchas and troubleshooting.
 5. Update `AGENTS.md` and `DEVELOPMENT.md` only if the stack, layout, tool count,
    or rules changed.
 
+## Budget x circuit interaction (LAB — Unified Persistent U1)
+
+Provider Resilience P1 and Class Intelligence both edited the same two `except`
+blocks in `nova_core/router.py`. Git merged them without a conflict, which
+proved nothing. The contract that makes them compose:
+
+> A reservation is taken only when NOVA actually calls a provider. Anything
+> that stops NOVA before the call must not reserve, and must therefore not
+> refund either.
+
+Order in `route()` — do not reorder without re-reading
+`tests/test_nova_unified_budget_circuit.py`:
+
+1. circuit admission; an open circuit `continue`s **before** any budget call;
+2. `cloud_budget.try_consume()`;
+3. budget refusal releases the half-open probe slot (no refund — nothing was
+   reserved);
+4. `provider.generate()`;
+5. failure records health **and** refunds via `_release_cloud_budget()`.
+
+`CloudUsageBudget.release()` is guarded and will not drive a counter negative,
+so refunding a provider holding no reservation is a no-op. That is exactly why
+the dangerous case is the one to guard: a provider that already holds a
+legitimate reservation and is later skipped. Refunding there pops a unit that
+funded a real answer and silently inflates the daily cap.
+
+**Two health trackers, on purpose.** `nova_capture.intelligence` builds its own
+router via `create_model_router()`, so Class Intelligence has its own
+`ProviderHealthTracker`. A lecture burning a provider's quota must not silence
+the conversation Ahmed is having. This is internal isolation, never a
+user-facing mode, and P1's one-tracker-per-router invariant still holds inside
+each. Do not collapse them into a global manager without an ADR — that belongs
+to U4's Intelligence Fabric if it happens at all.
+
+**Budget stubs need `release()`.** Any test double standing in for
+`CloudUsageBudget` must implement it, or the router's defensive
+`except Exception` swallows an `AttributeError` and the test passes while
+logging tracebacks.
+
 ## Provider resilience (LAB — Provider Resilience P1, not ACTIVE)
 
 Text providers go through one process-local circuit breaker,
@@ -641,5 +733,5 @@ Integration:
 - `prompts.py`: A1 source-priority, UNKNOWN, SHADOW_ONLY, and no-authority rules.
 - local shadow/test evidence lives outside the repository by default.
 
-A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->

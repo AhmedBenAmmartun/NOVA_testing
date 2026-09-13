@@ -34,7 +34,11 @@ from nova_capture.control import (
     release_active_session,
     wait_for_stop_request,
 )
-from nova_capture.intelligence import LiveQAManager, route_class_prompt
+from nova_capture.intelligence import (
+    LiveQAManager,
+    last_class_route_outcome,
+    route_class_prompt,
+)
 from nova_capture.live_notes import LiveNotesBatcher, LiveNotesWorker
 from nova_capture.pipeline import resolve_class_pipeline
 from nova_capture.postprocess import launch_postprocess
@@ -375,15 +379,27 @@ async def class_capture(ctx: JobContext):
 
             if supervisor is not None:
                 if live_notes is not None:
+                    # "no usable model response" is true but misleading when no
+                    # model was ever called. If class intelligence deferred, say
+                    # so, and say whether it was the budget or an outage.
+                    notes_detail = live_notes.last_error
+                    outcome = last_class_route_outcome()
+                    if outcome is not None and outcome.deferred:
+                        notes_detail = outcome.detail
                     supervisor.set_worker(
                         "notes",
                         {
                             "active": WorkerStatus.ACTIVE,
                             "degraded": WorkerStatus.DEGRADED,
                         }.get(live_notes.status, WorkerStatus.DEGRADED),
-                        detail=live_notes.last_error,
+                        detail=notes_detail,
                         generated=live_notes.generated_count,
                         last_update_seconds=round(live_notes.last_update_seconds, 1),
+                        deferred_reason=(
+                            outcome.reason
+                            if outcome is not None and outcome.deferred
+                            else None
+                        ),
                     )
                 supervisor.set_worker(
                     "speakers",

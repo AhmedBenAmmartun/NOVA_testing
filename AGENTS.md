@@ -266,5 +266,12 @@ graduation bar passes and trusted runtime configuration explicitly opts in.
 A1 grants no approval, Safe Mode bypass, release, production, arbitrary shell,
 or Git-write authority. Automatic REMEMBER/dedupe remains A2 work.
 
-A1 transaction state: UNCOMMITTED - verifier must pass before checkpoint.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->
+
+## NOVA Documentation Protocol
+
+Before significant NOVA work, read and follow `NOVA-DOCUMENTATION-PROTOCOL.md`.
+Read `NOVA - Current Status` and the relevant linked NOVA Vault notes before making architectural assumptions.
+After meaningful implementation/debugging/testing, update the relevant detailed Vault note, issues/ADRs, Current Status, and roadmap/hub when applicable.
+Testing and documentation are both required before calling a NOVA milestone complete.
