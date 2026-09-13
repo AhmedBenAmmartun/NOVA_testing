@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-05_
+_Last updated: 2026-09-12_
 
 ## What this is
 
@@ -266,7 +266,7 @@ graduation bar passes and trusted runtime configuration explicitly opts in.
 A1 grants no approval, Safe Mode bypass, release, production, arbitrary shell,
 or Git-write authority. Automatic REMEMBER/dedupe remains A2 work.
 
-A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the verified Unified Persistent U1 checkpoint `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->
 
 ## NOVA Documentation Protocol

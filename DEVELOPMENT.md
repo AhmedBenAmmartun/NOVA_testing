@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-09_
+_Last updated: 2026-09-12_
 
 ## What this is
 
@@ -50,9 +50,12 @@ nova_knowledge/     course-material extraction + local retrieval index
 nova_learning/      experience capture: schema/store/evaluator/instrument.
                     Wired into agent.py via LearningSessionRecorder
 nova_runtime/       job + task-state foundation (BackgroundJobManager,
-                    TaskSnapshot, JobState, EventBus).
-                    NOT wired into agent.py -- only nova_school/automation.py
-                    and cli.py consume it. See ROADMAP before extending
+                    TaskSnapshot, JobState, EventBus, TaskStore).
+                    Wired into agent.py per LiveKit session: NovaRuntime owns
+                    health/jobs, TaskStore recovery runs before new work, and
+                    runtime shutdown is registered with the job lifecycle.
+                    nova_school/automation.py and cli.py also consume it.
+                    U2 will make the local runtime persist beyond one session.
 nova_lab/           internal development lifecycle primitives: feature state,
                     recoverable lifecycle journal, constrained Git worktrees,
                     allow-listed test profiles, and (V1B) service.py, the
@@ -733,5 +736,5 @@ Integration:
 - `prompts.py`: A1 source-priority, UNKNOWN, SHADOW_ONLY, and no-authority rules.
 - local shadow/test evidence lives outside the repository by default.
 
-A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the verified Unified Persistent U1 checkpoint `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->

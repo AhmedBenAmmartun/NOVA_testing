@@ -7,7 +7,7 @@
 > Dashboard/Valo is a separate project and may integrate later only through a
 > defined external interface. Older dashboard references below may be historical.
 
-_Last updated: 2026-09-10_
+_Last updated: 2026-09-12_
 
 > **Resuming engineering? Read `docs/NOVA-CURRENT-STATE.md` first.**
 > It is the authoritative handoff: exact Git state, verified test count,
@@ -16,8 +16,9 @@ _Last updated: 2026-09-10_
 > step. If it disagrees with the repository, the repository wins — fix the file.
 >
 > **VERIFIED CURRENT (2026-09-12): full suite 914 passed** on the Unified
-> Persistent U1 candidate (`lab/nova-unified-persistent-u1-20260910`,
-> `HEAD=5a82049`, `MERGE_HEAD=3e53d33`, merge staged and not yet committed).
+> Persistent U1 checkpoint (`lab/nova-unified-persistent-u1-20260910`).
+> Implementation checkpoint: `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`; docs-only closeout:
+> `0274574ae45b350d76603f6199b85fd6bdfe1613`; testing remote only; not promoted to production/main.
 > The earlier counts — 682 at the `cd6e8d0` handoff and 692 after Class
 > cloud-first Phase 1 — are **HISTORICAL**, not current.
 
@@ -31,8 +32,7 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
 - [x] **Unified Persistent NOVA — U1: unify P1 + Class Intelligence (LAB, merge
-      staged, NOT committed)** (2026-09-10, VERIFIED IMPLEMENTATION / AWAITING
-      APPROVAL GATE): first phase of the Unified Persistent build order, in the
+      VERIFIED LAB CHECKPOINT / NOT ACTIVE)** (2026-09-12, VERIFIED CHECKPOINT): first phase of the Unified Persistent build order, in the
       isolated worktree `C:\Projects\NOVA-Labs\nova-unified-persistent`
       (`lab/nova-unified-persistent-u1-20260910`), based on the P1 checkpoint
       `5a82049` with Class Intelligence `3e53d33` merged in over the common
@@ -58,8 +58,10 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       uncommitted main-worktree docs (snapshotted read-only first; the main
       worktree was never modified). Live Gemini/LiveKit runtime behavior
       remains NEEDS VERIFICATION. See `docs/UNIFIED-PERSISTENT-U1.md`.
-      **Next step:** review, then Ahmed's approval to finalize the merge
-      commit. Then U2 (persistent NOVA runtime/lifecycle).
+      U1 implementation is checkpointed at `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`; the docs-only
+      closeout is `0274574ae45b350d76603f6199b85fd6bdfe1613`. Both are on the `testing` remote only and U1 is
+      not production/ACTIVE. **Next step:** U2 (persistent NOVA
+      runtime/lifecycle).
 
 - [x] **Provider Resilience P1 — provider health, circuit breaking, and
       realtime health reporting (VERIFIED LAB CHECKPOINT)** (2026-09-09,
@@ -100,7 +102,7 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       Gemini/LiveKit runtime behavior remains NEEDS VERIFICATION. See
       `docs/PROVIDER-RESILIENCE-P1.md`. P1 is checkpointed at
       `5a820497310761056171f0d62ae6bfc41db58635`; it is now the base of the
-      Unified Persistent U1 candidate.
+      verified Unified Persistent U1 checkpoint lineage.
 
 - [x] **NOVA Lab V1B — model-facing `development` capability (LAB checkpoint)**
       (2026-09-05, VERIFIED CURRENT): added an inactive-by-default
@@ -218,7 +220,7 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       `docs/UNIFIED-PERSISTENT-U1.md`.
 - [x] **CLASS CLOUD-FIRST MIGRATION — Phase 2: budget truth — SUPERSEDED /
       RESOLVED BY U1** (identified 2026-09-01; delivered 2026-09-12 in the
-      Unified Persistent U1 candidate): the original statement, preserved as
+      verified Unified Persistent U1 checkpoint): the original statement, preserved as
       **HISTORICAL** — "`nova_core/router.py` calls `cloud_budget.try_consume()`
       before `provider.generate()` and never refunds a failed call, and
       `ClassCloudUsageBudget` caps on a single `total_requests` across all
@@ -1577,5 +1579,5 @@ A1 scope:
 
 A1 does not automate REMEMBER/write-back; that remains A2.
 
-A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the current Unified Persistent U1 candidate. LAB only - NOT production/ACTIVE.
+A1 transaction state: VERIFIED LAB CHECKPOINT - commit `f9e4f46c41c6a8f027f99f5f2efb53f2f0939ffa` (2026-09-06, "Add NOVA A1 Core Intelligence shadow awareness"), confirmed an ancestor of the verified Unified Persistent U1 checkpoint `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`. LAB only - NOT production/ACTIVE.
 <!-- NOVA-A1-CORE-INTELLIGENCE END -->

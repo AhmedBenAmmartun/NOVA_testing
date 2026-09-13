@@ -28,12 +28,14 @@ Checkpoint lineage, verified with `git merge-base --is-ancestor`:
 cd6e8d0 -> 26adfda (V1A) -> 01409c9 (V1B) -> e1fdbea (V1C)
         -> f7bb1db (A0)  -> f9e4f46 (A1)   -> b8f59e1 (P0)
         -> 5a82049 (P1, checkpointed 2026-09-10, testing remote only)
+        -> 8cd7bd1 (U1 implementation checkpoint, testing remote only)
+        -> 0274574 (U1 docs-only closeout, no runtime/source changes)
 ```
 
 ## A2. Verified test count
 
 ```
-914  full suite on the U1 candidate (2026-09-12, 0 failures)
+914  full suite on the U1 implementation checkpoint (2026-09-12, 0 failures)
 ```
 
 Arithmetic, all four terms measured rather than estimated:
