@@ -17,16 +17,15 @@ _Last updated: 2026-09-13_
 >
 > **VERIFIED CURRENT DEVELOPMENT (2026-09-13): U2.1 local candidate.**
 > Branch: `lab/nova-persistent-runtime-u2-20260912`; base/final U1 HEAD:
-> `0ea0e6158b50d144738ebe5ce852573d9efee0a2`. U2.1 is **not committed or
-> pushed** and is not production/ACTIVE.
+> `0ea0e6158b50d144738ebe5ce852573d9efee0a2`. U2.1 implementation checkpoint is `b46c9d536b9e777627beb0d97880a36356e0e0fa` on the `testing` remote only;
+> it is not production/ACTIVE.
 > Verified after the durable-ownership correction: targeted ownership gate
 > **92 passed / 0 failed** and full NOVA suite **924 passed / 0 failed**.
 > The Windows provider-independent startup, live standby health, and
 > single-instance mutex gate also passed.
 > The persistent NOVA Core explicitly owns the canonical durable `TaskStore`;
 > generic/session/worker `NovaRuntime` instances do not implicitly own
-> durable state. U1 remains the latest remote checkpoint until Ahmed approves
-> the U2.1 checkpoint.
+> durable state. U2.1 implementation checkpoint `b46c9d536b9e777627beb0d97880a36356e0e0fa` is now on the `testing` remote only.
 
 ## Mission
 
@@ -38,7 +37,7 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
 ## Current status (reconciled 2026-07-27, updated 2026-08-13, originally verified 2026-07-21)
 
 - [ ] **Unified Persistent NOVA — U2: persistent local runtime/lifecycle
-      (IN PROGRESS; U2.1 VERIFIED LOCAL CANDIDATE / NOT CHECKPOINTED / NOT ACTIVE)** (2026-09-13):
+      (IN PROGRESS; U2.1 VERIFIED TESTING CHECKPOINT / NOT ACTIVE)** (2026-09-13):
       U2.1 establishes the provider-independent local composition root in
       `nova_startup.py`. The persistent NOVA Core explicitly owns the canonical
       durable `TaskStore` and performs recovery before optional subsystems attach;
@@ -54,7 +53,7 @@ is the main NOVA going forward (fast, smooth speech-to-speech voice).
       See `docs/UNIFIED-PERSISTENT-U2.md`.
 
 - [ ] **NOVA Engineering Agent V1 — early controlled self-engineering
-      (NEXT AFTER U2.1 CHECKPOINT / PLANNED)** (2026-09-13):
+      (NEXT / PLANNED)** (2026-09-13):
       move the controlled engineering capability forward instead of waiting for U10.
       NOVA may inspect an approved Lab/worktree, Git state, diffs, tests, logs,
       documentation, and known issues; create or use an isolated Lab candidate;

@@ -7,7 +7,7 @@ here disagrees with the repository, **the repository wins** — update this file
 
 # LATEST VERIFIED DEVELOPMENT STATE — U2.1 (2026-09-13)
 
-**Status:** VERIFIED LOCAL CANDIDATE / NOT COMMITTED / NOT PUSHED / NOT ACTIVE.
+**Status:** VERIFIED TESTING CHECKPOINT / NOT ACTIVE.
 
 ```
 worktree: C:\Projects\NOVA-Labs\nova-persistent-runtime-u2
@@ -16,7 +16,7 @@ base:     0ea0e6158b50d144738ebe5ce852573d9efee0a2
 remote:   none yet for U2.1
 ```
 
-Latest remote checkpoint remains U1 on the `testing` remote. U1 final branch HEAD
+Latest remote checkpoint is U2.1 implementation commit `b46c9d536b9e777627beb0d97880a36356e0e0fa` on the `testing` remote only. U1 final branch HEAD
 is `0ea0e6158b50d144738ebe5ce852573d9efee0a2`; runtime implementation landed at
 `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`.
 

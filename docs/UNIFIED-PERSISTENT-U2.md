@@ -2,15 +2,15 @@
 
 ## Status
 
-**U2.1 VERIFIED LOCAL CANDIDATE / NOT CHECKPOINTED / NOT ACTIVE.**
+**U2.1 VERIFIED TESTING CHECKPOINT / NOT ACTIVE.**
 
 - Worktree: `C:\Projects\NOVA-Labs\nova-persistent-runtime-u2`
 - Branch: `lab/nova-persistent-runtime-u2-20260912`
 - Base: `0ea0e6158b50d144738ebe5ce852573d9efee0a2`
 - U1 implementation: `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`
 - U1 final branch HEAD: `0ea0e6158b50d144738ebe5ce852573d9efee0a2`
-- U2.1 commit: **PENDING AHMED APPROVAL**
-- Remote: **not pushed**
+- U2.1 implementation checkpoint: `b46c9d536b9e777627beb0d97880a36356e0e0fa`
+- Remote: **`testing` only**
 - Production/main: **not active / not promoted**
 
 U2 makes NOVA itself persistent and provider-independent. U2.1 is the first
@@ -233,6 +233,6 @@ U2.1 is a foundation, not the end of U2.
 
 Nothing in U2.1 is committed or pushed as of this document update.
 
-Ahmed must explicitly approve the U2.1 checkpoint before commit/push. The
-testing remote is the only approved checkpoint destination. Production/main is
-untouched.
+Ahmed approved the U2.1 checkpoint on 2026-09-13. Implementation commit
+`b46c9d536b9e777627beb0d97880a36356e0e0fa` is checkpointed on the `testing`
+remote only. Production/main remains untouched.
