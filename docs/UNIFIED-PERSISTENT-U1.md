@@ -2,8 +2,12 @@
 
 ## Status
 
-**LAB / NOT ACTIVE. Merge staged, NOT committed.** Awaiting review and Ahmed's
-approval gate.
+**VERIFIED LAB CHECKPOINT / NOT ACTIVE.**
+
+- Checkpoint: `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c`
+- Remote: `testing` only
+- Production/main: **not promoted**
+- Final checkpoint gate: **914 tests, 0 failures**
 
 U1 is the first phase of the Unified Persistent NOVA build order. It unifies
 the two lines that had diverged from `cd6e8d0` and reconciles the one place

@@ -7,22 +7,20 @@ here disagrees with the repository, **the repository wins** — update this file
 
 # PART A — VERIFIED CURRENT (2026-09-12)
 
-## A1. Git state — Unified Persistent U1 candidate
+## A1. Git state - Unified Persistent U1 checkpoint
 
 ```
 worktree:    C:\Projects\NOVA-Labs\nova-unified-persistent
 branch:      lab/nova-unified-persistent-u1-20260910
-HEAD:        5a820497310761056171f0d62ae6bfc41db58635
-             (Provider Resilience P1 — VERIFIED LAB CHECKPOINT)
-MERGE_HEAD:  3e53d33bcc49a707725a245d12395be85ba4daf6
-             (Class Intelligence: cloud-first + budget refunds)
-merge base:  cd6e8d00706c002538b1f47320e22a3c0461df44
-merge state: STAGED, NOT COMMITTED
+checkpoint:  8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c
+             (Unified Persistent U1 - VERIFIED LAB CHECKPOINT)
+remote:      testing only
+production:  NOT ACTIVE / NOT promoted
 ```
 
-`HEAD` is still P1 because the U1 merge commit has deliberately not been
-created. The merge lives in the index and working tree, awaiting Ahmed's
-approval gate. Nothing is committed or pushed from U1.
+U1 passed its final checkpoint gate with **914 tests, 0 failures**. The verified
+two-parent merge was committed as `8cd7bd1dc8da8ed3b8d6e30af9d76e8f5f68b51c` and pushed only to the `testing`
+remote. It has not been promoted to production/main.
 
 Checkpoint lineage, verified with `git merge-base --is-ancestor`:
 
